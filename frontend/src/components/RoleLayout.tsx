@@ -8,16 +8,18 @@ type Props = { user: DemoUser; onSignOut: () => void }
 
 export function RoleLayout({ user, onSignOut }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
   const items = navigation[user.role]
   const current = items.find((item) => pathname === `/${user.role}${item.path ? `/${item.path}` : ''}`) ?? items[0]
+  const scenario = user.role === 'student' ? new URLSearchParams(search).get('scenario') : null
+  const scenarioQuery = scenario === 'unassigned' || scenario === 'history-only' ? `?scenario=${scenario}` : ''
 
   return (
     <div className="app-shell">
       {menuOpen && <button className="mobile-overlay" aria-label="Đóng menu" onClick={() => setMenuOpen(false)} />}
       <aside className={`sidebar ${menuOpen ? 'sidebar-open' : ''}`}>
         <div className="brand-row">
-          <NavLink to={`/${user.role}`} className="brand" onClick={() => setMenuOpen(false)}>
+          <NavLink to={`/${user.role}${scenarioQuery}`} className="brand" onClick={() => setMenuOpen(false)}>
             <span className="brand-mark">e<span>.</span></span><span>educraft<small>LEARNING SPACE</small></span>
           </NavLink>
           <button className="icon-button mobile-close" aria-label="Đóng menu" onClick={() => setMenuOpen(false)}><X size={20} /></button>
@@ -28,7 +30,7 @@ export function RoleLayout({ user, onSignOut }: Props) {
           {items.map(({ path, label, icon: Icon }) => (
             <NavLink
               key={path}
-              to={`/${user.role}${path ? `/${path}` : ''}`}
+              to={`/${user.role}${path ? `/${path}` : ''}${scenarioQuery}`}
               end={path === ''}
               onClick={() => setMenuOpen(false)}
               className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
