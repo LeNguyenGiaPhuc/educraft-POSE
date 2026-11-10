@@ -25,6 +25,7 @@ export const navigation: Record<Role, NavItem[]> = {
     { path: 'activities', label: 'Hoạt động học tập', description: 'Tạo quiz, tự luận và kiểm tra vở.', icon: ClipboardList },
     { path: 'submissions', label: 'Bài nộp & kết quả', description: 'Theo dõi bài nộp và duyệt kết quả cần chốt.', icon: ClipboardCheck },
     { path: 'progress', label: 'Tiến độ học sinh', description: 'Xem xu hướng điểm và những bài học đang gặp khó.', icon: ChartNoAxesCombined },
+    { path: 'statistics', label: 'Thống kê lớp', description: 'Xem mức tham gia hoạt động theo lớp và môn được phân công.', icon: ChartNoAxesCombined },
     { path: 'schedule', label: 'Lịch môn học', description: 'Công bố lịch hoạt động của môn đang dạy.', icon: CalendarDays },
     { path: 'ai-summary', label: 'Tóm tắt câu hỏi AI', description: 'Xem chủ đề học sinh hỏi trong môn được phân công.', icon: Sparkles },
   ],
