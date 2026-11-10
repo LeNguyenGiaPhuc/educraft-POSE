@@ -1,0 +1,17 @@
+# Local secrets. Keep example files in Git.
+**/.env
+**/.env.*
+!**/.env.example
+
+# Dependencies and generated output.
+**/node_modules/
+**/dist/
+**/build/
+**/coverage/
+
+# Local editor and AI working files.
+/.vscode/
+/.agents/
+/.codex/
+/.superpowers/
+/docs/
