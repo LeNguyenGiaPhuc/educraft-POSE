@@ -1,0 +1,731 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  TEACHER
+  STUDENT
+
+  @@map("user_role")
+}
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("account_status")
+}
+
+enum ClassroomStatus {
+  ACTIVE
+  ARCHIVED
+
+  @@map("classroom_status")
+}
+
+enum PublicationStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+
+  @@map("publication_status")
+}
+
+enum ProcessingStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+
+  @@map("processing_status")
+}
+
+enum ActivityKind {
+  EXERCISE
+  NOTEBOOK_CHECK
+
+  @@map("activity_kind")
+}
+
+enum ActivityStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+
+  @@map("activity_status")
+}
+
+enum ExerciseType {
+  QUIZ
+  WRITTEN
+
+  @@map("exercise_type")
+}
+
+enum DifficultyLevel {
+  BASIC
+  INTERMEDIATE
+  ADVANCED
+
+  @@map("difficulty_level")
+}
+
+enum GradingStatus {
+  PENDING
+  PROCESSING
+  GRADED
+  FAILED
+
+  @@map("grading_status")
+}
+
+enum SubmissionStatus {
+  CURRENT
+  LOCKED
+  FINALIZED
+
+  @@map("submission_status")
+}
+
+enum CriterionStatus {
+  RECORDED
+  NEEDS_SUPPLEMENTATION
+  UNDETERMINED
+
+  @@map("criterion_status")
+}
+
+enum SourcePositionType {
+  PAGE
+  SLIDE
+  PARAGRAPH
+  IMAGE
+
+  @@map("source_position_type")
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+
+  @@map("message_role")
+}
+
+enum ProgressStream {
+  ASSIGNED
+  SELF_PRACTICE
+
+  @@map("progress_stream")
+}
+
+enum ChatTurnStatus {
+  PENDING
+  PROCESSING
+  ANSWERED
+  FAILED
+
+  @@map("chat_turn_status")
+}
+
+model User {
+  id                   String                  @id @default(uuid()) @db.Uuid
+  username             String                  @unique @db.VarChar(100)
+  password_hash        String
+  full_name            String                  @db.VarChar(200)
+  role                 UserRole
+  status               AccountStatus           @default(ACTIVE)
+  must_change_password Boolean                 @default(true)
+  created_at           DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime                @updatedAt @db.Timestamptz(6)
+  teacherProfile       TeacherProfile?
+  enrollments          ClassroomEnrollment[]
+  teachingSubjects     ClassroomSubject[]
+  lessonsCreated       Lesson[]
+  materialsCreated     LearningMaterial[]
+  activitiesCreated    Activity[]
+  exerciseSubmissions  ExerciseSubmission[]
+  practiceSessions     SelfPracticeSession[]
+  notebookSubmissions  NotebookSubmission[]
+  notebookAssessments  NotebookAssessment[]
+  scheduleEvents       ScheduleEvent[]
+  notifications        Notification[]
+  conversations        AIConversation[]
+  promptTopics         SubjectPromptTopic[]
+  scoreResults         LessonScoreResult[]
+  lessonProgress       StudentLessonProgress[]
+
+  @@map("users")
+}
+
+model Subject {
+  id                String             @id @default(uuid()) @db.Uuid
+  name              String             @unique @db.VarChar(150)
+  is_active         Boolean            @default(true)
+  teacherProfiles   TeacherProfile[]
+  classroomSubjects ClassroomSubject[]
+
+  @@map("subjects")
+}
+
+model TeacherProfile {
+  teacher_id             String  @id @db.Uuid
+  qualification          String
+  specialized_subject_id String  @db.Uuid
+  teacher                User    @relation(fields: [teacher_id], references: [id], onDelete: Restrict)
+  specializedSubject     Subject @relation(fields: [specialized_subject_id], references: [id], onDelete: Restrict)
+
+  @@map("teacher_profiles")
+}
+
+model Classroom {
+  id                String                @id @default(uuid()) @db.Uuid
+  name              String                @db.VarChar(100)
+  grade_level       Int                   @db.SmallInt
+  academic_year     String                @db.VarChar(20)
+  status            ClassroomStatus       @default(ACTIVE)
+  created_at        DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime              @updatedAt @db.Timestamptz(6)
+  enrollments       ClassroomEnrollment[]
+  classroomSubjects ClassroomSubject[]
+  conversations     AIConversation[]
+
+  @@unique([name, academic_year])
+  @@map("classrooms")
+}
+
+model ClassroomEnrollment {
+  id           String    @id @default(uuid()) @db.Uuid
+  student_id   String    @db.Uuid
+  classroom_id String    @db.Uuid
+  joined_at    DateTime  @default(now()) @db.Timestamptz(6)
+  left_at      DateTime? @db.Timestamptz(6)
+  student      User      @relation(fields: [student_id], references: [id], onDelete: Restrict)
+  classroom    Classroom @relation(fields: [classroom_id], references: [id], onDelete: Restrict)
+
+  @@index([student_id, joined_at])
+  @@index([classroom_id, left_at])
+  @@map("classroom_enrollments")
+}
+
+model ClassroomSubject {
+  id               String                @id @default(uuid()) @db.Uuid
+  classroom_id     String                @db.Uuid
+  subject_id       String                @db.Uuid
+  teacher_id       String                @db.Uuid
+  classroom        Classroom             @relation(fields: [classroom_id], references: [id], onDelete: Restrict)
+  subject          Subject               @relation(fields: [subject_id], references: [id], onDelete: Restrict)
+  teacher          User                  @relation(fields: [teacher_id], references: [id], onDelete: Restrict)
+  lessons          Lesson[]
+  activities       Activity[]
+  practiceSessions SelfPracticeSession[]
+  scheduleEvents   ScheduleEvent[]
+  promptTopics     SubjectPromptTopic[]
+  aiMessages       AIMessage[]
+  scoreResults     LessonScoreResult[]
+
+  @@unique([classroom_id, subject_id])
+  @@index([teacher_id])
+  @@map("classroom_subjects")
+}
+
+model Lesson {
+  id                   String                   @id @default(uuid()) @db.Uuid
+  classroom_subject_id String                   @db.Uuid
+  title                String                   @db.VarChar(250)
+  status               PublicationStatus        @default(DRAFT)
+  published_at         DateTime?                @db.Timestamptz(6)
+  created_by_id        String                   @db.Uuid
+  created_at           DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime                 @updatedAt @db.Timestamptz(6)
+  classroomSubject     ClassroomSubject         @relation(fields: [classroom_subject_id], references: [id], onDelete: Restrict)
+  createdBy            User                     @relation(fields: [created_by_id], references: [id], onDelete: Restrict)
+  materials            LearningMaterial[]
+  exerciseLinks        ExerciseActivityLesson[]
+  practiceLinks        SelfPracticeLesson[]
+  questions            Question[]
+  scoreResults         LessonScoreResult[]
+  progress             StudentLessonProgress[]
+
+  @@index([classroom_subject_id, status])
+  @@map("lessons")
+}
+
+model LearningMaterial {
+  id            String            @id @default(uuid()) @db.Uuid
+  lesson_id     String            @db.Uuid
+  file_name     String
+  status        PublicationStatus @default(DRAFT)
+  created_by_id String            @db.Uuid
+  created_at    DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime          @updatedAt @db.Timestamptz(6)
+  lesson        Lesson            @relation(fields: [lesson_id], references: [id], onDelete: Restrict)
+  createdBy     User              @relation(fields: [created_by_id], references: [id], onDelete: Restrict)
+  versions      MaterialVersion[]
+
+  @@index([lesson_id, status])
+  @@map("learning_materials")
+}
+
+model MaterialVersion {
+  id                String            @id @default(uuid()) @db.Uuid
+  material_id       String            @db.Uuid
+  version_no        Int
+  storage_key       String            @unique
+  mime_type         String            @db.VarChar(100)
+  byte_size         BigInt
+  processing_status ProcessingStatus  @default(PENDING)
+  uploaded_at       DateTime          @default(now()) @db.Timestamptz(6)
+  published_at      DateTime?         @db.Timestamptz(6)
+  material          LearningMaterial  @relation(fields: [material_id], references: [id], onDelete: Restrict)
+  segments          MaterialSegment[]
+
+  @@unique([material_id, version_no])
+  @@map("material_versions")
+}
+
+model MaterialSegment {
+  id                  String              @id @default(uuid()) @db.Uuid
+  material_version_id String              @db.Uuid
+  position_type       SourcePositionType
+  position_index      Int
+  position_label      String
+  ordinal             Int
+  content             String
+  processing_status   ProcessingStatus    @default(PROCESSED)
+  materialVersion     MaterialVersion     @relation(fields: [material_version_id], references: [id], onDelete: Restrict)
+  questionCitations   QuestionCitation[]
+  answerCitations     AnswerCitation[]
+  messageCitations    AIMessageCitation[]
+
+  @@unique([material_version_id, ordinal])
+  @@map("material_segments")
+}
+
+model Activity {
+  id                   String                 @id @default(uuid()) @db.Uuid
+  classroom_subject_id String                 @db.Uuid
+  created_by_id        String                 @db.Uuid
+  kind                 ActivityKind
+  title                String                 @db.VarChar(250)
+  description          String
+  status               ActivityStatus         @default(DRAFT)
+  published_at         DateTime?              @db.Timestamptz(6)
+  closes_at            DateTime?              @db.Timestamptz(6)
+  created_at           DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime               @updatedAt @db.Timestamptz(6)
+  classroomSubject     ClassroomSubject       @relation(fields: [classroom_subject_id], references: [id], onDelete: Restrict)
+  createdBy            User                   @relation(fields: [created_by_id], references: [id], onDelete: Restrict)
+  exercise             ExerciseActivity?
+  notebookCheck        NotebookCheckActivity?
+  notifications        Notification[]
+
+  @@index([classroom_subject_id, status])
+  @@map("activities")
+}
+
+model ExerciseActivity {
+  activity_id    String                   @id @db.Uuid
+  exercise_type  ExerciseType
+  difficulty     DifficultyLevel
+  question_count Int                      @db.SmallInt
+  activity       Activity                 @relation(fields: [activity_id], references: [id], onDelete: Restrict)
+  lessons        ExerciseActivityLesson[]
+  questions      Question[]
+  submissions    ExerciseSubmission[]
+
+  @@map("exercise_activities")
+}
+
+model ExerciseActivityLesson {
+  activity_id String           @db.Uuid
+  lesson_id   String           @db.Uuid
+  activity    ExerciseActivity @relation(fields: [activity_id], references: [activity_id], onDelete: Restrict)
+  lesson      Lesson           @relation(fields: [lesson_id], references: [id], onDelete: Restrict)
+
+  @@id([activity_id, lesson_id])
+  @@map("exercise_activity_lessons")
+}
+
+model NotebookCheckActivity {
+  activity_id        String                  @id @db.Uuid
+  criteria_locked_at DateTime?               @db.Timestamptz(6)
+  activity           Activity                @relation(fields: [activity_id], references: [id], onDelete: Restrict)
+  referenceFiles     NotebookReferenceFile[]
+  criteria           NotebookCriterion[]
+  periods            NotebookCheckPeriod[]
+
+  @@map("notebook_check_activities")
+}
+
+model NotebookReferenceFile {
+  id          String                @id @default(uuid()) @db.Uuid
+  activity_id String                @db.Uuid
+  storage_key String                @unique
+  mime_type   String                @db.VarChar(100)
+  byte_size   BigInt
+  sort_order  Int                   @db.SmallInt
+  activity    NotebookCheckActivity @relation(fields: [activity_id], references: [activity_id], onDelete: Restrict)
+
+  @@unique([activity_id, sort_order])
+  @@map("notebook_reference_files")
+}
+
+model NotebookCriterion {
+  id          String                @id @default(uuid()) @db.Uuid
+  activity_id String                @db.Uuid
+  content     String
+  order_index Int
+  activity    NotebookCheckActivity @relation(fields: [activity_id], references: [activity_id], onDelete: Restrict)
+  results     CriterionResult[]
+
+  @@unique([activity_id, order_index])
+  @@map("notebook_criteria")
+}
+
+model Question {
+  id                       String               @id @default(uuid()) @db.Uuid
+  exercise_activity_id     String?              @db.Uuid
+  self_practice_session_id String?              @db.Uuid
+  lesson_id                String               @db.Uuid
+  prompt                   String
+  options                  Json?
+  max_points               Decimal              @db.Decimal(8, 2)
+  answer_key               String?
+  marking_criteria         String?
+  explanation              String
+  sort_order               Int
+  exerciseActivity         ExerciseActivity?    @relation(fields: [exercise_activity_id], references: [activity_id], onDelete: Restrict)
+  practiceSession          SelfPracticeSession? @relation(fields: [self_practice_session_id], references: [id], onDelete: Restrict)
+  lesson                   Lesson               @relation(fields: [lesson_id], references: [id], onDelete: Restrict)
+  citations                QuestionCitation[]
+  answers                  StudentAnswer[]
+
+  @@unique([exercise_activity_id, sort_order])
+  @@unique([self_practice_session_id, sort_order])
+  @@map("questions")
+}
+
+model QuestionCitation {
+  question_id String          @db.Uuid
+  segment_id  String          @db.Uuid
+  excerpt     String?
+  question    Question        @relation(fields: [question_id], references: [id], onDelete: Restrict)
+  segment     MaterialSegment @relation(fields: [segment_id], references: [id], onDelete: Restrict)
+
+  @@id([question_id, segment_id])
+  @@map("question_citations")
+}
+
+model ExerciseSubmission {
+  id             String              @id @default(uuid()) @db.Uuid
+  student_id     String              @db.Uuid
+  activity_id    String              @db.Uuid
+  submitted_at   DateTime            @default(now()) @db.Timestamptz(6)
+  grading_status GradingStatus       @default(PENDING)
+  total_score    Decimal?            @db.Decimal(8, 2)
+  graded_at      DateTime?           @db.Timestamptz(6)
+  student        User                @relation(fields: [student_id], references: [id], onDelete: Restrict)
+  activity       ExerciseActivity    @relation(fields: [activity_id], references: [activity_id], onDelete: Restrict)
+  answers        StudentAnswer[]
+  scoreResults   LessonScoreResult[]
+
+  @@unique([student_id, activity_id])
+  @@map("exercise_submissions")
+}
+
+model SelfPracticeSession {
+  id                   String               @id @default(uuid()) @db.Uuid
+  student_id           String               @db.Uuid
+  classroom_subject_id String               @db.Uuid
+  exercise_type        ExerciseType
+  difficulty           DifficultyLevel
+  question_count       Int                  @db.SmallInt
+  status               GradingStatus        @default(PENDING)
+  started_at           DateTime             @default(now()) @db.Timestamptz(6)
+  submitted_at         DateTime?            @db.Timestamptz(6)
+  completed_at         DateTime?            @db.Timestamptz(6)
+  total_score          Decimal?             @db.Decimal(8, 2)
+  student              User                 @relation(fields: [student_id], references: [id], onDelete: Restrict)
+  classroomSubject     ClassroomSubject     @relation(fields: [classroom_subject_id], references: [id], onDelete: Restrict)
+  lessons              SelfPracticeLesson[]
+  questions            Question[]
+  answers              StudentAnswer[]
+  scoreResults         LessonScoreResult[]
+
+  @@index([student_id, started_at])
+  @@map("self_practice_sessions")
+}
+
+model SelfPracticeLesson {
+  session_id String              @db.Uuid
+  lesson_id  String              @db.Uuid
+  session    SelfPracticeSession @relation(fields: [session_id], references: [id], onDelete: Restrict)
+  lesson     Lesson              @relation(fields: [lesson_id], references: [id], onDelete: Restrict)
+
+  @@id([session_id, lesson_id])
+  @@map("self_practice_lessons")
+}
+
+model StudentAnswer {
+  id                       String               @id @default(uuid()) @db.Uuid
+  question_id              String               @db.Uuid
+  exercise_submission_id   String?              @db.Uuid
+  self_practice_session_id String?              @db.Uuid
+  answer                   String
+  earned_points            Decimal?             @db.Decimal(8, 2)
+  explanation              String?
+  grading_status           GradingStatus        @default(PENDING)
+  answered_at              DateTime             @default(now()) @db.Timestamptz(6)
+  question                 Question             @relation(fields: [question_id], references: [id], onDelete: Restrict)
+  exerciseSubmission       ExerciseSubmission?  @relation(fields: [exercise_submission_id], references: [id], onDelete: Restrict)
+  practiceSession          SelfPracticeSession? @relation(fields: [self_practice_session_id], references: [id], onDelete: Restrict)
+  citations                AnswerCitation[]
+
+  @@unique([exercise_submission_id, question_id])
+  @@unique([self_practice_session_id, question_id])
+  @@map("student_answers")
+}
+
+model AnswerCitation {
+  answer_id  String          @db.Uuid
+  segment_id String          @db.Uuid
+  excerpt    String?
+  answer     StudentAnswer   @relation(fields: [answer_id], references: [id], onDelete: Restrict)
+  segment    MaterialSegment @relation(fields: [segment_id], references: [id], onDelete: Restrict)
+
+  @@id([answer_id, segment_id])
+  @@map("answer_citations")
+}
+
+model NotebookCheckPeriod {
+  id          String                @id @default(uuid()) @db.Uuid
+  activity_id String                @db.Uuid
+  period_no   Int
+  opened_at   DateTime              @default(now()) @db.Timestamptz(6)
+  due_at      DateTime              @db.Timestamptz(6)
+  closed_at   DateTime?             @db.Timestamptz(6)
+  activity    NotebookCheckActivity @relation(fields: [activity_id], references: [activity_id], onDelete: Restrict)
+  submissions NotebookSubmission[]
+
+  @@unique([activity_id, period_no])
+  @@map("notebook_check_periods")
+}
+
+model NotebookSubmission {
+  id                String                   @id @default(uuid()) @db.Uuid
+  student_id        String                   @db.Uuid
+  period_id         String                   @db.Uuid
+  submitted_at      DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime                 @updatedAt @db.Timestamptz(6)
+  status            SubmissionStatus         @default(CURRENT)
+  processing_status ProcessingStatus         @default(PENDING)
+  locked_at         DateTime?                @db.Timestamptz(6)
+  student           User                     @relation(fields: [student_id], references: [id], onDelete: Restrict)
+  period            NotebookCheckPeriod      @relation(fields: [period_id], references: [id], onDelete: Restrict)
+  files             NotebookSubmissionFile[]
+  aiDraft           NotebookAIDraft?
+  assessment        NotebookAssessment?
+
+  @@unique([student_id, period_id])
+  @@map("notebook_submissions")
+}
+
+model NotebookSubmissionFile {
+  id            String             @id @default(uuid()) @db.Uuid
+  submission_id String             @db.Uuid
+  storage_key   String             @unique
+  mime_type     String             @db.VarChar(100)
+  byte_size     BigInt
+  sort_order    Int                @db.SmallInt
+  submission    NotebookSubmission @relation(fields: [submission_id], references: [id], onDelete: Restrict)
+
+  @@unique([submission_id, sort_order])
+  @@map("notebook_submission_files")
+}
+
+// Internal, teacher-only OCR and criterion suggestions; never the final result.
+model NotebookAIDraft {
+  submission_id String             @id @db.Uuid
+  ocr_text      String?
+  suggestions   Json
+  generated_at  DateTime           @default(now()) @db.Timestamptz(6)
+  submission    NotebookSubmission @relation(fields: [submission_id], references: [id], onDelete: Cascade)
+
+  @@map("notebook_ai_drafts")
+}
+
+model NotebookAssessment {
+  id              String             @id @default(uuid()) @db.Uuid
+  submission_id   String             @unique @db.Uuid
+  evaluator_id    String             @db.Uuid
+  teacher_comment String?
+  reviewed_at     DateTime           @default(now()) @db.Timestamptz(6)
+  submission      NotebookSubmission @relation(fields: [submission_id], references: [id], onDelete: Restrict)
+  evaluator       User               @relation(fields: [evaluator_id], references: [id], onDelete: Restrict)
+  results         CriterionResult[]
+
+  @@map("notebook_assessments")
+}
+
+model CriterionResult {
+  id            String             @id @default(uuid()) @db.Uuid
+  assessment_id String             @db.Uuid
+  criterion_id  String             @db.Uuid
+  status        CriterionStatus
+  note          String?
+  assessment    NotebookAssessment @relation(fields: [assessment_id], references: [id], onDelete: Restrict)
+  criterion     NotebookCriterion  @relation(fields: [criterion_id], references: [id], onDelete: Restrict)
+
+  @@unique([assessment_id, criterion_id])
+  @@map("criterion_results")
+}
+
+model ScheduleEvent {
+  id                   String           @id @default(uuid()) @db.Uuid
+  classroom_subject_id String           @db.Uuid
+  created_by_id        String           @db.Uuid
+  title                String           @db.VarChar(250)
+  details              String
+  event_type           String           @db.VarChar(80)
+  starts_at            DateTime         @db.Timestamptz(6)
+  published_at         DateTime?        @db.Timestamptz(6)
+  created_at           DateTime         @default(now()) @db.Timestamptz(6)
+  classroomSubject     ClassroomSubject @relation(fields: [classroom_subject_id], references: [id], onDelete: Restrict)
+  createdBy            User             @relation(fields: [created_by_id], references: [id], onDelete: Restrict)
+  notifications        Notification[]
+
+  @@map("schedule_events")
+}
+
+model Notification {
+  id                String         @id @default(uuid()) @db.Uuid
+  recipient_id      String         @db.Uuid
+  schedule_event_id String?        @db.Uuid
+  activity_id       String?        @db.Uuid
+  title             String
+  body              String
+  created_at        DateTime       @default(now()) @db.Timestamptz(6)
+  read_at           DateTime?      @db.Timestamptz(6)
+  recipient         User           @relation(fields: [recipient_id], references: [id], onDelete: Restrict)
+  scheduleEvent     ScheduleEvent? @relation(fields: [schedule_event_id], references: [id], onDelete: Restrict)
+  activity          Activity?      @relation(fields: [activity_id], references: [id], onDelete: Restrict)
+
+  @@unique([recipient_id, schedule_event_id])
+  @@unique([recipient_id, activity_id])
+  @@map("notifications")
+}
+
+model AIConversation {
+  id           String       @id @default(uuid()) @db.Uuid
+  student_id   String       @db.Uuid
+  classroom_id String       @db.Uuid
+  created_at   DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime     @updatedAt @db.Timestamptz(6)
+  student      User         @relation(fields: [student_id], references: [id], onDelete: Restrict)
+  classroom    Classroom    @relation(fields: [classroom_id], references: [id], onDelete: Restrict)
+  turns        AIChatTurn[]
+
+  @@index([student_id, created_at])
+  @@map("ai_conversations")
+}
+
+model AIChatTurn {
+  id              String         @id @default(uuid()) @db.Uuid
+  conversation_id String         @db.Uuid
+  status          ChatTurnStatus @default(PENDING)
+  created_at      DateTime       @default(now()) @db.Timestamptz(6)
+  completed_at    DateTime?      @db.Timestamptz(6)
+  conversation    AIConversation @relation(fields: [conversation_id], references: [id], onDelete: Restrict)
+  messages        AIMessage[]
+
+  @@map("ai_chat_turns")
+}
+
+model AIMessage {
+  id                              String              @id @default(uuid()) @db.Uuid
+  turn_id                         String              @db.Uuid
+  role                            MessageRole
+  content                         String
+  created_at                      DateTime            @default(now()) @db.Timestamptz(6)
+  attributed_classroom_subject_id String?             @db.Uuid
+  turn                            AIChatTurn          @relation(fields: [turn_id], references: [id], onDelete: Restrict)
+  attributedSubject               ClassroomSubject?   @relation(fields: [attributed_classroom_subject_id], references: [id], onDelete: Restrict)
+  citations                       AIMessageCitation[]
+
+  @@unique([turn_id, role])
+  @@map("ai_messages")
+}
+
+model AIMessageCitation {
+  message_id String          @db.Uuid
+  segment_id String          @db.Uuid
+  excerpt    String?
+  message    AIMessage       @relation(fields: [message_id], references: [id], onDelete: Restrict)
+  segment    MaterialSegment @relation(fields: [segment_id], references: [id], onDelete: Restrict)
+
+  @@id([message_id, segment_id])
+  @@map("ai_message_citations")
+}
+
+// One student's topic list for one taught subject and reporting period.
+model SubjectPromptTopic {
+  id                   String           @id @default(uuid()) @db.Uuid
+  student_id           String           @db.Uuid
+  classroom_subject_id String           @db.Uuid
+  period_start         DateTime         @db.Date
+  period_end           DateTime         @db.Date
+  topics               Json
+  prompt_count         Int
+  generated_at         DateTime         @default(now()) @db.Timestamptz(6)
+  student              User             @relation(fields: [student_id], references: [id], onDelete: Restrict)
+  classroomSubject     ClassroomSubject @relation(fields: [classroom_subject_id], references: [id], onDelete: Restrict)
+
+  @@unique([student_id, classroom_subject_id, period_start, period_end])
+  @@map("subject_prompt_topics")
+}
+
+model LessonScoreResult {
+  id                       String                  @id @default(uuid()) @db.Uuid
+  student_id               String                  @db.Uuid
+  classroom_subject_id     String                  @db.Uuid
+  lesson_id                String                  @db.Uuid
+  stream                   ProgressStream
+  exercise_submission_id   String?                 @db.Uuid
+  self_practice_session_id String?                 @db.Uuid
+  earned_points            Decimal                 @db.Decimal(8, 2)
+  max_points               Decimal                 @db.Decimal(8, 2)
+  occurred_at              DateTime                @db.Timestamptz(6)
+  graded_at                DateTime                @db.Timestamptz(6)
+  student                  User                    @relation(fields: [student_id], references: [id], onDelete: Restrict)
+  classroomSubject         ClassroomSubject        @relation(fields: [classroom_subject_id], references: [id], onDelete: Restrict)
+  lesson                   Lesson                  @relation(fields: [lesson_id], references: [id], onDelete: Restrict)
+  exerciseSubmission       ExerciseSubmission?     @relation(fields: [exercise_submission_id], references: [id], onDelete: Restrict)
+  practiceSession          SelfPracticeSession?    @relation(fields: [self_practice_session_id], references: [id], onDelete: Restrict)
+  lastForProgress          StudentLessonProgress[]
+
+  @@unique([exercise_submission_id, lesson_id])
+  @@unique([self_practice_session_id, lesson_id])
+  @@index([student_id, classroom_subject_id, stream, occurred_at])
+  @@map("lesson_score_results")
+}
+
+model StudentLessonProgress {
+  student_id     String            @db.Uuid
+  lesson_id      String            @db.Uuid
+  stream         ProgressStream
+  has_difficulty Boolean           @default(false)
+  last_result_id String            @db.Uuid
+  updated_at     DateTime          @updatedAt @db.Timestamptz(6)
+  student        User              @relation(fields: [student_id], references: [id], onDelete: Restrict)
+  lesson         Lesson            @relation(fields: [lesson_id], references: [id], onDelete: Restrict)
+  lastResult     LessonScoreResult @relation(fields: [last_result_id], references: [id], onDelete: Restrict)
+
+  @@id([student_id, lesson_id, stream])
+  @@map("student_lesson_progress")
+}
