@@ -71,3 +71,29 @@ export const sampleLessons: LessonPreview[] = [
     materials: [{ id: 'material-cmt8-11a1', name: 'Lich-su-11A1.pdf', version: 1, processing: 'PROCESSED', sourcePosition: 'Trang 2–9' }],
   },
 ]
+
+export type TeacherWorkspaceTab = 'lessons' | 'activities' | 'students' | 'statistics'
+
+export function getTeacherSubjectContext(classroomSubjectId?: string, classroomId?: string) {
+  const subject = assignedSubjects.find((item) => item.id === classroomSubjectId && item.teacherId === currentTeacherId)
+  const classroom = assignedClasses.find((item) => item.id === subject?.classroomId)
+  if (!subject || !classroom || (classroomId && classroom.id !== classroomId)) return undefined
+  return { subject, classroom }
+}
+
+export function teacherSubjectPath(classroomSubjectId: string, tab: TeacherWorkspaceTab = 'lessons') {
+  const context = getTeacherSubjectContext(classroomSubjectId)
+  return context ? `/teacher/classes/${context.classroom.id}/subjects/${context.subject.id}?tab=${tab}` : '/teacher/classes'
+}
+
+// Shared with results/progress; keep these IDs stable when extending activity mocks.
+export const teacherActivityIds = ['quiz-11a2', 'written-11a2', 'quiz-postwar-11a2', 'notebook-11a2', 'quiz-11a1'] as const
+
+// Preview records live only for this browser session; callers register after local creation.
+const previewItemScopes = new Set<string>()
+export function registerTeacherPreviewItem(kind: 'lesson' | 'activity', id: string, classroomSubjectId: string) {
+  if (id && getTeacherSubjectContext(classroomSubjectId)) previewItemScopes.add(`${kind}:${classroomSubjectId}:${id}`)
+}
+export function isTeacherPreviewItem(kind: 'lesson' | 'activity', id: string, classroomSubjectId: string) {
+  return previewItemScopes.has(`${kind}:${classroomSubjectId}:${id}`)
+}

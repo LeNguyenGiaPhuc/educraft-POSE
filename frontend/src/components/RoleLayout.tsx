@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ArrowRight, LogOut, Menu, X } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import type { DemoUser } from '../data/demo'
+import { getTeacherSubjectContext } from '../features/teacher/fixtures'
 import { navigation, roleNames } from '../data/navigation'
 
 type Props = { user: DemoUser; onSignOut: () => void }
@@ -10,7 +11,8 @@ export function RoleLayout({ user, onSignOut }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   const { pathname, search } = useLocation()
   const items = navigation[user.role]
-  const current = items.find((item) => pathname === `/${user.role}${item.path ? `/${item.path}` : ''}`) ?? items[0]
+  const current = items.find((item) => pathname === `/${user.role}${item.path ? `/${item.path}` : ''}` || (user.role === 'teacher' && item.path === 'classes' && pathname.startsWith('/teacher/classes/'))) ?? items[0]
+  const teacherContext = user.role === 'teacher' ? getTeacherSubjectContext(pathname.split('/')[5], pathname.split('/')[3]) : undefined
   const scenario = user.role === 'student' ? new URLSearchParams(search).get('scenario') : null
   const scenarioQuery = scenario === 'unassigned' || scenario === 'history-only' ? `?scenario=${scenario}` : ''
 
@@ -45,7 +47,7 @@ export function RoleLayout({ user, onSignOut }: Props) {
       <div className="app-main">
         <header className="topbar">
           <button className="icon-button mobile-menu" aria-label="Mở menu" onClick={() => setMenuOpen(true)}><Menu size={22} /></button>
-          <div className="breadcrumb"><span>Không gian học tập</span><span className="slash">/</span><strong>{current.label}</strong></div>
+          <div className="breadcrumb"><span>Không gian học tập</span><span className="slash">/</span><strong>{current.label}{teacherContext && ` / ${teacherContext.classroom.name} · ${teacherContext.subject.name}`}</strong></div>
           <span className="topbar-right"><span className="live-dot" /> Giao diện mẫu <span className="topbar-avatar">{user.initials}</span></span>
         </header>
         <main className="content"><Outlet /></main>

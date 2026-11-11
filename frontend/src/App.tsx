@@ -5,6 +5,7 @@ import { readDemoSession, saveDemoSession, type DemoUser, type Role } from './da
 import { navigation } from './data/navigation'
 import { LoginPage } from './pages/LoginPage'
 import { OverviewPage } from './pages/OverviewPage'
+import { teacherRouteElements } from './features/teacher/routes'
 import { SectionPage } from './pages/SectionPage'
 
 function App() {
@@ -31,7 +32,7 @@ function App() {
             element={user?.role === role ? <RoleLayout user={user} onSignOut={signOut} /> : <Navigate to={user ? `/${user.role}` : '/login'} replace />}
           >
             <Route index element={<OverviewPage role={role} />} />
-            {navigation[role].filter((item) => item.path !== '').map((item) => (
+            {role === 'teacher' ? teacherRouteElements : navigation[role].filter((item) => item.path !== '').map((item) => (
               <Route key={item.path} path={item.path} element={<SectionPage role={role} section={item} />} />
             ))}
           </Route>

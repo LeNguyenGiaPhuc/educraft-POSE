@@ -17,7 +17,7 @@ export const notebookRecords: NotebookRecord[] = [
 
 export type CriterionDraft = Pick<Criterion, 'id' | 'content' | 'note'> & { status: Criterion['suggested'] }
 
-export const exerciseResults: Record<string, { studentId: string; status: 'GRADED' | 'PROCESSING' | 'MISSING'; score?: number }[]> = {
+export const exerciseResults: Record<string, { studentId: string; status: 'GRADED' | 'PROCESSING' | 'FAILED' | 'MISSING'; score?: number; answer?: string }[]> = {
   'quiz-11a2': [
     { studentId: 'phuc', status: 'GRADED', score: 4.2 },
     { studentId: 'mai', status: 'GRADED', score: 8.6 },
@@ -29,8 +29,8 @@ export const exerciseResults: Record<string, { studentId: string; status: 'GRADE
     { studentId: 'khanh', status: 'MISSING' },
   ],
   'written-11a2': [
-    { studentId: 'phuc', status: 'GRADED', score: 7.6 },
-    { studentId: 'mai', status: 'PROCESSING' },
+    { studentId: 'phuc', status: 'GRADED', score: 7.6, answer: 'Mở ra kỷ nguyên độc lập, tự do và cổ vũ phong trào giải phóng dân tộc.' },
+    { studentId: 'mai', status: 'FAILED', answer: 'Cách mạng tháng Tám mở ra kỷ nguyên độc lập, tự do cho dân tộc.' },
     { studentId: 'khanh', status: 'MISSING' },
   ],
   'quiz-11a1': [

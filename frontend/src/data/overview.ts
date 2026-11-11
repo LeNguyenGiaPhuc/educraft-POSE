@@ -33,7 +33,7 @@ export const overview: Record<Role, Overview> = {
     ],
     focusTitle: 'Cần chú ý hôm nay', focus: [
       { title: 'Kiểm tra vở · 11A2', detail: 'Xem gợi ý AI và chốt kết quả cho bài nộp.', tag: 'BÀI NỘP' },
-      { title: 'Bài học mới · 11A1', detail: 'Chuẩn bị học liệu để học sinh đọc trước.', tag: 'HỌC LIỆU' },
+      { title: 'Bài học đang chuẩn bị · 11A2', detail: 'Xử lý học liệu lỗi trước khi công bố cho học sinh.', tag: 'HỌC LIỆU' },
     ],
   },
   student: {
