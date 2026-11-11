@@ -1,15 +1,11 @@
+import { assignedClasses } from '../fixtures'
+
 export type AssignedSubject = { id: string; classroom: string; subject: string }
 export type Student = { id: string; name: string }
 
-export const assignedSubjects: AssignedSubject[] = [
-  { id: 'history-11a1', classroom: '11A1', subject: 'Lịch sử' },
-  { id: 'history-11a2', classroom: '11A2', subject: 'Lịch sử' },
-]
+export const assignedSubjects: AssignedSubject[] = assignedClasses.flatMap((classroom) => classroom.subjects.map((subject) => ({ id: subject.id, classroom: classroom.name, subject: subject.name })))
 
-export const studentsByClass: Record<string, Student[]> = {
-  '11A1': [{ id: 'an', name: 'Trần Hoàng An' }, { id: 'linh', name: 'Nguyễn Thảo Linh' }, { id: 'bao', name: 'Phạm Gia Bảo' }],
-  '11A2': [{ id: 'phuc', name: 'Lê Gia Phúc' }, { id: 'mai', name: 'Nguyễn Hoàng Mai' }, { id: 'khanh', name: 'Trần Minh Khánh' }],
-}
+export const studentsByClass: Record<string, Student[]> = Object.fromEntries(assignedClasses.map((classroom) => [classroom.name, classroom.students]))
 
 export type ScheduleItem = { id: string; subjectId: string; title: string; details: string; type: string; startsAt: string; published: boolean }
 export const scheduleItems: ScheduleItem[] = [

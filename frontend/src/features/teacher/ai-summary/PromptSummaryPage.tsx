@@ -1,15 +1,19 @@
-import { useState } from 'react'
-import { assignedSubjects, promptTopics, studentsByClass } from '../insights/fixtures'
-import { EmptyState, PreviewNotice, SubjectPicker, TeacherHeading } from '../insights/TeacherUI'
+import { useParams, useSearchParams, Link } from 'react-router'
+import { getTeacherSubjectContext, teacherSubjectPath } from '../fixtures'
+import { promptTopics } from '../insights/fixtures'
+import { EmptyState, PreviewNotice } from '../insights/TeacherUI'
+import { TeacherBackButton } from '../components/TeacherBackButton'
+
+export function StudentPromptTopics({ subjectId, studentId }: { subjectId: string; studentId: string }) {
+  const context = getTeacherSubjectContext(subjectId)
+  const allowed = context?.classroom.students.some(student => student.id === studentId)
+  const topics = allowed ? promptTopics.filter(item => item.subjectId === subjectId && item.studentId === studentId) : []
+  return <section className="ti-card"><h2>Chủ đề đã hỏi AI trong môn</h2><p className="ti-muted">Danh sách dành cho giáo viên; chỉ chủ đề gán rõ môn học, không hiển thị nguyên văn chat.</p>{topics.length ? <ul className="tw-topics">{topics.map(item => <li key={item.id}><strong>{item.topic}</strong><small>Ghi nhận {item.askedAt}</small></li>)}</ul> : <EmptyState title="Chưa có chủ đề được ghi nhận" detail="Học sinh chưa có chủ đề được gán rõ cho môn này trong dữ liệu mẫu." />}</section>
+}
 
 export function PromptSummaryPage() {
-  const [subjectId, setSubjectId] = useState('history-11a2')
-  const subject = assignedSubjects.find((item) => item.id === subjectId)!
-  const students = studentsByClass[subject.classroom]
-  const [studentId, setStudentId] = useState('phuc')
-  const currentStudentId = students.some((item) => item.id === studentId) ? studentId : students[0]?.id
-  const selectedStudent = students.find((item) => item.id === currentStudentId)
-  const topics = promptTopics.filter((item) => item.subjectId === subjectId && item.studentId === currentStudentId)
-
-  return <div className="page-content"><TeacherHeading title="Chủ đề học sinh đã hỏi AI" description="Xem chủ đề các câu hỏi liên quan đến môn mình dạy để biết học sinh đang thắc mắc ở đâu." /><PreviewNotice>Giáo viên chỉ xem chủ đề đã được gán rõ cho môn học. Nội dung tin nhắn riêng tư và câu hỏi không xác định được môn không hiển thị.</PreviewNotice><div className="ti-heading"><SubjectPicker value={subjectId} onChange={setSubjectId} /><label className="ti-picker">Học sinh trong {subject.classroom}<select value={currentStudentId} onChange={(event) => setStudentId(event.target.value)}>{students.map((student) => <option key={student.id} value={student.id}>{student.name}</option>)}</select></label></div><section className="ti-card"><h2>Chủ đề của {selectedStudent?.name} · {subject.subject}</h2>{topics.length ? <div className="ti-detail-list">{topics.map((item) => <div className="ti-row" key={item.id}><div><strong>{item.topic}</strong><small>Ghi nhận {item.askedAt}</small></div><span className="ti-chip">Thuộc môn {subject.subject}</span></div>)}</div> : <EmptyState title="Chưa có chủ đề được ghi nhận" detail="Học sinh có thể chưa hỏi về môn này, hoặc hệ thống chưa xác định rõ môn cho câu hỏi." />}</section><p className="ti-muted ti-margin-top">Danh sách này phục vụ giáo viên tự xem và hỗ trợ học sinh; hệ thống không tự đưa ra nhận định về học sinh.</p></div>
+  const route = useParams()
+  const [params] = useSearchParams()
+  const context = getTeacherSubjectContext(route.classroomSubjectId ?? params.get('classroomSubjectId') ?? undefined, route.classroomId)
+  return <div className="page-content"><TeacherBackButton /><h1>Chủ đề học sinh đã hỏi AI</h1><PreviewNotice />{context ? <ul>{context.classroom.students.map(student => <li key={student.id}><Link to={teacherSubjectPath(context.subject.id).split('?')[0] + '/students/' + student.id}>{student.name} · Xem chủ đề</Link></li>)}</ul> : <EmptyState title="Chọn lớp và môn trước" detail="Mở Lớp của tôi để xem chủ đề đúng phạm vi được phân công." />}</div>
 }
