@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowRight, LogOut, Menu, X } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import type { DemoUser } from '../data/demo'
@@ -16,8 +16,14 @@ export function RoleLayout({ user, onSignOut }: Props) {
   const scenario = user.role === 'student' ? new URLSearchParams(search).get('scenario') : null
   const scenarioQuery = scenario === 'unassigned' || scenario === 'history-only' ? `?scenario=${scenario}` : ''
 
+  const isManagedWorkspace = user.role === 'admin' || user.role === 'teacher'
+
+  useEffect(() => {
+    if (isManagedWorkspace) window.scrollTo(0, 0)
+  }, [isManagedWorkspace, pathname])
+
   return (
-    <div className="app-shell">
+    <div className={`app-shell role-${user.role}`}>
       {menuOpen && <button className="mobile-overlay" aria-label="Đóng menu" onClick={() => setMenuOpen(false)} />}
       <aside className={`sidebar ${menuOpen ? 'sidebar-open' : ''}`}>
         <div className="brand-row">
@@ -40,7 +46,7 @@ export function RoleLayout({ user, onSignOut }: Props) {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="preview-note"><span className="preview-spark">✳</span><div><strong>Bản xem trước</strong><p>Giao diện dùng dữ liệu mẫu. Các chức năng sẽ được kết nối sau.</p></div></div>
+          {!isManagedWorkspace && <div className="preview-note"><span className="preview-spark">✳</span><div><strong>Bản xem trước</strong><p>Giao diện dùng dữ liệu mẫu. Các chức năng sẽ được kết nối sau.</p></div></div>}
           <div className="sidebar-user"><span className="avatar">{user.initials}</span><span className="user-copy"><strong>{user.name}</strong><small>{user.context}</small></span><button className="icon-button logout" onClick={onSignOut} title="Đăng xuất" aria-label="Đăng xuất"><LogOut size={18} /></button></div>
         </div>
       </aside>
@@ -48,7 +54,7 @@ export function RoleLayout({ user, onSignOut }: Props) {
         <header className="topbar">
           <button className="icon-button mobile-menu" aria-label="Mở menu" onClick={() => setMenuOpen(true)}><Menu size={22} /></button>
           <div className="breadcrumb"><span>Không gian học tập</span><span className="slash">/</span><strong>{current.label}{teacherContext && ` / ${teacherContext.classroom.name} · ${teacherContext.subject.name}`}</strong></div>
-          <span className="topbar-right"><span className="live-dot" /> Giao diện mẫu <span className="topbar-avatar">{user.initials}</span></span>
+          <span className="topbar-right">{!isManagedWorkspace && <><span className="live-dot" /> Giao diện mẫu</>}<span className="topbar-avatar">{user.initials}</span></span>
         </header>
         <main className="content"><Outlet /></main>
       </div>

@@ -10,6 +10,7 @@ export type TeacherClassroom = {
   name: string
   academicYear: string
   gradeLevel: number
+  status?: 'ACTIVE' | 'ARCHIVED'
   students: { id: string; name: string }[]
   subjects: AssignedSubject[]
 }
@@ -18,7 +19,7 @@ export const currentTeacherId = 'teacher-minh-anh'
 
 export const assignedClasses: TeacherClassroom[] = [
   {
-    id: 'class-11a1-2026', name: '11A1', academicYear: '2026–2027', gradeLevel: 11,
+    id: 'class-11a1-2026', name: '11A1', academicYear: '2026–2027', gradeLevel: 11, status: 'ACTIVE',
     students: [
       { id: 'an', name: 'Trần Hoàng An' },
       { id: 'linh', name: 'Nguyễn Thảo Linh' },
@@ -27,13 +28,20 @@ export const assignedClasses: TeacherClassroom[] = [
     subjects: [{ id: 'history-11a1', classroomId: 'class-11a1-2026', name: 'Lịch sử', teacherId: currentTeacherId }],
   },
   {
-    id: 'class-11a2-2026', name: '11A2', academicYear: '2026–2027', gradeLevel: 11,
+    id: 'class-11a2-2026', name: '11A2', academicYear: '2026–2027', gradeLevel: 11, status: 'ACTIVE',
     students: [
       { id: 'phuc', name: 'Lê Gia Phúc' },
       { id: 'mai', name: 'Nguyễn Hoàng Mai' },
       { id: 'khanh', name: 'Trần Minh Khánh' },
     ],
     subjects: [{ id: 'history-11a2', classroomId: 'class-11a2-2026', name: 'Lịch sử', teacherId: currentTeacherId }],
+  },
+  {
+    id: 'class-10a1-2025', name: '10A1 (Lưu trữ)', academicYear: '2025–2026', gradeLevel: 10, status: 'ARCHIVED',
+    students: [
+      { id: 'tuan', name: 'Đỗ Anh Tuấn' },
+    ],
+    subjects: [{ id: 'history-10a1-archived', classroomId: 'class-10a1-2025', name: 'Lịch sử', teacherId: currentTeacherId }],
   },
 ]
 
@@ -44,6 +52,7 @@ export type LessonPreview = {
   classroomSubjectId: string
   title: string
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
+  publishedAt?: string | null
   materials: {
     id: string
     name: string
@@ -55,19 +64,23 @@ export type LessonPreview = {
 
 export const sampleLessons: LessonPreview[] = [
   {
-    id: 'lesson-cmt8-11a2', classroomSubjectId: 'history-11a2', title: 'Cách mạng tháng Tám năm 1945', status: 'PUBLISHED',
+    id: 'lesson-cmt8-11a2', classroomSubjectId: 'history-11a2', title: 'Cách mạng tháng Tám năm 1945', status: 'PUBLISHED', publishedAt: '2026-11-01',
     materials: [{ id: 'material-cmt8-slide', name: 'Bai-1-Cach-mang-thang-Tam.pdf', version: 2, processing: 'PROCESSED', sourcePosition: 'Trang 1–12' }],
   },
   {
-    id: 'lesson-viet-nam-11a2', classroomSubjectId: 'history-11a2', title: 'Việt Nam từ 1945 đến 1954', status: 'PUBLISHED',
+    id: 'lesson-viet-nam-11a2', classroomSubjectId: 'history-11a2', title: 'Việt Nam từ 1945 đến 1954', status: 'PUBLISHED', publishedAt: '2026-11-08',
     materials: [{ id: 'material-1945', name: 'Bai-2-Viet-Nam-1945.pptx', version: 1, processing: 'PROCESSED', sourcePosition: 'Slide 1–18' }],
   },
   {
-    id: 'lesson-chuan-bi-11a2', classroomSubjectId: 'history-11a2', title: 'Chuẩn bị bài học tiếp theo', status: 'DRAFT',
+    id: 'lesson-chuan-bi-11a2', classroomSubjectId: 'history-11a2', title: 'Chuẩn bị bài học tiếp theo', status: 'DRAFT', publishedAt: null,
     materials: [{ id: 'material-chuan-bi', name: 'Tai-lieu-chuan-bi.docx', version: 1, processing: 'FAILED', sourcePosition: 'Chưa trích xuất được' }],
   },
   {
-    id: 'lesson-cmt8-11a1', classroomSubjectId: 'history-11a1', title: 'Cách mạng tháng Tám năm 1945', status: 'PUBLISHED',
+    id: 'lesson-archived-11a2', classroomSubjectId: 'history-11a2', title: 'Đề cương bài học mở đầu (Lưu trữ)', status: 'ARCHIVED', publishedAt: '2026-09-15',
+    materials: [{ id: 'material-archived', name: 'De-cuong-mo-dau.pdf', version: 1, processing: 'PROCESSED', sourcePosition: 'Trang 1–5' }],
+  },
+  {
+    id: 'lesson-cmt8-11a1', classroomSubjectId: 'history-11a1', title: 'Cách mạng tháng Tám năm 1945', status: 'PUBLISHED', publishedAt: '2026-11-02',
     materials: [{ id: 'material-cmt8-11a1', name: 'Lich-su-11A1.pdf', version: 1, processing: 'PROCESSED', sourcePosition: 'Trang 2–9' }],
   },
 ]

@@ -2,7 +2,7 @@
 /* oxlint-disable react/only-export-components */
 import { type ComponentType, type ReactNode } from 'react'
 import { Navigate, Route, useLocation, useParams } from 'react-router'
-import { assignedSubjects, getTeacherSubjectContext, isTeacherPreviewItem, sampleLessons, teacherSubjectPath, type TeacherWorkspaceTab } from './fixtures'
+import { assignedClasses, assignedSubjects, currentTeacherId, getTeacherSubjectContext, isTeacherPreviewItem, sampleLessons, teacherSubjectPath, type TeacherWorkspaceTab } from './fixtures'
 import { assignedActivities } from './insights/fixtures'
 import { TeacherBackButton } from './components/TeacherBackButton'
 import { readActivityPreviews } from './activities/activities.mock'
@@ -44,6 +44,13 @@ function TeacherWorkspaceRoute() {
   return <TeacherContextRoute><TeacherSubjectWorkspace /></TeacherContextRoute>
 }
 
+function TeacherClassRoute() {
+  const { classroomId } = useParams()
+  const classroom = assignedClasses.find(item => item.id === classroomId)
+  const firstSubject = classroom?.subjects.find(item => item.teacherId === currentTeacherId)
+  return <Navigate to={firstSubject ? teacherSubjectPath(firstSubject.id) : '/teacher/classes'} replace />
+}
+
 function LegacyTeacherRedirect({ section }: { section: string }) {
   const location = useLocation()
   const query = new URLSearchParams(location.search)
@@ -61,11 +68,14 @@ function LegacyTeacherRedirect({ section }: { section: string }) {
 
 export const teacherRouteElements = <>
   <Route path="classes" element={<><TeacherBackButton fallbackTo="/teacher" /><AssignedClassesPage /></>} />
+  <Route path="classes/:classroomId" element={<TeacherClassRoute />} />
   <Route path="classes/:classroomId/subjects/:classroomSubjectId" element={<TeacherWorkspaceRoute />} />
   <Route path="classes/:classroomId/subjects/:classroomSubjectId/lessons/:lessonId" element={<TeacherContextRoute><LessonsPage /></TeacherContextRoute>} />
   <Route path="classes/:classroomId/subjects/:classroomSubjectId/activities/:activityId" element={<TeacherContextRoute tab="activities"><ActivitiesPage /></TeacherContextRoute>} />
   <Route path="classes/:classroomId/subjects/:classroomSubjectId/students/:studentId" element={<TeacherContextRoute tab="students"><StudentDetailPage /></TeacherContextRoute>} />
+  <Route path="ai-summary" element={<PromptSummaryPage />} />
+  <Route path="ai-summary/:studentId" element={<PromptSummaryPage />} />
   <Route path="calendar" element={<SchedulePage />} />
-  {['lessons', 'activities', 'submissions', 'progress', 'statistics', 'ai-summary', 'schedule'].map((section) => <Route key={section} path={section} element={<LegacyTeacherRedirect section={section} />} />)}
+  {['lessons', 'activities', 'submissions', 'progress', 'statistics', 'schedule'].map((section) => <Route key={section} path={section} element={<LegacyTeacherRedirect section={section} />} />)}
   <Route path="*" element={<Navigate to="/teacher/classes" replace />} />
 </>

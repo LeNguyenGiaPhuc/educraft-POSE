@@ -21,6 +21,7 @@ export const navigation: Record<Role, NavItem[]> = {
   teacher: [
     { path: '', label: 'Tổng quan', description: 'Công việc của các lớp và môn được phân công.', icon: LayoutDashboard },
     { path: 'classes', label: 'Lớp của tôi', description: 'Xem lớp và môn học đang phụ trách.', icon: School },
+    { path: 'ai-summary', label: 'Chủ đề hỏi AI', description: 'Chủ đề học sinh hỏi AI theo môn và lớp đang phụ trách.', icon: Sparkles },
     { path: 'calendar', label: 'Lịch', description: 'Lịch tổng hợp các lớp và môn được phân công.', icon: CalendarDays },
   ],
   student: [

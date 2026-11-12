@@ -20,6 +20,7 @@ export const assignedActivities: AssignedActivity[] = [
   { id: 'written-11a2', subjectId: 'history-11a2', title: 'Tự luận: Ý nghĩa lịch sử', kind: 'WRITTEN', state: 'Đang chấm', submitted: 2, eligible: 3 },
   { id: 'quiz-postwar-11a2', subjectId: 'history-11a2', title: 'Quiz: Việt Nam sau 1945', kind: 'QUIZ', state: 'Đã chấm', submitted: 1, eligible: 3, average: 4.8 },
   { id: 'notebook-11a2', subjectId: 'history-11a2', title: 'Kiểm tra vở: Bài 2', kind: 'NOTEBOOK', state: 'Đã đóng', submitted: 2, eligible: 3 },
+  { id: 'quiz-unsubmitted-11a2', subjectId: 'history-11a2', title: 'Quiz: Chiến dịch Điện Biên Phủ (Chưa có bài nộp)', kind: 'QUIZ', state: 'Đang mở', submitted: 0, eligible: 3 },
   { id: 'quiz-11a1', subjectId: 'history-11a1', title: 'Quiz: Bài 3', kind: 'QUIZ', state: 'Đã chấm', submitted: 2, eligible: 3, average: 6.4 },
 ]
 
@@ -49,6 +50,7 @@ export const promptTopics: PromptTopic[] = [
   { id: 'topic-1', subjectId: 'history-11a2', studentId: 'phuc', topic: 'Bối cảnh Cách mạng tháng Tám', askedAt: '2026-11-05' },
   { id: 'topic-2', subjectId: 'history-11a2', studentId: 'phuc', topic: 'Ý nghĩa của Tổng khởi nghĩa', askedAt: '2026-11-07' },
   { id: 'topic-3', subjectId: 'history-11a2', studentId: 'mai', topic: 'Các mốc thời gian trong bài 2', askedAt: '2026-11-06' },
+  { id: 'topic-archived', subjectId: 'history-10a1-archived', studentId: 'tuan', topic: 'Chủ nghĩa phong kiến phương Đông (Lớp lưu trữ)', askedAt: '2025-10-15' },
 ]
 
 export const criterionLabels = {

@@ -16,8 +16,34 @@ export const sampleActivities: ActivityPreview[] = [
   { id: 'written-11a2', classroomSubjectId: 'history-11a2', title: 'Tự luận: Ý nghĩa lịch sử', type: 'WRITTEN', status: 'CLOSED', closesAt: '2026-11-08T20:00' },
   { id: 'quiz-postwar-11a2', classroomSubjectId: 'history-11a2', title: 'Quiz: Việt Nam sau 1945', type: 'QUIZ', status: 'CLOSED', closesAt: '2026-11-09T20:00' },
   { id: 'notebook-11a2', classroomSubjectId: 'history-11a2', title: 'Kiểm tra vở: Bài 2', type: 'NOTEBOOK', status: 'CLOSED', closesAt: '2026-11-10T20:00' },
+  { id: 'quiz-unsubmitted-11a2', classroomSubjectId: 'history-11a2', title: 'Quiz: Chiến dịch Điện Biên Phủ (Chưa có bài nộp)', type: 'QUIZ', status: 'PUBLISHED', closesAt: '2026-11-30T20:00' },
   { id: 'quiz-11a1', classroomSubjectId: 'history-11a1', title: 'Quiz: Bài 3', type: 'QUIZ', status: 'CLOSED', closesAt: '2026-11-05T20:00' },
 ]
+
+/**
+ * Pure rule: Content editing (questions, options, answers, criteria) is ONLY permitted when 0 submissions exist.
+ */
+export function canEditActivityContent(submittedCount: number): boolean {
+  return submittedCount === 0
+}
+
+/**
+ * Pure rule: Deletion of an activity is ONLY permitted when 0 submissions exist.
+ */
+export function canDeleteActivity(submittedCount: number): boolean {
+  return submittedCount === 0
+}
+
+/**
+ * Helper to compute submission count for an activity
+ */
+export function getActivitySubmissionCount(
+  activityId: string,
+  assignedList: { id: string; submitted: number }[]
+): number {
+  const found = assignedList.find((item) => item.id === activityId)
+  return found ? found.submitted : 0
+}
 
 export type ExerciseQuestion = {
   id: string
@@ -45,6 +71,27 @@ export const exampleQuestions: Record<ExerciseType, ExerciseQuestion[]> = {
 export const difficultyLabels: Record<Difficulty, string> = { BASIC: 'Cơ bản', INTERMEDIATE: 'Trung bình', ADVANCED: 'Nâng cao' }
 
 export const activityPreviewStorageKey = 'educraft-teacher-activity-preview'
+export const activityChangesStorageKey = 'educraft-teacher-activity-changes'
+export type ActivityChanges = {
+  updated: Record<string, ActivityPreview>
+  deleted: string[]
+}
+export function readActivityChanges(): ActivityChanges {
+  try {
+    const value: unknown = JSON.parse(sessionStorage.getItem(activityChangesStorageKey) ?? '{}')
+    if (value && typeof value === 'object') {
+      const data = value as Partial<ActivityChanges>
+      return {
+        updated: data.updated && typeof data.updated === 'object' ? data.updated : {},
+        deleted: Array.isArray(data.deleted) ? data.deleted.filter((id): id is string => typeof id === 'string') : [],
+      }
+    }
+  } catch { /* Ignore an obsolete preview shape. */ }
+  return { updated: {}, deleted: [] }
+}
+export function writeActivityChanges(value: ActivityChanges): void {
+  sessionStorage.setItem(activityChangesStorageKey, JSON.stringify(value))
+}
 export function readActivityPreviews(): ActivityPreview[] {
   try {
     const values: unknown = JSON.parse(sessionStorage.getItem(activityPreviewStorageKey) ?? '[]')

@@ -1,0 +1,297 @@
+/* Admin and Teacher refinement. Student styles intentionally remain untouched. */
+:where(.role-admin,.role-teacher){
+  --workspace-canvas:#f7f8f5;
+  --workspace-surface:#fff;
+  --workspace-ink:#203c31;
+  --workspace-body:#40594c;
+  --workspace-muted:#6f8276;
+  --workspace-soft:#edf3eb;
+  --workspace-line:#dce5dc;
+  --workspace-brand:#246247;
+  --workspace-brand-strong:#194d38;
+  --workspace-radius:14px;
+  color:var(--workspace-body);
+  background:var(--workspace-canvas);
+  font-size:15px;
+}
+
+:where(.role-admin,.role-teacher) .sidebar{
+  width:280px;
+  padding:28px 20px 20px;
+  border-right-color:var(--workspace-line);
+}
+:where(.role-admin,.role-teacher) .app-main{margin-left:280px}
+:where(.role-admin,.role-teacher) .brand-row{padding:0 8px}
+:where(.role-admin,.role-teacher) .brand .brand-mark{width:40px;height:40px;font-size:27px}
+:where(.role-admin,.role-teacher) .brand>span:last-child{font-size:20px;letter-spacing:-.4px}
+:where(.role-admin,.role-teacher) .brand small{font-size:8px;letter-spacing:1.7px;margin-top:3px}
+:where(.role-admin,.role-teacher) .workspace-label{
+  min-height:48px;
+  margin:32px 4px 30px;
+  padding:0 14px;
+  border-radius:12px;
+  font-size:14px;
+}
+:where(.role-admin,.role-teacher) .nav-caption{
+  margin:0 10px 12px;
+  font-size:10px;
+  letter-spacing:1.5px;
+}
+:where(.role-admin,.role-teacher) .main-nav{gap:5px}
+:where(.role-admin,.role-teacher) .nav-link{
+  min-height:46px;
+  gap:13px;
+  padding:11px 13px;
+  border-radius:10px;
+  color:#536a5c;
+  font-size:14px;
+  font-weight:600;
+}
+:where(.role-admin,.role-teacher) .nav-link:hover{background:#f0f5ef}
+:where(.role-admin,.role-teacher) .nav-link.active{background:#e7f0e5;color:var(--workspace-brand-strong)}
+:where(.role-admin,.role-teacher) .sidebar-user{gap:11px;padding:18px 4px 0}
+:where(.role-admin,.role-teacher) .avatar{width:38px;height:38px;font-size:12px}
+:where(.role-admin,.role-teacher) .user-copy strong{font-size:13px;color:var(--workspace-ink)}
+:where(.role-admin,.role-teacher) .user-copy small{font-size:12px;color:var(--workspace-muted);margin-top:3px}
+:where(.role-admin,.role-teacher) .topbar{
+  height:72px;
+  padding:0 48px;
+  border-bottom-color:var(--workspace-line);
+  background:rgba(255,255,255,.88);
+}
+:where(.role-admin,.role-teacher) .breadcrumb{gap:11px;font-size:13px;color:#7d8e83}
+:where(.role-admin,.role-teacher) .breadcrumb strong{color:var(--workspace-ink);font-weight:700}
+:where(.role-admin,.role-teacher) .topbar-right{font-size:13px}
+:where(.role-admin,.role-teacher) .topbar-avatar{width:36px;height:36px;margin-left:0;font-size:12px}
+:where(.role-admin,.role-teacher) .content{max-width:1540px;padding:46px clamp(32px,4.8vw,76px) 80px}
+
+:where(.role-admin,.role-teacher) .page-heading{max-width:820px;margin-bottom:30px}
+:where(.role-admin,.role-teacher) :is(.eyebrow,.section-kicker,.sample-strip){display:none}
+:where(.role-admin,.role-teacher) .page-heading h1{
+  max-width:18ch;
+  margin:0 0 10px;
+  color:var(--workspace-ink);
+  font-size:clamp(34px,3vw,48px);
+  line-height:1.12;
+  letter-spacing:-.035em;
+}
+:where(.role-admin,.role-teacher) .page-heading p{
+  max-width:72ch;
+  margin:0;
+  color:var(--workspace-muted);
+  font-size:16px;
+  line-height:1.65;
+}
+:where(.role-admin,.role-teacher) .metrics{gap:18px;margin-bottom:22px}
+:where(.role-admin,.role-teacher) .metric-card{
+  min-height:164px;
+  padding:26px;
+  border-color:var(--workspace-line);
+  border-radius:var(--workspace-radius);
+}
+:where(.role-admin,.role-teacher) .metric-card p{margin-bottom:16px;color:var(--workspace-muted);font-size:14px}
+:where(.role-admin,.role-teacher) .metric-card strong{color:var(--workspace-brand-strong);font-size:38px;letter-spacing:-.035em}
+:where(.role-admin,.role-teacher) .metric-card small{margin-top:18px;color:#75877b;font-size:13px;line-height:1.5}
+:where(.role-admin,.role-teacher) .overview-grid{grid-template-columns:minmax(0,1.3fr) minmax(300px,.8fr);gap:18px}
+:where(.role-admin,.role-teacher) .panel{padding:26px;border-color:var(--workspace-line);border-radius:var(--workspace-radius)}
+:where(.role-admin,.role-teacher) .panel h2{margin:0 0 20px;color:var(--workspace-ink);font-size:20px;letter-spacing:-.02em}
+:where(.role-admin,.role-teacher) .focus-item{gap:14px;padding:18px 0}
+:where(.role-admin,.role-teacher) .focus-icon{width:38px;height:38px}
+:where(.role-admin,.role-teacher) .focus-item strong{color:var(--workspace-ink);font-size:14px}
+:where(.role-admin,.role-teacher) .focus-item p{margin-top:5px;color:var(--workspace-muted);font-size:13px;line-height:1.5}
+:where(.role-admin,.role-teacher) .focus-tag{font-size:10px;letter-spacing:.5px}
+:where(.role-admin,.role-teacher) .quick-links{gap:5px}
+:where(.role-admin,.role-teacher) .quick-links a{min-height:48px;padding:11px 10px;font-size:14px}
+
+/* Shared task surfaces */
+:where(.role-admin,.role-teacher) :is(button,a,input,select,textarea):focus-visible{
+  outline:3px solid rgba(62,125,87,.34);
+  outline-offset:3px;
+}
+:where(.role-admin,.role-teacher) :is(input,select,textarea){font-size:14px}
+:where(.role-admin,.role-teacher) :is(.adm-card,.ti-card,.tl-card,.ta-editor,.ta-existing,.tc-class-list,.tc-detail,.tc-workspace){
+  border-color:var(--workspace-line);
+  border-radius:var(--workspace-radius);
+}
+:where(.role-admin,.role-teacher) :is(.adm-notice,.ti-notice,.ta-notice,.ta-hint,.tl-preview){font-size:13px;line-height:1.6}
+
+/* Admin */
+.role-admin .adm-page{--adm-ink:var(--workspace-ink);--adm-muted:var(--workspace-muted);--adm-line:var(--workspace-line);--adm-green:var(--workspace-brand)}
+.role-admin .adm-notice{padding:14px 16px;margin-bottom:24px;font-size:13px}
+.role-admin .adm-toolbar{gap:16px;margin-bottom:18px}
+.role-admin .adm-tabs{padding:5px;border-radius:11px}
+.role-admin .adm-tabs button{min-height:40px;padding:9px 18px;font-size:13px}
+.role-admin :is(.adm-primary,.adm-secondary,.adm-text-button,.adm-back,.adm-icon-action){min-height:42px;font-size:13px}
+.role-admin :is(.adm-primary,.adm-secondary){padding-inline:16px}
+.role-admin .adm-layout{grid-template-columns:minmax(0,1.4fr) minmax(340px,.8fr);gap:20px}
+.role-admin .adm-subject-layout{grid-template-columns:minmax(0,1.15fr) minmax(350px,.85fr)}
+.role-admin .adm-card{padding:26px}
+.role-admin .adm-card-head{margin-bottom:22px}
+.role-admin .adm-card h2{margin:0;font-size:21px;letter-spacing:-.02em}
+.role-admin .adm-card h2 small,.role-admin .adm-subheading small{font-size:12px}
+.role-admin :is(.adm-subcopy,.adm-muted){font-size:14px;line-height:1.65}
+.role-admin .adm-subcopy{margin:7px 0 20px}
+.role-admin .adm-filters{gap:10px;margin-bottom:16px}
+.role-admin :is(.adm-search,.adm-filter){min-height:44px;padding-inline:12px}
+.role-admin .adm-search input{font-size:14px}
+.role-admin .adm-filter select{font-size:13px}
+.role-admin .adm-row{gap:13px;padding:15px 10px}
+.role-admin .adm-row-copy strong{font-size:14px}
+.role-admin .adm-row-copy small{margin-top:4px;font-size:12px}
+.role-admin :is(.adm-avatar,.adm-class-badge){width:42px;height:42px;font-size:12px}
+.role-admin .adm-class-badge{width:48px}
+.role-admin .adm-status{padding:6px 9px;font-size:10px}
+.role-admin .adm-facts>div{padding:13px 0;font-size:13px}
+.role-admin .adm-actions{gap:10px;margin-top:22px}
+.role-admin :is(.adm-inline-note,.adm-readonly){padding:12px 14px;font-size:13px;line-height:1.6}
+.role-admin .adm-empty strong{font-size:14px}
+.role-admin .adm-empty p{font-size:13px;line-height:1.6}
+.role-admin .adm-form-card{max-width:980px;padding:30px}
+.role-admin .adm-form-card h2{margin:0 0 10px;font-size:26px}
+.role-admin .adm-form-grid{gap:20px}
+.role-admin :is(.adm-form-grid label,.adm-form-stack label,.adm-field){gap:8px;font-size:13px}
+.role-admin :is(.adm-form-grid input,.adm-form-grid select,.adm-form-stack select,.adm-field input,.adm-field select,.adm-inline-form select){min-height:46px;padding-inline:13px;font-size:14px}
+.role-admin :is(.adm-errors,.adm-preview){padding:13px 15px;font-size:13px;line-height:1.6}
+.role-admin .adm-preview strong{font-size:14px}
+.role-admin .adm-preview p,.role-admin .adm-preview small{font-size:13px}
+.role-admin .adm-subheading{margin:22px 0 12px;font-size:14px}
+.role-admin .adm-mini-list>div{min-height:42px;padding:9px 0;font-size:13px}
+.role-admin .adm-mini-list>div>small{font-size:12px}
+.role-admin .adm-member-box{margin-top:22px;padding-top:20px}
+.role-admin .adm-member-box h3{font-size:15px}
+.role-admin .adm-member-box>p{font-size:13px;line-height:1.6}
+.role-admin .adm-file-label{min-height:42px;font-size:13px}
+.role-admin .adm-roster>strong{font-size:13px}
+.role-admin .adm-roster>div{padding:9px 0;font-size:12px}
+.role-admin .adm-subject-item{padding:14px}
+.role-admin .adm-subject-item strong{font-size:14px}
+.role-admin .adm-subject-item small{font-size:12px}
+.role-admin .adm-catalog>div span{font-size:12px}
+
+/* Teacher */
+.role-teacher :is(.ti-heading,.tl-page>.page-heading){margin-bottom:28px}
+.role-teacher .ti-heading h1{font-size:clamp(32px,3vw,44px);letter-spacing:-.035em}
+.role-teacher .ti-heading p{max-width:72ch;font-size:15px;line-height:1.65}
+.role-teacher :is(.ti-picker,.tc-toolbar,.tl-toolbar,.ta-top){gap:12px;margin-bottom:22px}
+.role-teacher :is(.ti-picker label,.tc-toolbar label,.tl-toolbar label,.ta-top label){font-size:13px}
+.role-teacher :is(.ti-picker select,.ti-field input,.ti-field select,.ti-field textarea,.ti-select,.tc-toolbar select,.tl-toolbar select,.tl-editor input,.ta-top select,.ta-field input,.ta-field select,.ta-field textarea){min-height:44px;font-size:14px}
+.role-teacher .ti-card{padding:24px}
+.role-teacher .ti-card h2{font-size:20px;letter-spacing:-.02em}
+.role-teacher .ti-card h3{font-size:16px}
+.role-teacher .ti-muted{font-size:13px;line-height:1.65}
+.role-teacher .ti-row{padding:14px 0}
+.role-teacher .ti-row strong{font-size:14px}
+.role-teacher .ti-row small{font-size:12px;line-height:1.55}
+.role-teacher .ti-chip{font-size:12px}
+.role-teacher .ti-button{min-height:42px;font-size:13px}
+.role-teacher .ti-field{gap:8px;font-size:13px}
+.role-teacher .ti-field textarea{min-height:110px}
+.role-teacher .ti-table th{font-size:11px}
+.role-teacher .ti-table th,.role-teacher .ti-table td{padding:13px 12px;font-size:13px}
+.role-teacher .ti-list-button{min-height:50px;padding:12px 14px}
+.role-teacher .ti-list-button strong{font-size:14px}
+.role-teacher .ti-list-button small{font-size:12px}
+.role-teacher .ti-stat{padding:20px}
+.role-teacher .ti-stat strong{font-size:28px}
+.role-teacher .ti-stat span{font-size:12px}
+.role-teacher .tc-toolbar{align-items:end}
+.role-teacher .tc-layout{grid-template-columns:minmax(250px,.72fr) minmax(0,1.8fr);gap:20px}
+.role-teacher .tc-class-list,.role-teacher .tc-detail{padding:24px}
+.role-teacher .tc-section-title h2{font-size:19px}
+.role-teacher .tc-section-title span{font-size:12px}
+.role-teacher .tc-class-items button{min-height:64px;padding:14px}
+.role-teacher .tc-class-items small{font-size:12px}
+.role-teacher .tc-hero{padding:28px}
+.role-teacher .tc-hero h2{color:#fff;font-size:28px}
+.role-teacher .tc-hero p{color:#cfe0d7;font-size:14px}
+.role-teacher .tc-overline{font-size:11px}
+.role-teacher .tc-subjects button{min-height:68px;padding:15px}
+.role-teacher .tc-subjects small{font-size:12px}
+.role-teacher .tc-workspace{padding:24px}
+.role-teacher .tc-workspace p{font-size:13px}
+.role-teacher .tc-links a{min-height:45px;padding:12px 13px;font-size:13px}
+.role-teacher .tc-roster li{padding:12px 0;font-size:13px}
+.role-teacher .tw-class-header h1{font-size:22px;font-weight:700;letter-spacing:-.02em}
+.role-teacher .tw-class-header p{font-size:15px;line-height:1.55}
+.role-teacher .tw-subject-picker h2{font-size:17px;font-weight:600}
+.role-teacher .tw-subject-picker a{min-height:44px;padding:11px 16px;font-size:14px}
+.role-teacher .tw-tabs{gap:6px;margin-bottom:26px}
+.role-teacher .tw-tabs a{min-height:44px;padding:11px 15px;font-size:13px}
+.role-teacher .tw-search{gap:10px}
+.role-teacher .tw-search label{font-size:13px}
+.role-teacher .tw-search input{min-height:44px;font-size:14px}
+.role-teacher .tw-students a{min-height:52px;padding:13px 14px;font-size:14px}
+.role-teacher .tw-students span{font-size:12px}
+.role-teacher .tw-topics li{padding:14px 0;font-size:13px}
+.role-teacher .tl-toolbar{gap:12px}
+.role-teacher .tl-main-button{min-height:44px;font-size:13px}
+.role-teacher .tl-summary{font-size:13px}
+.role-teacher .tl-list{gap:18px}
+.role-teacher .tl-card{padding:24px}
+.role-teacher .tl-card h2{font-size:19px}
+.role-teacher .tl-title-button{padding:0;border:0;background:transparent;color:inherit;font:inherit;font-weight:700;text-align:left;cursor:pointer}
+.role-teacher .tl-card-head p,.role-teacher .tl-card>p,.role-teacher .tl-help{font-size:13px;line-height:1.65}
+.role-teacher .tl-tag{font-size:12px}
+.role-teacher .tl-card li,.role-teacher .tl-material-list li{padding:14px 0;font-size:13px}
+.role-teacher .tl-card li small,.role-teacher .tl-material-list small{font-size:12px}
+.role-teacher .tl-actions button{min-height:42px;font-size:13px}
+.role-teacher .ta-create-grid{gap:14px}
+.role-teacher .ta-create-grid button{min-height:112px;padding:20px}
+.role-teacher .ta-create-grid strong{font-size:15px}
+.role-teacher .ta-create-grid span{font-size:13px;line-height:1.55}
+.role-teacher .ta-existing{padding:24px}
+.role-teacher .ta-existing h2{font-size:20px}
+.role-teacher .ta-existing>p{font-size:13px}
+.role-teacher .ta-activity-row{padding:15px 0}
+.role-teacher .ta-activity-row strong{font-size:14px}
+.role-teacher .ta-activity-row small{font-size:12px;line-height:1.55}
+.role-teacher .ta-status{font-size:12px}
+.role-teacher .ta-activity-row button,.role-teacher .ta-secondary{min-height:40px;font-size:13px}
+.role-teacher .ta-editor{max-width:1040px;padding:30px}
+.role-teacher .ta-back{font-size:13px}
+.role-teacher .ta-step{display:none}
+.role-teacher .ta-editor-head h2{font-size:28px}
+.role-teacher .ta-editor-head p{font-size:14px;line-height:1.65}
+.role-teacher .ta-editor form{gap:20px}
+.role-teacher .ta-field{gap:8px}
+.role-teacher .ta-field label{font-size:13px}
+.role-teacher .ta-field textarea{min-height:118px}
+.role-teacher .ta-primary{min-height:44px;font-size:13px}
+.role-teacher .ta-question{padding:20px}
+.role-teacher .ta-reference,.role-teacher .ta-criterion{padding:18px}
+.role-teacher .ta-reference label,.role-teacher .ta-criteria-head h3{font-size:16px}
+.role-teacher .ta-reference p,.role-teacher .ta-reference li,.role-teacher .ta-criteria-head p{font-size:13px;line-height:1.6}
+.role-teacher .ta-history-filters label{font-size:13px}
+.role-teacher .ta-history-filters input,.role-teacher .ta-history-filters select{min-height:42px;font-size:13px}
+.role-teacher .tc-month-heading h2{font-size:24px}
+.role-teacher .tc-weekday{font-size:12px}
+.role-teacher .tc-day{min-height:124px;padding:10px}
+.role-teacher .tc-day-summary{font-size:12px;line-height:1.45}
+.role-teacher :is(.tl-card,.ta-existing,.tw-statistics,.tw-students) small{font-size:12px;line-height:1.55}
+.role-teacher :is(.tl-text-button,.processed){font-size:12px}
+.role-teacher .tw-statistics>.page-heading,
+.role-teacher .tw-page>section>.page-heading{margin-bottom:22px}
+
+@media(max-width:1180px){
+  :where(.role-admin,.role-teacher) .sidebar{width:246px}
+  :where(.role-admin,.role-teacher) .app-main{margin-left:246px}
+  :where(.role-admin,.role-teacher) .content{padding-inline:32px}
+  .role-admin .adm-layout,.role-admin .adm-subject-layout{grid-template-columns:1fr}
+  .role-teacher .tc-layout{grid-template-columns:1fr}
+}
+
+@media(max-width:760px){
+  :where(.role-admin,.role-teacher) .sidebar{width:min(300px,88vw)}
+  :where(.role-admin,.role-teacher) .app-main{margin-left:0}
+  :where(.role-admin,.role-teacher) .topbar{height:62px;padding:0 18px}
+  :where(.role-admin,.role-teacher) .content{padding:30px 18px 60px}
+  :where(.role-admin,.role-teacher) .page-heading h1{font-size:32px}
+  :where(.role-admin,.role-teacher) .page-heading p{font-size:15px}
+  :where(.role-admin,.role-teacher) .metrics,:where(.role-admin,.role-teacher) .overview-grid{grid-template-columns:1fr}
+  :where(.role-admin,.role-teacher) .metric-card{min-height:142px}
+  .role-admin .adm-card,.role-teacher :is(.ti-card,.tl-card,.ta-editor,.tc-class-list,.tc-detail,.tc-workspace){padding:20px}
+  .role-admin .adm-form-grid{grid-template-columns:1fr}
+  .role-teacher .tw-tabs{overflow-x:auto;flex-wrap:nowrap}
+  .role-teacher .tw-tabs a{white-space:nowrap}
+}
+

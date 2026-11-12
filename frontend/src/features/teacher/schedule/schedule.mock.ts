@@ -21,3 +21,28 @@ export function monthCells(month: string) {
   const days = new Date(year, number, 0).getDate()
   return Array.from({ length: Math.ceil((offset + days) / 7) * 7 }, (_, index) => index >= offset && index < offset + days ? `${month}-${String(index - offset + 1).padStart(2, '0')}` : '')
 }
+
+// In-memory store for session calendar events
+export let sessionCalendarPreviews: CalendarEvent[] = []
+export type CalendarChanges = { updated: Record<string, CalendarEvent>; deleted: string[] }
+let sessionCalendarChanges: CalendarChanges = { updated: {}, deleted: [] }
+export function getSessionCalendarChanges(): CalendarChanges { return sessionCalendarChanges }
+export function setSessionCalendarChanges(value: CalendarChanges): void { sessionCalendarChanges = value }
+
+export function setSessionCalendarPreviews(events: CalendarEvent[]): void {
+  sessionCalendarPreviews = events
+}
+
+export function getSessionCalendarPreviews(): CalendarEvent[] {
+  return sessionCalendarPreviews
+}
+
+export function removeCalendarEventByActivityId(activityId: string): void {
+  sessionCalendarPreviews = sessionCalendarPreviews.filter(
+    (event) => !(event.target?.kind === 'activity' && event.target?.id === activityId)
+  )
+  sessionCalendarChanges = {
+    ...sessionCalendarChanges,
+    deleted: [...sessionCalendarChanges.deleted, ...calendarEvents.filter(event => event.target?.kind === 'activity' && event.target.id === activityId).map(event => event.id)],
+  }
+}

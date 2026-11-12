@@ -1,0 +1,144 @@
+/* AI Summary Styles */
+.ai-filter-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+
+.ai-search-box {
+  flex: 1;
+  min-width: 240px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid #dce7db;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.ai-search-box input {
+  border: 0;
+  outline: none;
+  width: 100%;
+  font-size: 13px;
+  color: #274636;
+}
+
+.ai-class-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #365442;
+}
+
+.ai-class-selector select {
+  padding: 8px 12px;
+  border: 1px solid #dce7db;
+  border-radius: 8px;
+  background: #fff;
+  color: #365442;
+  font-size: 13px;
+}
+
+.ai-badge-class {
+  display: inline-block;
+  background: #ecf6e8;
+  color: #245d49;
+  font-weight: 700;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.ai-chip-topics {
+  display: inline-block;
+  background: #e6f3eb;
+  color: #1f6448;
+  font-weight: 700;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 12px;
+}
+
+.ai-chip-none {
+  display: inline-block;
+  background: #f3f4f6;
+  color: #8c9b91;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 12px;
+}
+
+.ai-btn-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #245d49;
+  font-weight: 600;
+  font-size: 12px;
+  text-decoration: none;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid #d4e5d2;
+  background: #f7faf5;
+  transition: all 0.15s ease;
+}
+
+.ai-btn-view:hover {
+  background: #ecf5e8;
+  border-color: #bcd4b9;
+}
+
+.ai-topic-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.ai-topic-card {
+  padding: 16px;
+  border: 1px solid #e1ebe0;
+  border-radius: 10px;
+  background: #fbfdfa;
+}
+
+.ai-topic-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.ai-topic-badge {
+  background: #e2f0dc;
+  color: #295c43;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.ai-topic-date {
+  font-size: 11px;
+  color: #799182;
+}
+
+.ai-topic-title {
+  margin: 0 0 10px;
+  font-size: 16px;
+  color: #1e3b2e;
+}
+
+.ai-topic-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #557563;
+}
