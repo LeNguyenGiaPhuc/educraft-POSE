@@ -20,8 +20,10 @@ export function RoleLayout({ user, onSignOut }: Props) {
     return isExactPath || isNestedPath || isStudentLesson || isTeacherClassDetail
   }) ?? items[0]
   const teacherContext = user.role === 'teacher' ? getTeacherSubjectContext(pathname.split('/')[5], pathname.split('/')[3]) : undefined
-  const scenario = user.role === 'student' ? new URLSearchParams(search).get('scenario') : null
-  const scenarioQuery = scenario === 'unassigned' || scenario === 'history-only' ? `?scenario=${scenario}` : ''
+  const studentParams = user.role === 'student' ? new URLSearchParams(search) : null
+  const scenario = studentParams?.get('scenario') ?? null
+  const isViewingHistory = scenario === 'history-only' || studentParams?.get('class') === 'history'
+  const scenarioQuery = scenario === 'unassigned' || scenario === 'history-only' ? `?scenario=${scenario}` : isViewingHistory ? '?class=history' : ''
 
   const isManagedWorkspace = user.role === 'admin' || user.role === 'teacher'
 
@@ -39,7 +41,7 @@ export function RoleLayout({ user, onSignOut }: Props) {
           </NavLink>
           <button className="icon-button mobile-close" aria-label="Đóng menu" onClick={() => setMenuOpen(false)}><X size={20} /></button>
         </div>
-        <div className="workspace-label"><span className="workspace-dot" /> {user.role === 'student' ? scenario === 'unassigned' ? 'Chưa được xếp lớp' : scenario === 'history-only' ? 'Lớp 10A1 · chỉ đọc' : 'Lớp 11A2' : roleNames[user.role]} <span className="workspace-arrow">⌄</span></div>
+        <div className="workspace-label"><span className="workspace-dot" /> {user.role === 'student' ? scenario === 'unassigned' ? 'Chưa được xếp lớp' : isViewingHistory ? 'Lớp 10A1 · chỉ đọc' : 'Lớp 11A2' : roleNames[user.role]} <span className="workspace-arrow">⌄</span></div>
         <p className="nav-caption">KHÔNG GIAN LÀM VIỆC</p>
         <nav className="main-nav" aria-label={`Điều hướng ${roleNames[user.role]}`}>
           {items.map(({ path, label, icon: Icon }) => (
