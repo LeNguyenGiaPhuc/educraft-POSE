@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   AlertCircle,
   BookOpen,
@@ -10,22 +10,18 @@ import {
   Sparkles,
   X,
 } from 'lucide-react'
-import {
-  getEligibleTeachers,
-  subjects,
-  type Subject,
-} from '../fixtures'
-import {
-  addNewSubject,
-  getActiveClassrooms,
-  getActiveSpecializedTeachers,
-  slugifySubjectName,
-  validateNewSubject,
-} from './subjects.mock'
+import type { AdminAccount, AdminSubject } from '../../../lib/api/admin'
+import { adminApi } from '../../../lib/api/admin'
+import { ApiError } from '../../../lib/api/client'
+import { slugifySubjectName, validateNewSubject } from './subjects.mock'
 import './subjects.css'
 
 export function ClassroomSubjectsPage() {
-  const [subjectList, setSubjectList] = useState<Subject[]>(() => [...subjects])
+  const [subjectList, setSubjectList] = useState<AdminSubject[]>([])
+  const [teachers, setTeachers] = useState<AdminAccount[]>([])
+  const [activeClassroomCount, setActiveClassroomCount] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
 
   // Add Subject Modal state
@@ -33,10 +29,38 @@ export function ClassroomSubjectsPage() {
   const [newSubjectName, setNewSubjectName] = useState('')
   const [formErrors, setFormErrors] = useState<string[]>([])
   const [successNotice, setSuccessNotice] = useState<string | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
 
-  // Derived stats
-  const activeClassrooms = useMemo(() => getActiveClassrooms(), [])
-  const totalEligibleTeachers = useMemo(() => getActiveSpecializedTeachers().length, [])
+  useEffect(() => {
+    let cancelled = false
+
+    Promise.all([
+      adminApi.listSubjects(),
+      adminApi.listAccounts({ role: 'TEACHER', status: 'ACTIVE', page: 1, limit: 100 }),
+      adminApi.listClassrooms({ status: 'ACTIVE', page: 1, limit: 1 }),
+    ])
+      .then(([subjects, accountResult, classroomResult]) => {
+        if (cancelled) return
+        setSubjectList(subjects)
+        setTeachers(accountResult.items)
+        setActiveClassroomCount(classroomResult.meta.totalItems)
+        setLoadError('')
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setLoadError(error instanceof ApiError ? error.message : 'Không thể tải danh mục môn học.')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const totalEligibleTeachers = useMemo(() => teachers.length, [teachers])
 
   // Filtered subjects
   const filteredSubjects = useMemo(() => {
@@ -67,7 +91,7 @@ export function ClassroomSubjectsPage() {
     setFormErrors([])
   }
 
-  function handleCreateSubject(e: FormEvent) {
+  async function handleCreateSubject(e: FormEvent) {
     e.preventDefault()
     const errors = validateNewSubject(newSubjectName)
     if (errors.length > 0) {
@@ -76,14 +100,19 @@ export function ClassroomSubjectsPage() {
     }
 
     const trimmed = newSubjectName.trim()
-    const activeCount = addNewSubject(trimmed)
-
-    // Synchronize subject list state
-    setSubjectList([...subjects])
-    setSuccessNotice(
-      `Đã thêm môn ${trimmed} vào danh mục chung và tự động mở môn cho ${activeCount} lớp đang hoạt động (trạng thái: Chưa phân công giáo viên).`
-    )
-    closeAddModal()
+    setIsSaving(true)
+    try {
+      const created = await adminApi.createSubject(trimmed)
+      setSubjectList((current) => [created, ...current])
+      setSuccessNotice(
+        `Đã thêm môn ${trimmed} vào danh mục chung và tự động mở môn cho ${activeClassroomCount} lớp đang hoạt động (trạng thái: Chưa phân công giáo viên).`
+      )
+      closeAddModal()
+    } catch (error) {
+      setFormErrors([error instanceof ApiError ? error.message : 'Không thể thêm môn học. Hãy thử lại.'])
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   function getTeacherInitials(fullName: string): string {
@@ -162,7 +191,7 @@ export function ClassroomSubjectsPage() {
             <School size={24} />
           </div>
           <div className="sbj-stat-info">
-            <span className="sbj-stat-value">{activeClassrooms.length}</span>
+            <span className="sbj-stat-value">{activeClassroomCount}</span>
             <span className="sbj-stat-label">Lớp học áp dụng</span>
             <span className="sbj-stat-sublabel">Lớp đang hoạt động</span>
           </div>
@@ -214,7 +243,18 @@ export function ClassroomSubjectsPage() {
           </div>
         </div>
 
-        {filteredSubjects.length === 0 ? (
+        {isLoading ? (
+          <div className="sbj-empty-state">
+            <BookOpen size={28} />
+            <h3>Đang tải danh mục môn học...</h3>
+          </div>
+        ) : loadError ? (
+          <div className="sbj-empty-state" role="alert">
+            <AlertCircle size={28} />
+            <h3>Không thể tải danh mục môn học</h3>
+            <p>{loadError}</p>
+          </div>
+        ) : filteredSubjects.length === 0 ? (
           <div className="sbj-empty-state">
             <div className="sbj-empty-icon">
               <BookOpen size={28} />
@@ -244,7 +284,7 @@ export function ClassroomSubjectsPage() {
               </thead>
               <tbody>
                 {filteredSubjects.map((subject) => {
-                  const eligible = getEligibleTeachers(subject.id)
+                  const eligible = teachers.filter((teacher) => teacher.specializedSubjectId === subject.id)
                   const hasEligible = eligible.length > 0
 
                   return (
@@ -305,7 +345,7 @@ export function ClassroomSubjectsPage() {
                             <Sparkles size={13} /> Áp dụng cho tất cả lớp đang học
                           </span>
                           <span className="sbj-scope-sub">
-                            Tự động mở tại {activeClassrooms.length} lớp ACTIVE
+                            Tự động mở tại {activeClassroomCount} lớp ACTIVE
                           </span>
                         </div>
                       </td>
@@ -378,14 +418,12 @@ export function ClassroomSubjectsPage() {
                 {/* Scope Preview */}
                 <div className="sbj-scope-preview-box">
                   <span className="sbj-scope-preview-label">
-                    Phạm vi áp dụng tự động ({activeClassrooms.length} lớp đang học):
+                    Phạm vi áp dụng tự động ({activeClassroomCount} lớp đang học):
                   </span>
                   <div className="sbj-scope-classes-list">
-                    {activeClassrooms.map((c) => (
-                      <span key={c.id} className="sbj-scope-class-chip">
-                        <School size={12} /> {c.name} ({c.academicYear})
-                      </span>
-                    ))}
+                    <span className="sbj-scope-class-chip">
+                      <School size={12} /> Dữ liệu lớp đang hoạt động lấy từ backend
+                    </span>
                   </div>
                   <span className="sbj-scope-preview-note">
                     * Môn học sẽ được mở với trạng thái Chưa phân công giáo viên. Admin có thể phân công giáo viên sau tại chi tiết từng lớp.
@@ -413,8 +451,8 @@ export function ClassroomSubjectsPage() {
                 >
                   Hủy
                 </button>
-                <button type="submit" className="sbj-btn-primary">
-                  <Plus size={16} /> Xác nhận thêm môn
+                <button type="submit" className="sbj-btn-primary" disabled={isSaving}>
+                  <Plus size={16} /> {isSaving ? 'Đang lưu...' : 'Xác nhận thêm môn'}
                 </button>
               </div>
             </form>

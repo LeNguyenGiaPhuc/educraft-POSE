@@ -16,6 +16,7 @@ import { teacherLessonRouter } from './modules/teacher/lessons/lesson.routes.js'
 import { teacherCalendarRouter } from './modules/teacher/calendar/calendar.routes.js';
 import { teacherActivityRouter } from './modules/teacher/activities/activity.routes.js';
 import { teacherNotebookCheckRouter } from './modules/teacher/notebook-checks/notebook-check.routes.js';
+import { teacherResultsRouter } from './modules/teacher/results/results.routes.js';
 
 export function createApp(): Express {
   const app = express();
@@ -69,6 +70,7 @@ export function createApp(): Express {
   app.use('/api/v1/teacher', teacherCalendarRouter);
   app.use('/api/v1/teacher', teacherActivityRouter);
   app.use('/api/v1/teacher', teacherNotebookCheckRouter);
+  app.use('/api/v1/teacher', teacherResultsRouter);
 
   // 6. 404 & Centralized error handler
   app.use(notFoundHandler);
