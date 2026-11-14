@@ -54,7 +54,7 @@ function activityDescription(item: ActivityItem) {
 export function ActivitiesPage() {
   const { scenario } = useStudentScenario()
   const [params, setParams] = useSearchParams()
-  const [subjectFilter, setSubjectFilter] = useState('all')
+  const [subjectFilter, setSubjectFilter] = useState(() => params.get('subject') ?? 'all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [selectedId, setSelectedId] = useState('')
   const view = params.get('view') === 'results' ? 'results' : 'assigned'

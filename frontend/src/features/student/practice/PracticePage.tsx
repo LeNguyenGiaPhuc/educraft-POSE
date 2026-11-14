@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { BookOpen, LockKeyhole } from 'lucide-react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { StudentScenarioControl } from '../ScenarioControl'
 import { useStudentScenario } from '../useStudentScenario'
 import { canUseLessonSource, getAccessibleSubjects, getVisibleLessons } from '../studentRules'
@@ -10,9 +10,13 @@ import './practice.css'
 
 export function PracticePage() {
   const { scenario } = useStudentScenario()
+  const [params] = useSearchParams()
   const subjects = getAccessibleSubjects(scenario).current
-  const [subjectId, setSubjectId] = useState('history-11a2')
-  const [lessonIds, setLessonIds] = useState<string[]>([])
+  const [subjectId, setSubjectId] = useState(() => params.get('subject') ?? 'history-11a2')
+  const [lessonIds, setLessonIds] = useState<string[]>(() => {
+    const lessonId = params.get('lesson')
+    return lessonId ? [lessonId] : []
+  })
   const [kind, setKind] = useState<PracticeKind>('QUIZ')
   const [count, setCount] = useState('5')
   const [difficulty, setDifficulty] = useState('medium')
@@ -42,7 +46,7 @@ export function PracticePage() {
       </section>
       <section className="panel practice-preview" aria-labelledby="practice-preview-title"><div className="student-panel-heading"><div><h2 id="practice-preview-title">Xem trước trạng thái</h2><p>Dữ liệu minh họa, không phải kết quả từ cấu hình</p></div><span className="student-badge muted">Tự luyện riêng</span></div>
         <label className="student-field">Tình huống mẫu<select value={exampleState} onChange={(event) => setExampleState(event.target.value as PracticeExampleState)}>{practiceStateOptions.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select></label>
-        <div className="practice-example" aria-live="polite">{selected.length === 0 ? <div className="practice-message"><BookOpen size={25} /><h3>Chưa đủ bằng chứng</h3><p>{eligible.length ? 'Chọn ít nhất một bài học đủ điều kiện ở bên trái để xem ví dụ có nguồn.' : 'Môn này chưa có học liệu đã công bố và xử lý thành công để luyện tập.'}</p></div> : !validCount ? <p>Kiểm tra lại số câu hỏi trước khi xem cấu hình.</p> : exampleState === 'failed' ? <div className="student-notice"><h3>Ví dụ: tạo câu hỏi thất bại</h3><p>Chưa có bộ câu hỏi hợp lệ. Không tạo phiên hay ghi điểm. Khi kết nối API, bạn có thể thử lại với cùng nguồn.</p></div> : examples.length === 0 ? <p className="student-notice">Chưa có ví dụ được đối chiếu với nguồn đã chọn. Không hiển thị câu hỏi thiếu bằng chứng.</p> : <><p className="student-muted">{selected.length} bài học đã chọn · yêu cầu {count} câu. Dưới đây chỉ là {examples.length} câu minh họa cố định, không phải bộ câu hỏi được tạo mới theo số lượng hoặc độ khó.</p>{examples.map((example, index) => <article className="practice-question" key={example.lessonId}><span className="student-badge">Câu mẫu {index + 1} · {kind === 'QUIZ' ? 'Trắc nghiệm' : 'Tự luận ngắn'}</span><h3>{example.question}</h3>{kind === 'QUIZ' && <ul>{example.choices.map((choice) => <li key={choice}>{choice}</li>)}</ul>}<p><Link className="student-source" to={`/student/subjects#${example.materialId}`}>Nguồn mẫu: {selected.find((lesson) => lesson.id === example.lessonId)?.title} · {example.position}</Link></p>{exampleState === 'pending' ? <><p><strong>Đáp án đã lưu trong ví dụ:</strong> {example.answer}</p><span className="student-badge warning">Đang chờ chấm · chưa có điểm</span><p className="student-muted">Giữ nguyên đáp án trong khi chờ chấm; chưa có giải thích đánh giá hay kết quả thành công.</p></> : <details><summary>Xem đáp án minh họa</summary><p><strong>{example.answer}</strong></p><p>{example.explanation} Nội dung mẫu chưa được đối chiếu với tệp gốc qua API.</p></details>}</article>)}<button type="button" disabled className="student-action secondary">Gửi đáp án để chấm · chờ kết nối API</button></>}</div>
+        <div className="practice-example" aria-live="polite">{selected.length === 0 ? <div className="practice-message"><BookOpen size={25} /><h3>Chưa đủ bằng chứng</h3><p>{eligible.length ? 'Chọn ít nhất một bài học đủ điều kiện ở bên trái để xem ví dụ có nguồn.' : 'Môn này chưa có học liệu đã công bố và xử lý thành công để luyện tập.'}</p></div> : !validCount ? <p>Kiểm tra lại số câu hỏi trước khi xem cấu hình.</p> : exampleState === 'failed' ? <div className="student-notice"><h3>Ví dụ: tạo câu hỏi thất bại</h3><p>Chưa có bộ câu hỏi hợp lệ. Không tạo phiên hay ghi điểm. Khi kết nối API, bạn có thể thử lại với cùng nguồn.</p></div> : examples.length === 0 ? <p className="student-notice">Chưa có ví dụ được đối chiếu với nguồn đã chọn. Không hiển thị câu hỏi thiếu bằng chứng.</p> : <><p className="student-muted">{selected.length} bài học đã chọn · yêu cầu {count} câu. Dưới đây chỉ là {examples.length} câu minh họa cố định, không phải bộ câu hỏi được tạo mới theo số lượng hoặc độ khó.</p>{examples.map((example, index) => <article className="practice-question" key={example.lessonId}><span className="student-badge">Câu mẫu {index + 1} · {kind === 'QUIZ' ? 'Trắc nghiệm' : 'Tự luận ngắn'}</span><h3>{example.question}</h3>{kind === 'QUIZ' && <ul>{example.choices.map((choice) => <li key={choice}>{choice}</li>)}</ul>}<p><Link className="student-source" to={`/student/lessons/${example.lessonId}?source=${example.materialId}`}>Nguồn mẫu: {selected.find((lesson) => lesson.id === example.lessonId)?.title} · {example.position}</Link></p>{exampleState === 'pending' ? <><p><strong>Đáp án đã lưu trong ví dụ:</strong> {example.answer}</p><span className="student-badge warning">Đang chờ chấm · chưa có điểm</span><p className="student-muted">Giữ nguyên đáp án trong khi chờ chấm; chưa có giải thích đánh giá hay kết quả thành công.</p></> : <details><summary>Xem đáp án minh họa</summary><p><strong>{example.answer}</strong></p><p>{example.explanation} Nội dung mẫu chưa được đối chiếu với tệp gốc qua API.</p></details>}</article>)}<button type="button" disabled className="student-action secondary">Gửi đáp án để chấm · chờ kết nối API</button></>}</div>
       </section>
     </div>}
   </div>

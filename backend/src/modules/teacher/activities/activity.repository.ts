@@ -1,0 +1,601 @@
+import type { Prisma } from '@prisma/client';
+import { prisma } from '../../../lib/prisma.js';
+import { BadRequestError, ConflictError, NotFoundError } from '../../../shared/errors/app-error.js';
+import { requireAssignedSubjectForMutation } from '../access/teacher-subject.policy.js';
+import type { CreateActivityInput, QuestionInput, ReopenActivityInput, UpdateActivityInput } from './activity.schemas.js';
+
+async function lockActivityForContentMutation(
+  tx: Prisma.TransactionClient,
+  activityId: string
+): Promise<void> {
+  // Student submission uses the same database row lock, so content cannot change mid-submit.
+  await tx.$queryRaw`SELECT id FROM activities WHERE id = ${activityId}::uuid FOR UPDATE`;
+}
+
+export const activityRepository = {
+  async listActivities(classroomSubjectId: string) {
+    return prisma.activity.findMany({
+      where: {
+        classroom_subject_id: classroomSubjectId,
+        kind: 'EXERCISE',
+      },
+      orderBy: { created_at: 'desc' },
+      include: {
+        exercise: {
+          include: {
+            _count: {
+              select: {
+                submissions: true,
+                questions: true,
+              },
+            },
+          },
+        },
+        createdBy: {
+          select: {
+            id: true,
+            full_name: true,
+          },
+        },
+      },
+    });
+  },
+
+  async findActivityById(
+    activityId: string,
+    client: Pick<Prisma.TransactionClient, 'activity'> = prisma
+  ) {
+    return client.activity.findUnique({
+      where: { id: activityId },
+      include: {
+        exercise: {
+          include: {
+            lessons: {
+              include: {
+                lesson: true,
+              },
+            },
+            questions: {
+              orderBy: { sort_order: 'asc' },
+              include: {
+                citations: {
+                  include: {
+                    segment: true,
+                  },
+                },
+              },
+            },
+            _count: {
+              select: {
+                submissions: true,
+              },
+            },
+          },
+        },
+        classroomSubject: {
+          include: {
+            classroom: true,
+            subject: true,
+          },
+        },
+        createdBy: {
+          select: {
+            id: true,
+            full_name: true,
+          },
+        },
+      },
+    });
+  },
+
+  async createActivityAtomically(
+    actorId: string,
+    classroomSubjectId: string,
+    input: CreateActivityInput
+  ) {
+    return prisma.$transaction(async (tx) => {
+      // 1. Authoritative check
+      await requireAssignedSubjectForMutation(tx, actorId, classroomSubjectId);
+
+      // 2. Validate lesson links if supplied
+      if (input.lessonIds && input.lessonIds.length > 0) {
+        const validLessons = await tx.lesson.findMany({
+          where: {
+            id: { in: input.lessonIds },
+            classroom_subject_id: classroomSubjectId,
+          },
+        });
+        if (validLessons.length !== input.lessonIds.length) {
+          throw new BadRequestError('Một hoặc nhiều bài học liên kết không thuộc môn học này');
+        }
+      }
+
+      // 3. Create Activity record (DRAFT)
+      const activity = await tx.activity.create({
+        data: {
+          classroom_subject_id: classroomSubjectId,
+          created_by_id: actorId,
+          kind: 'EXERCISE',
+          title: input.title,
+          description: input.description,
+          status: 'DRAFT',
+          published_at: null,
+          closes_at: input.closesAt ? new Date(input.closesAt) : null,
+        },
+      });
+
+      // 4. Create ExerciseActivity record (default 1 to satisfy DB check constraint BETWEEN 1 AND 20)
+      await tx.exerciseActivity.create({
+        data: {
+          activity_id: activity.id,
+          exercise_type: input.exerciseType,
+          difficulty: input.difficulty,
+          question_count: 1,
+        },
+      });
+
+      // 5. Link lessons
+      if (input.lessonIds && input.lessonIds.length > 0) {
+        await tx.exerciseActivityLesson.createMany({
+          data: input.lessonIds.map((lessonId) => ({
+            activity_id: activity.id,
+            lesson_id: lessonId,
+          })),
+        });
+      }
+
+      return this.findActivityById(activity.id, tx);
+    });
+  },
+
+  async updateActivityAtomically(
+    actorId: string,
+    activityId: string,
+    input: UpdateActivityInput
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.activity.findUnique({
+        where: { id: activityId },
+        include: {
+          exercise: {
+            include: {
+              _count: { select: { submissions: true } },
+            },
+          },
+        },
+      });
+
+      if (!existing) {
+        throw new NotFoundError('Không tìm thấy hoạt động');
+      }
+
+      await requireAssignedSubjectForMutation(tx, actorId, existing.classroom_subject_id);
+
+      await lockActivityForContentMutation(tx, activityId);
+
+      // Check submission lock for lesson links
+      if (input.lessonIds !== undefined) {
+        const submissionCount = await tx.exerciseSubmission.count({
+          where: { activity_id: activityId },
+        });
+        if (submissionCount > 0) {
+          throw new ConflictError('Không thể sửa danh sách bài học liên kết của hoạt động đã có bài nộp');
+        }
+      }
+
+      // Update lesson links if specified
+      if (input.lessonIds !== undefined) {
+        if (input.lessonIds.length > 0) {
+          const validLessons = await tx.lesson.findMany({
+            where: {
+              id: { in: input.lessonIds },
+              classroom_subject_id: existing.classroom_subject_id,
+            },
+          });
+          if (validLessons.length !== input.lessonIds.length) {
+            throw new BadRequestError('Một hoặc nhiều bài học liên kết không thuộc môn học này');
+          }
+        }
+
+        await tx.exerciseActivityLesson.deleteMany({
+          where: { activity_id: activityId },
+        });
+
+        if (input.lessonIds.length > 0) {
+          await tx.exerciseActivityLesson.createMany({
+            data: input.lessonIds.map((lessonId) => ({
+              activity_id: activityId,
+              lesson_id: lessonId,
+            })),
+          });
+        }
+      }
+
+      // Update difficulty if specified
+      if (input.difficulty !== undefined) {
+        await tx.exerciseActivity.update({
+          where: { activity_id: activityId },
+          data: { difficulty: input.difficulty },
+        });
+      }
+
+      // Update activity details
+      await tx.activity.update({
+        where: { id: activityId },
+        data: {
+          title: input.title !== undefined ? input.title : existing.title,
+          description: input.description !== undefined ? input.description : existing.description,
+          closes_at: input.closesAt !== undefined ? (input.closesAt ? new Date(input.closesAt) : null) : existing.closes_at,
+        },
+      });
+
+      return this.findActivityById(activityId, tx);
+    });
+  },
+
+  async deleteActivityAtomically(actorId: string, activityId: string) {
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.activity.findUnique({
+        where: { id: activityId },
+      });
+
+      if (!existing) {
+        throw new NotFoundError('Không tìm thấy hoạt động');
+      }
+
+      await requireAssignedSubjectForMutation(tx, actorId, existing.classroom_subject_id);
+
+      await lockActivityForContentMutation(tx, activityId);
+
+      const submissionCount = await tx.exerciseSubmission.count({
+        where: { activity_id: activityId },
+      });
+
+      if (submissionCount > 0) {
+        throw new ConflictError('Không thể xóa hoạt động đã có bài nộp của học sinh');
+      }
+
+      // 1. Unlink schedule events pointing to this activity
+      await tx.scheduleEvent.updateMany({
+        where: { activity_id: activityId },
+        data: { activity_id: null },
+      });
+
+      // 2. Delete question citations & questions
+      await tx.questionCitation.deleteMany({
+        where: { question: { exercise_activity_id: activityId } },
+      });
+      await tx.question.deleteMany({
+        where: { exercise_activity_id: activityId },
+      });
+
+      // 3. Delete lessons link & exercise activity & notifications
+      await tx.exerciseActivityLesson.deleteMany({
+        where: { activity_id: activityId },
+      });
+      await tx.notification.deleteMany({
+        where: { activity_id: activityId },
+      });
+      await tx.exerciseActivity.delete({
+        where: { activity_id: activityId },
+      });
+
+      // 4. Delete activity record
+      await tx.activity.delete({
+        where: { id: activityId },
+      });
+
+      return { success: true };
+    });
+  },
+
+  async putQuestionsAtomically(
+    actorId: string,
+    activityId: string,
+    questions: QuestionInput[]
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.activity.findUnique({
+        where: { id: activityId },
+        include: { exercise: true },
+      });
+
+      if (!existing?.exercise) {
+        throw new NotFoundError('Không tìm thấy hoạt động bài tập');
+      }
+
+      await requireAssignedSubjectForMutation(tx, actorId, existing.classroom_subject_id);
+
+      await lockActivityForContentMutation(tx, activityId);
+
+      const submissionCount = await tx.exerciseSubmission.count({
+        where: { activity_id: activityId },
+      });
+
+      if (submissionCount > 0) {
+        throw new ConflictError('Không thể chỉnh sửa danh sách câu hỏi vì hoạt động đã có bài nộp');
+      }
+
+      // 1. Delete existing citations & questions
+      await tx.questionCitation.deleteMany({
+        where: { question: { exercise_activity_id: activityId } },
+      });
+      await tx.question.deleteMany({
+        where: { exercise_activity_id: activityId },
+      });
+
+      // 2. Insert new questions with ordered sort_order
+      for (let i = 0; i < questions.length; i++) {
+        const q = questions[i];
+        const createdQuestion = await tx.question.create({
+          data: {
+            exercise_activity_id: activityId,
+            lesson_id: q.lessonId,
+            prompt: q.prompt,
+            options: q.options ? q.options : undefined,
+            answer_key: q.answerKey || null,
+            marking_criteria: q.markingCriteria || null,
+            explanation: q.explanation || '',
+            max_points: q.maxPoints,
+            sort_order: i + 1,
+          },
+        });
+
+        if (q.citations && q.citations.length > 0) {
+          await tx.questionCitation.createMany({
+            data: q.citations.map((c) => ({
+              question_id: createdQuestion.id,
+              segment_id: c.segmentId,
+              excerpt: c.excerpt || null,
+            })),
+          });
+        }
+      }
+
+      // 3. Update question count
+      await tx.exerciseActivity.update({
+        where: { activity_id: activityId },
+        data: { question_count: questions.length },
+      });
+
+      return this.findActivityById(activityId, tx);
+    });
+  },
+
+  async publishActivityAtomically(actorId: string, activityId: string) {
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.activity.findUnique({
+        where: { id: activityId },
+        include: {
+          exercise: {
+            include: {
+              _count: { select: { questions: true } },
+            },
+          },
+        },
+      });
+
+      if (!existing?.exercise) {
+        throw new NotFoundError('Không tìm thấy hoạt động');
+      }
+
+      const context = await requireAssignedSubjectForMutation(
+        tx,
+        actorId,
+        existing.classroom_subject_id
+      );
+
+      if (existing.exercise._count.questions === 0) {
+        throw new BadRequestError('Hoạt động phải có ít nhất 1 câu hỏi để xuất bản');
+      }
+
+      const questions = await tx.question.findMany({
+        where: { exercise_activity_id: activityId },
+        select: {
+          lesson: {
+            select: {
+              classroom_subject_id: true,
+              status: true,
+            },
+          },
+          citations: {
+            select: {
+              segment: {
+                select: {
+                  processing_status: true,
+                  materialVersion: {
+                    select: {
+                      processing_status: true,
+                      material: {
+                        select: {
+                          status: true,
+                          lesson: {
+                            select: {
+                              classroom_subject_id: true,
+                              status: true,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      for (const question of questions) {
+        const lessonIsEligible =
+          question.lesson.classroom_subject_id === existing.classroom_subject_id &&
+          question.lesson.status === 'PUBLISHED';
+        if (!lessonIsEligible) {
+          throw new BadRequestError('Bài học nguồn không còn đủ điều kiện xuất bản');
+        }
+
+        for (const citation of question.citations) {
+          const version = citation.segment.materialVersion;
+          const material = version.material;
+          const sourceLesson = material.lesson;
+          const citationIsEligible =
+            citation.segment.processing_status === 'PROCESSED' &&
+            version.processing_status === 'PROCESSED' &&
+            material.status === 'PUBLISHED' &&
+            sourceLesson.status === 'PUBLISHED' &&
+            sourceLesson.classroom_subject_id === existing.classroom_subject_id;
+
+          if (!citationIsEligible) {
+            throw new BadRequestError('Nguồn trích dẫn không còn đủ điều kiện xuất bản');
+          }
+        }
+      }
+
+      const now = new Date();
+      await tx.activity.update({
+        where: { id: activityId },
+        data: {
+          status: 'PUBLISHED',
+          published_at: existing.published_at ?? now,
+        },
+      });
+
+      // Idempotent notification creation
+      const activeEnrollments = await tx.classroomEnrollment.findMany({
+        where: {
+          classroom_id: context.classroomId,
+          left_at: null,
+        },
+        select: { student_id: true },
+      });
+
+      const dedupeKey = `activity:${activityId}`;
+      const title = `Hoạt động mới: ${existing.title}`;
+      const body = `Giáo viên đã công bố bài tập "${existing.title}" môn ${context.subjectName}. Vui lòng hoàn thành trước hạn nộp.`;
+
+      if (activeEnrollments.length > 0) {
+        await tx.notification.createMany({
+          data: activeEnrollments.map((enr) => ({
+            recipient_id: enr.student_id,
+            activity_id: activityId,
+            dedupe_key: dedupeKey,
+            title,
+            body,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      return this.findActivityById(activityId, tx);
+    });
+  },
+
+  async closeActivityAtomically(actorId: string, activityId: string) {
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.activity.findUnique({
+        where: { id: activityId },
+      });
+
+      if (!existing) {
+        throw new NotFoundError('Không tìm thấy hoạt động');
+      }
+
+      await requireAssignedSubjectForMutation(tx, actorId, existing.classroom_subject_id);
+
+      if (existing.status !== 'PUBLISHED') {
+        throw new BadRequestError('Chỉ có thể đóng hoạt động đang được công bố (PUBLISHED)');
+      }
+
+      await tx.activity.update({
+        where: { id: activityId },
+        data: {
+          status: 'CLOSED',
+          closes_at: new Date(),
+        },
+      });
+
+      return this.findActivityById(activityId, tx);
+    });
+  },
+
+  async reopenActivityAtomically(
+    actorId: string,
+    activityId: string,
+    input: ReopenActivityInput
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.activity.findUnique({
+        where: { id: activityId },
+      });
+
+      if (!existing) {
+        throw new NotFoundError('Không tìm thấy hoạt động');
+      }
+
+      await requireAssignedSubjectForMutation(tx, actorId, existing.classroom_subject_id);
+
+      if (existing.status !== 'CLOSED') {
+        throw new BadRequestError('Chỉ có thể mở lại hoạt động đã đóng (CLOSED)');
+      }
+
+      await tx.activity.update({
+        where: { id: activityId },
+        data: {
+          status: 'PUBLISHED',
+          closes_at: input.closesAt ? new Date(input.closesAt) : null,
+        },
+      });
+
+      return this.findActivityById(activityId, tx);
+    });
+  },
+
+  async findSubmissions(activityId: string) {
+    return prisma.exerciseSubmission.findMany({
+      where: { activity_id: activityId },
+      orderBy: { submitted_at: 'asc' },
+      include: {
+        student: {
+          select: {
+            id: true,
+            full_name: true,
+            username: true,
+          },
+        },
+      },
+    });
+  },
+
+  async findEligibleSegments(classroomSubjectId: string, lessonIds: string[]) {
+    return prisma.materialSegment.findMany({
+      where: {
+        processing_status: 'PROCESSED',
+        materialVersion: {
+          processing_status: 'PROCESSED',
+          material: {
+            status: 'PUBLISHED',
+            lesson: {
+              classroom_subject_id: classroomSubjectId,
+              id: { in: lessonIds },
+              status: 'PUBLISHED',
+            },
+          },
+        },
+      },
+      select: {
+        id: true,
+        content: true,
+        materialVersion: {
+          select: {
+            material: {
+              select: {
+                lesson_id: true,
+                file_name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  },
+};

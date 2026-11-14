@@ -228,7 +228,7 @@ export function StudentExcelImportModal({
                 <FileText size={20} className="cls-file-icon" />
                 <div>
                   <strong>{fileName}</strong>
-                  {fileSize && (
+                  {fileSize !== null && fileSize > 0 && (
                     <small>({(fileSize / 1024).toFixed(1)} KB)</small>
                   )}
                 </div>

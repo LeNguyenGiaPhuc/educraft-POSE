@@ -28,7 +28,7 @@ export function SubjectsPage() {
         const lessonCount = getVisibleLessons(subject.id).length
         const query = scenario === 'history-only' ? '?scenario=history-only' : scope === 'history' ? '?class=history' : ''
         return <Link className="subject-catalog-card" to={`/student/subjects/${subject.id}${query}`} key={subject.id}>
-          <span className="subject-icon"><BookOpen size={20} /></span><span className="subject-card-copy"><strong>{subject.name}</strong><small>{lessonCount} bài học đã công bố</small></span><span className="subject-teacher">{subject.teacherName || 'Chưa phân công giáo viên'}</span><ArrowRight className="subject-arrow" size={17} />
+          <span className="subject-icon"><BookOpen size={20} /></span><span className="subject-card-copy"><strong>{subject.name}</strong><small>{lessonCount} bài học đã công bố</small></span><span className="subject-teacher">{subject.teacherName ?? 'Chưa phân công giáo viên'}</span><ArrowRight className="subject-arrow" size={17} />
         </Link>
       })}</div> : <section className="panel student-empty"><BookOpen size={30} /><h2>Chưa có môn học để xem</h2><p>Lớp này chưa có môn học hoặc học liệu được công bố trong bản mẫu.</p></section>}
     </>}

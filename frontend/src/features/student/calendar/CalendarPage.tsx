@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Bell, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Link } from 'react-router'
 import { calendarEvents, calendarNotifications } from './calendar.mock'
 import { StudentScenarioControl } from '../ScenarioControl'
 import { useStudentScenario } from '../useStudentScenario'
@@ -56,7 +57,7 @@ export function CalendarPage() {
       })}</div>
       {!monthEvents.length && <p className="sc-empty" role="status"><CalendarDays size={20} />{effectiveScope === 'unassigned' ? 'Chưa có lớp hiện tại nên chưa có sự kiện.' : 'Tháng này chưa có sự kiện đã công bố.'}</p>}
       <p className="sc-help">Ngày có chấm xanh có sự kiện. Chọn sự kiện để xem chi tiết.</p>
-    </section><section className="panel sc-detail" aria-label="Chi tiết sự kiện"><h2>Chi tiết sự kiện</h2>{selected ? <><span className="sc-badge">{selected.type}</span>{selected.historical && <span className="sc-badge">Lớp đã học · chỉ xem</span>}<h3>{selected.title}</h3><dl><dt>Lớp · môn</dt><dd>{selected.subject}</dd><dt>Thời gian (giờ Việt Nam)</dt><dd>{dateLabel(selected.startsAt)}</dd><dt>Nội dung</dt><dd>{selected.details}</dd><dt>Đã công bố</dt><dd>{dateLabel(selected.publishedAt)}</dd></dl></> : <p className="sc-empty">Chọn sự kiện trên lịch hoặc trong thông báo để đọc nội dung.</p>}</section></div>
+    </section><section className="panel sc-detail" aria-label="Chi tiết sự kiện"><h2>Chi tiết sự kiện</h2>{selected ? <><span className="sc-badge">{selected.type}</span>{selected.historical && <span className="sc-badge">Lớp đã học · chỉ xem</span>}<h3>{selected.title}</h3><dl><dt>Lớp · môn</dt><dd>{selected.subject}</dd><dt>Thời gian (giờ Việt Nam)</dt><dd>{dateLabel(selected.startsAt)}</dd><dt>Nội dung</dt><dd>{selected.details}</dd><dt>Đã công bố</dt><dd>{dateLabel(selected.publishedAt)}</dd></dl>{selected.linkedPath && <Link className="student-action secondary" to={selected.linkedPath}>Mở nội dung liên quan</Link>}</> : <p className="sc-empty">Chọn sự kiện trên lịch hoặc trong thông báo để đọc nội dung.</p>}</section></div>
     <section className="panel sc-inbox"><div className="sc-inbox-heading"><h2><Bell size={18} /> Hộp thông báo <span className="sc-badge">{unreadCount} chưa đọc</span></h2><label>Lọc thông báo<select value={filter} onChange={(event) => setFilter(event.target.value)}><option value="all">Tất cả</option><option value="unread">Chưa đọc</option><option value="read">Đã đọc</option></select></label></div>
       {shownNotifications.length ? <ul>{shownNotifications.map((item) => {
         const event = allowedEvents.find((entry) => entry.id === item.eventId)!

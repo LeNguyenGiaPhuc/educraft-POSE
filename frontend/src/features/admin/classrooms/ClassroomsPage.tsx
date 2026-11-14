@@ -36,6 +36,12 @@ import {
 import { ClassroomDetailPage } from './ClassroomDetailPage'
 import './classrooms.css'
 
+function getProgressStatusClass(isComplete: boolean, assigned: number): string {
+  if (isComplete) return 'is-complete'
+  if (assigned > 0) return 'is-partial'
+  return ''
+}
+
 export function ClassroomsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [classList, setClassList] = useState<Classroom[]>(() => [...classrooms])
@@ -430,18 +436,20 @@ export function ClassroomsPage() {
                     <td>
                       <div className="cls-subject-progress">
                         <div
-                          className={`cls-ratio-text ${
-                            stats.isComplete ? 'is-complete' : stats.assigned > 0 ? 'is-partial' : ''
-                          }`}
+                          className={`cls-ratio-text ${getProgressStatusClass(
+                            stats.isComplete,
+                            stats.assigned
+                          )}`}
                         >
                           <span>{stats.ratioText}</span>
                           <span>{stats.percentage}%</span>
                         </div>
                         <div className="cls-progress-bar">
                           <div
-                            className={`cls-progress-fill ${
-                              stats.isComplete ? 'is-complete' : stats.assigned > 0 ? 'is-partial' : ''
-                            }`}
+                            className={`cls-progress-fill ${getProgressStatusClass(
+                              stats.isComplete,
+                              stats.assigned
+                            )}`}
                             style={{ width: `${stats.percentage}%` }}
                           />
                         </div>

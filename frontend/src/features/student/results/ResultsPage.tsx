@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { BookCheck, FileText } from 'lucide-react'
+import { Link } from 'react-router'
 import { StudentScenarioControl } from '../ScenarioControl'
 import { useStudentScenario } from '../useStudentScenario'
 import { studentSubjects } from '../fixtures'
@@ -20,7 +21,7 @@ function ExerciseFeedback({ result }: { result: ExerciseResult }) {
       const graded = result.status === 'GRADED' ? result.answers[index] : null
       const source = graded ? getResultSource(graded, result.classroomSubjectId) : null
       const sourceId = `source-${result.id}-${index}`
-      return <li key={answer.question}><h4>{answer.question}</h4><p><strong>Câu trả lời của bạn:</strong> {answer.answer}</p>{graded && <><p className="result-answer-mark">{graded.earned === graded.maximum ? 'Đúng' : graded.earned === 0 ? 'Chưa đúng' : 'Đạt một phần'} · {graded.earned}/{graded.maximum} điểm</p><p>{graded.explanation}</p>{source ? <><span className="student-badge muted">{source.lesson.title}</span><p><a className="student-source" href={`#${sourceId}`}>{source.material.name} · {graded.position}</a></p><aside tabIndex={-1} id={sourceId} className="result-source"><FileText size={16} aria-hidden="true" /><div><strong>Thông tin nguồn đối chiếu</strong><p>{source.lesson.title} · {source.material.name} · Phiên bản {source.material.version}</p><p>{graded.position} · Học liệu đã công bố, đã xử lý.</p><p className="student-muted">Vị trí nguồn mẫu; mở nội dung tệp gốc chờ kết nối kho học liệu.</p></div></aside></> : <p className="student-notice">Chưa đủ nguồn hợp lệ để đối chiếu phản hồi này.</p>}</>}</li>
+      return <li key={answer.question}><h4>{answer.question}</h4><p><strong>Câu trả lời của bạn:</strong> {answer.answer}</p>{graded && <><p className="result-answer-mark">{graded.earned === graded.maximum ? 'Đúng' : graded.earned === 0 ? 'Chưa đúng' : 'Đạt một phần'} · {graded.earned}/{graded.maximum} điểm</p><p>{graded.explanation}</p>{source ? <><span className="student-badge muted">{source.lesson.title}</span><p><Link className="student-source" to={`/student/lessons/${graded.lessonId}${subject?.historic ? `?scenario=history-only&source=${graded.materialId}` : `?source=${graded.materialId}`}`}>{source.material.name} · {graded.position}</Link></p><aside tabIndex={-1} id={sourceId} className="result-source"><FileText size={16} aria-hidden="true" /><div><strong>Thông tin nguồn đối chiếu</strong><p>{source.lesson.title} · {source.material.name} · Phiên bản {source.material.version}</p><p>{graded.position} · Học liệu đã công bố, đã xử lý.</p><p className="student-muted">Mở bài học để xem học liệu và vị trí nguồn trong bản xem trước.</p></div></aside></> : <p className="student-notice">Chưa đủ nguồn hợp lệ để đối chiếu phản hồi này.</p>}</>}</li>
     })}</ol>
   </article>
 }

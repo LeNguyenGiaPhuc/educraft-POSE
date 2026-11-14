@@ -51,6 +51,13 @@ function TeacherClassRoute() {
   return <Navigate to={firstSubject ? teacherSubjectPath(firstSubject.id) : '/teacher/classes'} replace />
 }
 
+function getWorkspaceTabFromSection(section: string): TeacherWorkspaceTab {
+  if (section === 'lessons') return 'lessons'
+  if (section === 'statistics') return 'statistics'
+  if (section === 'progress' || section === 'ai-summary') return 'students'
+  return 'activities'
+}
+
 function LegacyTeacherRedirect({ section }: { section: string }) {
   const location = useLocation()
   const query = new URLSearchParams(location.search)
@@ -59,7 +66,7 @@ function LegacyTeacherRedirect({ section }: { section: string }) {
   if (requested && !context) return <Navigate to="/teacher/classes" replace />
   if (section === 'schedule') return <Navigate to={`/teacher/calendar${location.search}`} replace />
   if (!context) return <Navigate to="/teacher/classes" replace />
-  const tab: TeacherWorkspaceTab = section === 'lessons' ? 'lessons' : section === 'statistics' ? 'statistics' : section === 'progress' || section === 'ai-summary' ? 'students' : 'activities'
+  const tab: TeacherWorkspaceTab = getWorkspaceTabFromSection(section)
   query.set('tab', tab)
   query.set('classroomSubjectId', context.subject.id)
   const base = teacherSubjectPath(context.subject.id, tab).split('?')[0]

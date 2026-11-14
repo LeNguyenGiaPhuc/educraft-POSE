@@ -48,5 +48,11 @@ export const assignedExercises: AssignedExercise[] = [
 export const notebookActivity = {
   id: 'notebook-11a2', classroomSubjectId: 'history-11a2', title: 'Kiểm tra vở: Bài 2',
   existingImages: ['trang-1.jpg', 'trang-2.jpg'],
+  submissionPeriod: 'Mở từ 08/11/2026 đến 20/11/2026 · 23:59',
+  criteria: [
+    'Diễn biến chính của Tổng khởi nghĩa',
+    'Ý nghĩa lịch sử',
+    'Bài học kinh nghiệm',
+  ],
   previousFinalized: { date: '09/11/2026', teacher: 'Cô Nguyễn Minh Anh', summary: '1 nội dung đã ghi, 1 nội dung cần bổ sung, 1 nội dung chưa xác định' },
 }

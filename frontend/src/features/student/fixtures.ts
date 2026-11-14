@@ -8,8 +8,8 @@ export type ClassroomSubjectPreview = {
   classroomName: string
   academicYear: string
   name: string
-  teacherId: string
-  teacherName: string
+  teacherId: string | null
+  teacherName: string | null
   historic: boolean
 }
 export type MaterialPreview = {
@@ -33,11 +33,11 @@ export const studentSubjects: ClassroomSubjectPreview[] = classroomSubjects
     const classroom = classrooms.find((item) => item.id === subject.classroomId)
     const subjectName = subjects.find((item) => item.id === subject.subjectId)?.name
     const teacherName = accounts.find((item) => item.id === subject.teacherId)?.fullName
-    if (!classroom || !subjectName || !teacherName) return []
+    if (!classroom || !subjectName) return []
     return [{
       id: subject.id, classroomId: classroom.id, classroomName: classroom.name,
       academicYear: classroom.academicYear, name: subjectName,
-      teacherId: subject.teacherId, teacherName,
+      teacherId: subject.teacherId, teacherName: teacherName ?? null,
       historic: classroom.id === studentIdentity.historicClassroomId,
     }]
   })

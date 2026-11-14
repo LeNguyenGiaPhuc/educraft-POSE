@@ -161,6 +161,7 @@ model User {
   promptTopics         SubjectPromptTopic[]
   scoreResults         LessonScoreResult[]
   lessonProgress       StudentLessonProgress[]
+  sessions             AuthSession[]
 
   @@map("users")
 }
@@ -253,6 +254,7 @@ model Lesson {
   questions            Question[]
   scoreResults         LessonScoreResult[]
   progress             StudentLessonProgress[]
+  scheduleEvents       ScheduleEvent[]
 
   @@index([classroom_subject_id, status])
   @@map("lessons")
@@ -326,6 +328,7 @@ model Activity {
   exercise             ExerciseActivity?
   notebookCheck        NotebookCheckActivity?
   notifications        Notification[]
+  scheduleEvents       ScheduleEvent[]
 
   @@index([classroom_subject_id, status])
   @@map("activities")
@@ -527,6 +530,7 @@ model NotebookSubmission {
   updated_at        DateTime                 @updatedAt @db.Timestamptz(6)
   status            SubmissionStatus         @default(CURRENT)
   processing_status ProcessingStatus         @default(PENDING)
+  analysis_attempt_id String?                @db.Uuid
   locked_at         DateTime?                @db.Timestamptz(6)
   student           User                     @relation(fields: [student_id], references: [id], onDelete: Restrict)
   period            NotebookCheckPeriod      @relation(fields: [period_id], references: [id], onDelete: Restrict)
@@ -592,6 +596,8 @@ model ScheduleEvent {
   id                   String           @id @default(uuid()) @db.Uuid
   classroom_subject_id String           @db.Uuid
   created_by_id        String           @db.Uuid
+  lesson_id            String?          @db.Uuid
+  activity_id          String?          @db.Uuid
   title                String           @db.VarChar(250)
   details              String
   event_type           String           @db.VarChar(80)
@@ -600,8 +606,11 @@ model ScheduleEvent {
   created_at           DateTime         @default(now()) @db.Timestamptz(6)
   classroomSubject     ClassroomSubject @relation(fields: [classroom_subject_id], references: [id], onDelete: Restrict)
   createdBy            User             @relation(fields: [created_by_id], references: [id], onDelete: Restrict)
+  lesson               Lesson?          @relation(fields: [lesson_id], references: [id], onDelete: SetNull)
+  activity             Activity?        @relation(fields: [activity_id], references: [id], onDelete: SetNull)
   notifications        Notification[]
 
+  @@index([classroom_subject_id, starts_at])
   @@map("schedule_events")
 }
 
@@ -610,6 +619,7 @@ model Notification {
   recipient_id      String         @db.Uuid
   schedule_event_id String?        @db.Uuid
   activity_id       String?        @db.Uuid
+  dedupe_key        String?        @db.VarChar(120)
   title             String
   body              String
   created_at        DateTime       @default(now()) @db.Timestamptz(6)
@@ -620,6 +630,7 @@ model Notification {
 
   @@unique([recipient_id, schedule_event_id])
   @@unique([recipient_id, activity_id])
+  @@unique([recipient_id, dedupe_key])
   @@map("notifications")
 }
 
@@ -730,4 +741,19 @@ model StudentLessonProgress {
 
   @@id([student_id, lesson_id, stream])
   @@map("student_lesson_progress")
+}
+
+model AuthSession {
+  id           String    @id @default(uuid()) @db.Uuid
+  user_id      String    @db.Uuid
+  token_hash   String    @unique @db.VarChar(64)
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  last_seen_at DateTime  @default(now()) @db.Timestamptz(6)
+  expires_at   DateTime  @db.Timestamptz(6)
+  revoked_at   DateTime? @db.Timestamptz(6)
+  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([expires_at])
+  @@map("auth_sessions")
 }
