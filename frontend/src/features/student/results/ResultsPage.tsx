@@ -32,12 +32,21 @@ function NotebookFeedback({ result, previous }: { result: NotebookResult; previo
 export function ResultsPage() {
   const { scenario } = useStudentScenario()
   const [gradeState, setGradeState] = useState<GradeState>('GRADED')
-  return <div className="page-content student-page result-page"><header className="page-heading"><span className="eyebrow"><span className="eyebrow-line" />PHẢN HỒI HỌC TẬP</span><h1>Kết quả của tôi</h1><p>Xem lại bài làm, hiểu phần cần bổ sung và đối chiếu học liệu.</p></header><StudentScenarioControl /><p className="student-notice">Dữ liệu minh họa của riêng học sinh. Điểm bài tập hỗ trợ học tập, không thay thế điểm đánh giá chính thức. Kiểm tra vở chỉ hiển thị nhận xét đã được giáo viên chốt.</p><div className="student-toolbar"><label>Trạng thái chấm minh họa · bài lớp 11A2<select value={gradeState} onChange={(event) => setGradeState(event.target.value as GradeState)}><option value="GRADED">Đã chấm</option><option value="PENDING">Đang chờ chấm</option><option value="FAILED">Chấm gặp lỗi</option></select></label><p className="student-muted">Các trạng thái là những ví dụ thay thế của cùng một lần nộp.</p></div>{scenario !== 'current' && <p className="student-notice">Chưa có lớp hiện tại. Bạn vẫn có thể đọc kết quả của chính mình từ các lớp đã học.</p>}
-    {(['current', 'historic'] as const).map((group) => {
-      const exercises = exerciseResults.filter((result) => getResultGroup(result, scenario) === group)
-      const notebooks = notebookResults.filter((result) => getResultGroup(result, scenario) === group)
-      if (!exercises.length && !notebooks.length) return null
-      return <section key={group} className="result-group"><h2 className="student-section-title">{group === 'current' ? 'Lớp hiện tại' : 'Lịch sử các lớp · chỉ xem lại'}</h2><div className="student-stack">{exercises.map((result) => <ExerciseFeedback key={result.id} result={result.classroomSubjectId === 'history-11a2' ? asGradePreview(result, gradeState) : result} />)}{notebooks.length > 0 && <><h3 className="result-notebook-heading">Nhận xét kiểm tra vở</h3><NotebookFeedback result={notebooks[0]} previous={false} />{notebooks.length > 1 && <details className="result-history"><summary>Xem {notebooks.length - 1} lần chốt trước</summary><div className="student-stack">{notebooks.slice(1).map((result) => <NotebookFeedback key={result.id} result={result} previous />)}</div></details>}</>}</div></section>
-    })}
+  const isUnassigned = scenario === 'unassigned'
+
+  return <div className="page-content student-page result-page">
+    <header className="page-heading"><span className="eyebrow"><span className="eyebrow-line" />PHẢN HỒI HỌC TẬP</span><h1>Kết quả của tôi</h1><p>Xem lại bài làm, hiểu phần cần bổ sung và đối chiếu học liệu.</p></header>
+    <StudentScenarioControl />
+    {isUnassigned ? <section className="panel student-empty"><BookCheck size={28} aria-hidden="true" /><div><span className="eyebrow">CHƯA CÓ DỮ LIỆU</span><h2>Chưa có kết quả để xem</h2><p>Em sẽ thấy kết quả sau khi được xếp vào một lớp và hoàn thành hoạt động học tập.</p></div></section> : <>
+      <p className="student-notice">Dữ liệu minh họa của riêng học sinh. Điểm bài tập hỗ trợ học tập, không thay thế điểm đánh giá chính thức. Kiểm tra vở chỉ hiển thị nhận xét đã được giáo viên chốt.</p>
+      <div className="student-toolbar"><label>Trạng thái chấm minh họa · bài lớp 11A2<select value={gradeState} onChange={(event) => setGradeState(event.target.value as GradeState)}><option value="GRADED">Đã chấm</option><option value="PENDING">Đang chờ chấm</option><option value="FAILED">Chấm gặp lỗi</option></select></label><p className="student-muted">Các trạng thái là những ví dụ thay thế của cùng một lần nộp.</p></div>
+      {scenario === 'history-only' && <p className="student-notice">Đây là kết quả của lớp đã học. Màn hình chỉ cho phép xem lại, không có hoạt động mới.</p>}
+      {(['current', 'historic'] as const).map((group) => {
+        const exercises = exerciseResults.filter((result) => getResultGroup(result, scenario) === group)
+        const notebooks = notebookResults.filter((result) => getResultGroup(result, scenario) === group)
+        if (!exercises.length && !notebooks.length) return null
+        return <section key={group} className="result-group"><h2 className="student-section-title">{group === 'current' ? 'Lớp hiện tại' : 'Lịch sử các lớp · chỉ xem lại'}</h2><div className="student-stack">{exercises.map((result) => <ExerciseFeedback key={result.id} result={result.classroomSubjectId === 'history-11a2' ? asGradePreview(result, gradeState) : result} />)}{notebooks.length > 0 && <><h3 className="result-notebook-heading">Nhận xét kiểm tra vở</h3><NotebookFeedback result={notebooks[0]} previous={false} />{notebooks.length > 1 && <details className="result-history"><summary>Xem {notebooks.length - 1} lần chốt trước</summary><div className="student-stack">{notebooks.slice(1).map((result) => <NotebookFeedback key={result.id} result={result} previous />)}</div></details>}</>}</div></section>
+      })}
+    </>}
   </div>
 }

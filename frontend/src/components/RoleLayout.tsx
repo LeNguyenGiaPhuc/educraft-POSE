@@ -11,7 +11,14 @@ export function RoleLayout({ user, onSignOut }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   const { pathname, search } = useLocation()
   const items = navigation[user.role]
-  const current = items.find((item) => pathname === `/${user.role}${item.path ? `/${item.path}` : ''}` || (user.role === 'teacher' && item.path === 'classes' && pathname.startsWith('/teacher/classes/'))) ?? items[0]
+  const current = items.find((item) => {
+    const basePath = `/${user.role}${item.path ? `/${item.path}` : ''}`
+    const isExactPath = pathname === basePath
+    const isNestedPath = item.path !== '' && pathname.startsWith(`${basePath}/`)
+    const isStudentLesson = user.role === 'student' && item.path === 'subjects' && pathname.startsWith('/student/lessons/')
+    const isTeacherClassDetail = user.role === 'teacher' && item.path === 'classes' && pathname.startsWith('/teacher/classes/')
+    return isExactPath || isNestedPath || isStudentLesson || isTeacherClassDetail
+  }) ?? items[0]
   const teacherContext = user.role === 'teacher' ? getTeacherSubjectContext(pathname.split('/')[5], pathname.split('/')[3]) : undefined
   const scenario = user.role === 'student' ? new URLSearchParams(search).get('scenario') : null
   const scenarioQuery = scenario === 'unassigned' || scenario === 'history-only' ? `?scenario=${scenario}` : ''
@@ -32,7 +39,7 @@ export function RoleLayout({ user, onSignOut }: Props) {
           </NavLink>
           <button className="icon-button mobile-close" aria-label="Đóng menu" onClick={() => setMenuOpen(false)}><X size={20} /></button>
         </div>
-        <div className="workspace-label"><span className="workspace-dot" /> {roleNames[user.role]} <span className="workspace-arrow">⌄</span></div>
+        <div className="workspace-label"><span className="workspace-dot" /> {user.role === 'student' ? scenario === 'unassigned' ? 'Chưa được xếp lớp' : scenario === 'history-only' ? 'Lớp 10A1 · chỉ đọc' : 'Lớp 11A2' : roleNames[user.role]} <span className="workspace-arrow">⌄</span></div>
         <p className="nav-caption">KHÔNG GIAN LÀM VIỆC</p>
         <nav className="main-nav" aria-label={`Điều hướng ${roleNames[user.role]}`}>
           {items.map(({ path, label, icon: Icon }) => (
@@ -41,12 +48,15 @@ export function RoleLayout({ user, onSignOut }: Props) {
               to={`/${user.role}${path ? `/${path}` : ''}${scenarioQuery}`}
               end={path === ''}
               onClick={() => setMenuOpen(false)}
-              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+              className={({ isActive }) => {
+                const isStudentLesson = user.role === 'student' && path === 'subjects' && pathname.startsWith('/student/lessons/')
+                return `nav-link ${isActive || isStudentLesson ? 'active' : ''}`
+              }}
             ><Icon size={18} strokeWidth={1.9} /><span>{label}</span>{path === '' && <ArrowRight className="nav-end" size={15} />}</NavLink>
           ))}
         </nav>
         <div className="sidebar-bottom">
-          {!isManagedWorkspace && <div className="preview-note"><span className="preview-spark">✳</span><div><strong>Bản xem trước</strong><p>Giao diện dùng dữ liệu mẫu. Các chức năng sẽ được kết nối sau.</p></div></div>}
+          {!isManagedWorkspace && <div className="preview-note"><span className="preview-spark">✳</span><div><strong>{user.role === 'student' ? 'Bản mô phỏng Student' : 'Bản xem trước'}</strong><p>{user.role === 'student' ? 'Các thao tác dùng dữ liệu mẫu và được lưu trong phiên này.' : 'Giao diện dùng dữ liệu mẫu. Các chức năng sẽ được kết nối sau.'}</p></div></div>}
           <div className="sidebar-user"><span className="avatar">{user.initials}</span><span className="user-copy"><strong>{user.name}</strong><small>{user.context}</small></span><button className="icon-button logout" onClick={onSignOut} title="Đăng xuất" aria-label="Đăng xuất"><LogOut size={18} /></button></div>
         </div>
       </aside>

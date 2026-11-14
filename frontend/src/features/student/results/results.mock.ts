@@ -26,10 +26,11 @@ export const notebookResults: NotebookResult[] = [
 export function visibleResultForStudent(result: { studentId: string }, studentId: string): boolean { return result.studentId === studentId }
 export function getResultGroup(result: { studentId: string; classroomSubjectId: string }, scenario: StudentScenario) {
   if (!visibleResultForStudent(result, studentIdentity.id)) return null
+  if (scenario === 'unassigned') return null
   const subject = studentSubjects.find((item) => item.id === result.classroomSubjectId)
   if (!subject) return null
-  // Losing current membership does not remove the student's own historic work.
-  return subject.historic || scenario !== 'current' ? 'historic' : 'current'
+  if (scenario === 'history-only' && !subject.historic) return null
+  return subject.historic ? 'historic' : 'current'
 }
 export function asGradePreview(result: ExerciseResult, status: GradeState): ExerciseResult {
   if (status === 'GRADED') return result

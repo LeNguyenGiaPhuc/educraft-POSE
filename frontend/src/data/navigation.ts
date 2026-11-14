@@ -26,14 +26,14 @@ export const navigation: Record<Role, NavItem[]> = {
   ],
   student: [
     { path: '', label: 'Tổng quan', description: 'Bắt đầu một ngày học tập cùng EduCraft.', icon: LayoutDashboard },
-    { path: 'subjects', label: 'Môn học của tôi', description: 'Xem môn học thuộc lớp và bài học được công bố.', icon: GraduationCap },
+    { path: 'subjects', label: 'Môn học', description: 'Xem môn học thuộc lớp và bài học được công bố.', icon: GraduationCap },
     { path: 'activities', label: 'Hoạt động được giao', description: 'Làm quiz, tự luận và nộp bài kiểm tra vở.', icon: ClipboardList },
     { path: 'practice', label: 'Tự ôn tập', description: 'Luyện tập từ học liệu môn học của lớp.', icon: Sparkles },
     { path: 'results', label: 'Kết quả', description: 'Xem điểm, giải thích và bài kiểm tra vở đã chốt.', icon: ClipboardCheck },
-    { path: 'profile', label: 'Hồ sơ học tập', description: 'Theo dõi tiến độ học theo từng môn.', icon: ChartNoAxesCombined },
+    { path: 'profile', label: 'Tiến độ học tập', description: 'Theo dõi tiến độ học theo từng môn.', icon: ChartNoAxesCombined },
     { path: 'calendar', label: 'Lịch & thông báo', description: 'Xem hoạt động sắp tới và thông báo đã nhận.', icon: CalendarDays },
     { path: 'summary', label: 'Tóm tắt bài học', description: 'Đọc bản tóm tắt từ học liệu đã công bố.', icon: FileText },
-    { path: 'assistant', label: 'Trợ lý học tập AI', description: 'Hỏi đáp theo học liệu của các môn trong lớp.', icon: MessageCircle },
+    { path: 'assistant', label: 'Trợ lý AI & lịch sử', description: 'Hỏi đáp theo học liệu đã công bố và xem lại chat của em.', icon: MessageCircle },
     { path: 'chat-history', label: 'Lịch sử hỏi đáp', description: 'Xem lại cuộc trò chuyện của chính mình.', icon: Bell },
   ],
 }

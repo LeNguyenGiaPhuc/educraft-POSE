@@ -6,6 +6,7 @@ import { navigation } from './data/navigation'
 import { LoginPage } from './pages/LoginPage'
 import { OverviewPage } from './pages/OverviewPage'
 import { teacherRouteElements } from './features/teacher/routes'
+import { StudentOverviewPage } from './features/student/OverviewPage'
 import { SectionPage } from './pages/SectionPage'
 
 function App() {
@@ -31,7 +32,7 @@ function App() {
             path={`/${role}`}
             element={user?.role === role ? <RoleLayout user={user} onSignOut={signOut} /> : <Navigate to={user ? `/${user.role}` : '/login'} replace />}
           >
-            <Route index element={<OverviewPage role={role} />} />
+            <Route index element={role === 'student' ? <StudentOverviewPage /> : <OverviewPage role={role} />} />
             {role === 'teacher' ? teacherRouteElements : navigation[role].filter((item) => item.path !== '').map((item) => (
               <Route key={item.path} path={item.path} element={<SectionPage role={role} section={item} />} />
             ))}
