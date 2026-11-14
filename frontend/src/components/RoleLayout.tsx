@@ -3,17 +3,28 @@ import { ArrowRight, LogOut, Menu, X } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import type { DemoUser } from '../data/demo'
 import { navigation, roleNames } from '../data/navigation'
+import { useStudentDemo } from '../context/StudentDemoContext'
 
 type Props = { user: DemoUser; onSignOut: () => void }
+
+function StudentWorkspaceLabel() {
+  const { classMode } = useStudentDemo()
+  const label = classMode === 'current' ? 'Lớp 11A2' : classMode === 'former' ? 'Lớp 10A3 · chỉ đọc' : 'Chưa được xếp lớp'
+  return <div className="workspace-label student-workspace-label"><span className="workspace-dot" /> {label}</div>
+}
 
 export function RoleLayout({ user, onSignOut }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   const { pathname } = useLocation()
   const items = navigation[user.role]
-  const current = items.find((item) => pathname === `/${user.role}${item.path ? `/${item.path}` : ''}`) ?? items[0]
+  const studentParentPath = user.role === 'student' && (pathname.startsWith('/student/lessons/') || pathname === '/student/summary') ? 'subjects' : null
+  const current = items.find((item) => {
+    const basePath = `/${user.role}${item.path ? `/${item.path}` : ''}`
+    return pathname === basePath || (item.path !== '' && pathname.startsWith(`${basePath}/`)) || (item.path === 'assistant' && pathname === `/${user.role}/chat-history`)
+  }) ?? items.find((item) => item.path === studentParentPath) ?? items[0]
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${user.role === 'student' ? 'student-experience' : ''}`}>
       {menuOpen && <button className="mobile-overlay" aria-label="Đóng menu" onClick={() => setMenuOpen(false)} />}
       <aside className={`sidebar ${menuOpen ? 'sidebar-open' : ''}`}>
         <div className="brand-row">
@@ -22,21 +33,24 @@ export function RoleLayout({ user, onSignOut }: Props) {
           </NavLink>
           <button className="icon-button mobile-close" aria-label="Đóng menu" onClick={() => setMenuOpen(false)}><X size={20} /></button>
         </div>
-        <div className="workspace-label"><span className="workspace-dot" /> {roleNames[user.role]} <span className="workspace-arrow">⌄</span></div>
+        {user.role === 'student' ? <StudentWorkspaceLabel /> : <div className="workspace-label"><span className="workspace-dot" /> {roleNames[user.role]} <span className="workspace-arrow">⌄</span></div>}
         <p className="nav-caption">KHÔNG GIAN LÀM VIỆC</p>
         <nav className="main-nav" aria-label={`Điều hướng ${roleNames[user.role]}`}>
-          {items.map(({ path, label, icon: Icon }) => (
+          {items.map((item) => (
             <NavLink
-              key={path}
-              to={`/${user.role}${path ? `/${path}` : ''}`}
-              end={path === ''}
+              key={item.path}
+              to={`/${user.role}${item.path ? `/${item.path}` : ''}`}
+              end={item.path === ''}
               onClick={() => setMenuOpen(false)}
-              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-            ><Icon size={18} strokeWidth={1.9} /><span>{label}</span>{path === '' && <ArrowRight className="nav-end" size={15} />}</NavLink>
+              className={({ isActive }) => {
+                const relatedStudentPage = user.role === 'student' && ((item.path === 'subjects' && (pathname.startsWith('/student/lessons/') || pathname === '/student/summary')) || (item.path === 'assistant' && pathname === '/student/chat-history'))
+                return `nav-link ${isActive || relatedStudentPage ? 'active' : ''}`
+              }}
+            ><item.icon size={18} strokeWidth={1.9} /><span>{item.label}</span>{item.path === '' && <ArrowRight className="nav-end" size={15} />}</NavLink>
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="preview-note"><span className="preview-spark">✳</span><div><strong>Bản xem trước</strong><p>Giao diện dùng dữ liệu mẫu. Các chức năng sẽ được kết nối sau.</p></div></div>
+          <div className="preview-note"><span className="preview-spark">✳</span><div><strong>{user.role === 'student' ? 'Bản mô phỏng Student' : 'Bản xem trước'}</strong><p>{user.role === 'student' ? 'Các thao tác dùng dữ liệu mẫu và được lưu trong phiên này.' : 'Giao diện dùng dữ liệu mẫu. Các chức năng sẽ được kết nối sau.'}</p></div></div>
           <div className="sidebar-user"><span className="avatar">{user.initials}</span><span className="user-copy"><strong>{user.name}</strong><small>{user.context}</small></span><button className="icon-button logout" onClick={onSignOut} title="Đăng xuất" aria-label="Đăng xuất"><LogOut size={18} /></button></div>
         </div>
       </aside>
