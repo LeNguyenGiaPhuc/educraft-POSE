@@ -64,6 +64,7 @@ describe('Teacher Workspace API (E2E)', () => {
           academicYear: '2026-2027',
           gradeLevel: 11,
           status: 'ACTIVE',
+          readOnly: false,
           studentCount: 30,
           subjects: [
             {
@@ -87,6 +88,29 @@ describe('Teacher Workspace API (E2E)', () => {
       expect(res.body.data[0].subjects).toHaveLength(1);
     });
 
+    it('includes archived assigned classrooms as read-only history', async () => {
+      vi.spyOn(workspaceService, 'listAssignedClassrooms').mockResolvedValue([
+        {
+          id: validClassroomId,
+          name: '10A1',
+          academicYear: '2025-2026',
+          gradeLevel: 10,
+          status: 'ARCHIVED',
+          readOnly: true,
+          studentCount: 18,
+          subjects: [],
+        },
+      ]);
+
+      const res = await request(app)
+        .get('/api/v1/teacher/classrooms')
+        .set('Cookie', ['educraft_session=mock_cookie']);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data[0].status).toBe('ARCHIVED');
+      expect(res.body.data[0].readOnly).toBe(true);
+    });
+
     it('GET /api/v1/teacher/classrooms/:id returns classroom detail', async () => {
       vi.spyOn(workspaceService, 'getAssignedClassroomDetail').mockResolvedValue({
         id: validClassroomId,
@@ -94,6 +118,7 @@ describe('Teacher Workspace API (E2E)', () => {
         academicYear: '2026-2027',
         gradeLevel: 11,
         status: 'ACTIVE',
+        readOnly: false,
         students: [{ id: 'stu-1', name: 'Nguyễn Văn A', username: 'nguyenvana', contact: '0901234567' }],
         subjects: [
           {
@@ -121,6 +146,7 @@ describe('Teacher Workspace API (E2E)', () => {
         classroomId: validClassroomId,
         classroomName: '11A1',
         classroomStatus: 'ACTIVE',
+        readOnly: false,
         academicYear: '2026-2027',
         gradeLevel: 11,
         subjectId: 'sub-history',
@@ -148,6 +174,7 @@ describe('Teacher Workspace API (E2E)', () => {
           username: 'nguyenvana',
           contact: '0901234567',
           joinedAt: '2026-09-01T00:00:00.000Z',
+          leftAt: null,
         },
       ]);
 
