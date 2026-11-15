@@ -106,17 +106,41 @@ export class SubjectRepository {
   }
 
   async updateStatus(id: string, isActive: boolean): Promise<SubjectWithCounts> {
-    return prisma.subject.update({
-      where: { id },
-      data: { is_active: isActive },
-      include: {
-        _count: {
-          select: {
-            teacherProfiles: true,
-            classroomSubjects: true,
+    return prisma.$transaction(async (tx) => {
+      const subject = await tx.subject.update({
+        where: { id },
+        data: { is_active: isActive },
+      });
+
+      if (isActive) {
+        const activeClassrooms = await tx.classroom.findMany({
+          where: { status: 'ACTIVE' },
+          select: { id: true },
+        });
+
+        if (activeClassrooms.length > 0) {
+          await tx.classroomSubject.createMany({
+            data: activeClassrooms.map((classroom) => ({
+              classroom_id: classroom.id,
+              subject_id: subject.id,
+              teacher_id: null,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
+
+      return tx.subject.findUniqueOrThrow({
+        where: { id },
+        include: {
+          _count: {
+            select: {
+              teacherProfiles: true,
+              classroomSubjects: true,
+            },
           },
         },
-      },
+      });
     });
   }
 }

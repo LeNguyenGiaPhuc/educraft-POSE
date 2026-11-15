@@ -134,6 +134,23 @@ describe('SubjectService', () => {
     expect(repo.updateStatus).toHaveBeenCalledWith('sub-1', false);
   });
 
+  it('reactivates a subject through the repository sync flow', async () => {
+    vi.spyOn(repo, 'findById').mockResolvedValue({
+      id: 'sub-1',
+      name: 'Lịch sử',
+      is_active: false,
+    });
+    vi.spyOn(repo, 'updateStatus').mockResolvedValue({
+      id: 'sub-1',
+      name: 'Lịch sử',
+      is_active: true,
+    });
+
+    const result = await service.updateStatus('sub-1', { isActive: true });
+    expect(result.isActive).toBe(true);
+    expect(repo.updateStatus).toHaveBeenCalledWith('sub-1', true);
+  });
+
   it('throws NotFoundError for non-existent subject', async () => {
     vi.spyOn(repo, 'findById').mockResolvedValue(null);
     await expect(service.getSubjectById('nonexistent')).rejects.toThrow(NotFoundError);
