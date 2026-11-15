@@ -13,20 +13,24 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { accounts, type Classroom } from '../fixtures'
-import { importStudentsToClassroom } from './classrooms.mock'
+import { ApiError } from '../../../lib/api/client'
+import { adminApi, type AdminClassroomDetail } from '../../../lib/api/admin'
 import {
   downloadStudentTemplateXlsx,
   readStudentWorkbook,
-  validateStudentImport,
   type ImportIssue,
   type StudentImportRow,
 } from './studentImport'
 
+export type StudentExcelImportClassroom = Pick<
+  AdminClassroomDetail,
+  'id' | 'name' | 'gradeLevel' | 'academicYear'
+>
+
 export interface StudentExcelImportModalProps {
   isOpen: boolean
   onClose: () => void
-  classroom: Classroom
+  classroom: StudentExcelImportClassroom
   onSuccess: (importedCount: number) => void
 }
 
@@ -42,11 +46,18 @@ export function StudentExcelImportModal({
   const [issues, setIssues] = useState<ImportIssue[]>([])
   const [parseError, setParseError] = useState('')
   const [tempPassword, setTempPassword] = useState('')
+  const [validationToken, setValidationToken] = useState<string | null>(null)
+  const [isPreviewing, setIsPreviewing] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const hasErrors = issues.length > 0
-  const isAllValid = !hasErrors && importRows.length > 0 && Boolean(tempPassword.trim())
+  const isAllValid =
+    !hasErrors &&
+    importRows.length > 0 &&
+    Boolean(tempPassword.trim()) &&
+    Boolean(validationToken)
 
   // Issues by line map for quick table lookup
   const issuesByLine = useMemo(() => {
@@ -74,22 +85,34 @@ export function StudentExcelImportModal({
     setFileName(file.name)
     setFileSize(file.size)
     setParseError('')
+    setValidationToken(null)
 
     const result = await readStudentWorkbook(file)
-    if (result.issues.some((i) => i.line <= 1)) {
-      // Header or file-level errors
+    setImportRows(result.rows)
+    setIssues(result.issues)
+
+    if (result.issues.length > 0 || result.rows.length === 0) {
       setParseError(result.issues.map((i) => i.message).join(' '))
-      setImportRows([])
-      setIssues(result.issues)
       return
     }
 
-    const existingUsernames = new Set(accounts.map((a) => a.username.toLowerCase()))
-    const validationIssues = validateStudentImport(result.rows, existingUsernames)
-    const combinedIssues = [...result.issues, ...validationIssues].sort((a, b) => a.line - b.line)
-
-    setImportRows(result.rows)
-    setIssues(combinedIssues)
+    setIsPreviewing(true)
+    try {
+      const preview = await adminApi.previewRoster(classroom.id, file)
+      setImportRows(preview.rows)
+      setIssues(preview.issues)
+      setValidationToken(preview.validationToken)
+      if (!preview.isValid) {
+        setParseError('File chưa hợp lệ theo dữ liệu hiện tại. Vui lòng sửa các dòng báo lỗi rồi tải lại.')
+      }
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Không thể kiểm tra file với máy chủ.'
+      setParseError(message)
+      setIssues(result.rows.map((row) => ({ line: row.line, message })))
+      setValidationToken(null)
+    } finally {
+      setIsPreviewing(false)
+    }
   }
 
   async function handleFileSelected(e: ChangeEvent<HTMLInputElement>) {
@@ -123,6 +146,9 @@ export function StudentExcelImportModal({
     setIssues([])
     setParseError('')
     setTempPassword('')
+    setValidationToken(null)
+    setIsPreviewing(false)
+    setIsSubmitting(false)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -133,21 +159,25 @@ export function StudentExcelImportModal({
     onClose()
   }
 
-  function handleConfirmImport() {
-    if (!isAllValid) return
+  async function handleConfirmImport() {
+    if (!isAllValid || !validationToken) return
 
-    // Re-verify strictly before applying
-    const existingUsernames = new Set(accounts.map((a) => a.username.toLowerCase()))
-    const recheckedIssues = validateStudentImport(importRows, existingUsernames)
-    if (recheckedIssues.length > 0 || !tempPassword.trim()) {
-      setIssues(recheckedIssues)
-      return
+    setIsSubmitting(true)
+    setParseError('')
+    try {
+      const result = await adminApi.commitRoster(classroom.id, {
+        validationToken,
+        defaultPassword: tempPassword.trim(),
+        rows: importRows,
+      })
+      handleReset()
+      onSuccess(result.importedCount)
+      onClose()
+    } catch (error) {
+      setParseError(error instanceof ApiError ? error.message : 'Không thể nhập danh sách học sinh.')
+    } finally {
+      setIsSubmitting(false)
     }
-
-    const count = importStudentsToClassroom(importRows, classroom.id)
-    handleReset()
-    onSuccess(count)
-    onClose()
   }
 
   return (
@@ -186,7 +216,7 @@ export function StudentExcelImportModal({
               <p>
                 File Excel (<code>.xlsx</code>) có hàng đầu gồm đúng 3 cột theo thứ tự:
                 <strong> Họ và tên</strong>, <strong>Tên đăng nhập</strong>, <strong>Thông tin liên hệ</strong>.
-                Bản xem trước kiểm tra từng dòng; tài khoản và mật khẩu sẽ được tạo khi kết nối backend.
+                Bản xem trước kiểm tra từng dòng; tài khoản và mật khẩu sẽ được tạo trong một giao dịch trên hệ thống.
               </p>
             </div>
             <button
@@ -202,10 +232,19 @@ export function StudentExcelImportModal({
           {!fileName ? (
             <div
               className={`cls-dropzone ${isDragging ? 'is-dragging' : ''}`}
+              role="button"
+              tabIndex={0}
+              aria-label="Chọn file Excel danh sách học sinh"
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  fileInputRef.current?.click()
+                }
+              }}
             >
               <input
                 ref={fileInputRef}
@@ -256,11 +295,12 @@ export function StudentExcelImportModal({
                 placeholder="Nhập mật khẩu tạm cấp cho toàn bộ học sinh mới..."
                 value={tempPassword}
                 onChange={(e) => setTempPassword(e.target.value)}
+                minLength={8}
                 required
                 style={{ marginTop: 6 }}
               />
               <small style={{ color: '#688272', fontSize: '12px', marginTop: 4, display: 'block' }}>
-                Chỉ kiểm tra mật khẩu trong bản giao diện mẫu; chưa cấp mật khẩu hoặc tạo tài khoản thật.
+                Mật khẩu khởi tạo phải có ít nhất 8 ký tự.
               </small>
             </div>
           )}
@@ -350,7 +390,7 @@ export function StudentExcelImportModal({
               <div>
                 <strong>Hợp lệ 100%! Toàn bộ {importRows.length} học sinh đủ điều kiện để tạo tài khoản và thêm vào lớp {classroom.name}.</strong>
                 <p style={{ margin: '2px 0 0', fontSize: '12px' }}>
-                  Khi nối backend, hệ thống sẽ tạo tài khoản và cấp mật khẩu tạm trong một giao dịch.
+                  Hệ thống sẽ tạo tài khoản và ghi nhận học sinh vào lớp trong một giao dịch.
                 </p>
               </div>
             </div>
@@ -437,7 +477,7 @@ export function StudentExcelImportModal({
             type="button"
             className="cls-btn-submit"
             onClick={handleConfirmImport}
-            disabled={!isAllValid}
+            disabled={!isAllValid || isPreviewing || isSubmitting}
             title={
               importRows.length === 0
                 ? 'Vui lòng tải lên file Excel (.xlsx)'
@@ -445,11 +485,19 @@ export function StudentExcelImportModal({
                 ? 'File có dòng lỗi. Vui lòng sửa lại toàn bộ file trước khi nhập.'
                 : !tempPassword.trim()
                 ? 'Vui lòng nhập mật khẩu tạm cho đợt import'
+                : isPreviewing
+                ? 'Đang kiểm tra file với máy chủ'
+                : isSubmitting
+                ? 'Đang nhập danh sách'
                 : 'Xác nhận tạo tài khoản và thêm học sinh vào lớp'
             }
           >
             <UserPlus size={15} />
-            Xác nhận nhập danh sách {importRows.length > 0 ? `(${importRows.length} học sinh)` : ''}
+            {isPreviewing
+              ? 'Đang kiểm tra...'
+              : isSubmitting
+              ? 'Đang nhập...'
+              : `Xác nhận nhập danh sách ${importRows.length > 0 ? `(${importRows.length} học sinh)` : ''}`}
           </button>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ChangeEvent } from 'react'
 import { useSearchParams } from 'react-router'
 import {
   AlertCircle,
@@ -17,23 +17,21 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { accounts, classrooms, subjects, type Classroom, type ClassroomStatus } from '../fixtures'
+import { type ClassroomStatus } from '../fixtures'
 import {
-  activeStudents,
-  createNewClassroom,
   emptyClassroomDraft,
-  getSubjectAssignmentStats,
   validateClassroomDraft,
   type ClassroomDraft,
 } from './classrooms.mock'
 import {
   downloadStudentTemplateXlsx,
   readStudentWorkbook,
-  validateStudentImport,
   type StudentImportIssue,
   type StudentImportRow,
 } from './studentImport'
 import { ClassroomDetailPage } from './ClassroomDetailPage'
+import { ApiError } from '../../../lib/api/client'
+import { adminApi, type AdminClassroomSummary } from '../../../lib/api/admin'
 import './classrooms.css'
 
 function getProgressStatusClass(isComplete: boolean, assigned: number): string {
@@ -44,7 +42,10 @@ function getProgressStatusClass(isComplete: boolean, assigned: number): string {
 
 export function ClassroomsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const [classList, setClassList] = useState<Classroom[]>(() => [...classrooms])
+  const [classList, setClassList] = useState<AdminClassroomSummary[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
 
   // Filters
   const [search, setSearch] = useState('')
@@ -78,9 +79,7 @@ export function ClassroomsPage() {
   // Metrics
   const activeClassesCount = useMemo(() => classList.filter((c) => c.status === 'ACTIVE').length, [classList])
   const archivedClassesCount = useMemo(() => classList.filter((c) => c.status === 'ARCHIVED').length, [classList])
-  const totalStudentsCount = useMemo(() => {
-    return classList.reduce((acc, c) => acc + activeStudents(c.id).length, 0)
-  }, [classList])
+  const totalStudentsCount = useMemo(() => classList.reduce((acc, c) => acc + c.studentCount, 0), [classList])
 
   // Filtered List
   const visibleClassrooms = useMemo(() => {
@@ -95,6 +94,31 @@ export function ClassroomsPage() {
       return matchSearch && matchGrade && matchStatus
     })
   }, [classList, search, gradeFilter, statusFilter])
+
+  useEffect(() => {
+    if (selectedClassId) return
+
+    let cancelled = false
+    setIsLoading(true)
+    setLoadError('')
+
+    adminApi.listClassrooms({ limit: 100 })
+      .then((response) => {
+        if (!cancelled) setClassList(response.items)
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setLoadError(error instanceof ApiError ? error.message : 'Không thể tải danh sách lớp học.')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedClassId])
 
   // Excel Validation Metrics
   const excelSummary = useMemo(() => {
@@ -149,9 +173,7 @@ export function ClassroomsPage() {
         setExcelIssues(issues)
       } else {
         setExcelRows(rows)
-        const existingUsernames = new Set(accounts.map((a) => a.username.toLowerCase()))
-        const validationIssues = validateStudentImport(rows, existingUsernames)
-        setExcelIssues(validationIssues)
+        setExcelIssues([])
       }
     } catch {
       setExcelError('Không thể đọc file. Vui lòng chọn file .xlsx đúng định dạng.')
@@ -170,7 +192,7 @@ export function ClassroomsPage() {
     setExcelError('')
   }
 
-  function handleSubmitCreate(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmitCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
 
     // 1. Validate basic class info
@@ -180,44 +202,29 @@ export function ClassroomsPage() {
       return
     }
 
-    // 2. If excel is enabled, check file and password
+    // 2. Excel import is completed from the created classroom detail page.
     if (enableExcel) {
-      if (!excelFileName || excelRows.length === 0) {
-        setFormErrors(['Vui lòng chọn file danh sách học sinh (.xlsx) hoặc tắt tùy chọn import Excel.'])
-        return
-      }
-      if (!excelPassword.trim()) {
-        setFormErrors(['Vui lòng nhập mật khẩu khởi tạo chung cho danh sách học sinh import.'])
-        return
-      }
-      if (excelError) {
-        setFormErrors([`Lỗi file Excel: ${excelError}`])
-        return
-      }
-      const existingUsernames = new Set(accounts.map((a) => a.username.toLowerCase()))
-      const issues = validateStudentImport(excelRows, existingUsernames)
-      if (issues.length > 0) {
-        setExcelIssues(issues)
-        setFormErrors([`Không thể tạo lớp: File Excel có ${issues.length} dòng lỗi. Vui lòng sửa hết lỗi trước khi xác nhận.`])
-        return
-      }
+      setFormErrors(['Hãy tạo lớp trước, sau đó mở chi tiết lớp để nhập Excel và xem kết quả kiểm tra từ backend.'])
+      return
     }
 
-    // 3. Create classroom
+    // 3. Create classroom through the backend
+    setIsSaving(true)
     try {
-      const created = createNewClassroom(draft, enableExcel ? excelRows : undefined)
-
-      // 4. Update local state
-      setClassList([...classrooms])
+      const created = await adminApi.createClassroom(draft)
+      const subjectsCreated = created.subjectCount
+      await adminApi.listClassrooms({ limit: 100 }).then((response) => setClassList(response.items))
       setSuccessInfo({
-        classroomName: created.classroom.name,
-        subjectsCreated: created.subjectsCreated,
-        studentsAdded: created.studentsAdded,
+        classroomName: created.name,
+        subjectsCreated,
+        studentsAdded: 0,
       })
 
       closeCreateModal()
     } catch (err) {
-      setFormErrors([(err as Error).message || 'Có lỗi xảy ra khi tạo lớp.'])
+      setFormErrors([err instanceof ApiError ? err.message : 'Có lỗi xảy ra khi tạo lớp.'])
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -252,7 +259,7 @@ export function ClassroomsPage() {
       <div className="adm-notice">
         <School size={17} />
         <span>
-          Dữ liệu mẫu trên giao diện. Các thay đổi được mô phỏng chính xác theo nghiệp vụ hệ thống trước khi nối API backend.
+          Dữ liệu lớp học được tải từ hệ thống. Mỗi lớp mới sẽ tự động nhận các môn đang hoạt động trong danh mục chung.
         </span>
       </div>
 
@@ -261,10 +268,10 @@ export function ClassroomsPage() {
         <div className="cls-success-banner" role="status">
           <CheckCircle2 size={19} />
           <div style={{ flex: 1 }}>
-            <strong>Đã tạo lớp “{successInfo.classroomName}” trong dữ liệu mẫu của phiên này.</strong>
+            <strong>Đã tạo lớp “{successInfo.classroomName}” trên hệ thống.</strong>
             <p style={{ margin: '4px 0 0', fontSize: '12px' }}>
               Đã tự động khởi tạo {successInfo.subjectsCreated} môn học từ danh mục chung với giáo viên “Chưa phân công”.
-              {successInfo.studentsAdded > 0 && ` Đã thêm ${successInfo.studentsAdded} học sinh mẫu vào lớp; chưa tạo tài khoản thật.`}
+              {successInfo.studentsAdded > 0 && ` Đã thêm ${successInfo.studentsAdded} học sinh vào lớp.`}
             </p>
           </div>
           <button
@@ -373,7 +380,33 @@ export function ClassroomsPage() {
 
       {/* Classroom Catalog Table */}
       <div className="cls-card-wrapper">
-        {visibleClassrooms.length === 0 ? (
+        {isLoading ? (
+          <div className="cls-empty-box">
+            <p>Đang tải danh sách lớp học...</p>
+          </div>
+        ) : loadError ? (
+          <div className="cls-empty-box" role="alert">
+            <div className="cls-empty-icon">
+              <AlertCircle size={28} />
+            </div>
+            <strong>Không thể tải danh sách lớp học</strong>
+            <p>{loadError}</p>
+            <button
+              type="button"
+              className="cls-btn-detail"
+              onClick={() => {
+                setIsLoading(true)
+                setLoadError('')
+                adminApi.listClassrooms({ limit: 100 })
+                  .then((response) => setClassList(response.items))
+                  .catch((error) => setLoadError(error instanceof ApiError ? error.message : 'Không thể tải danh sách lớp học.'))
+                  .finally(() => setIsLoading(false))
+              }}
+            >
+              <RotateCcw size={14} /> Thử lại
+            </button>
+          </div>
+        ) : visibleClassrooms.length === 0 ? (
           <div className="cls-empty-box">
             <div className="cls-empty-icon">
               <School size={28} />
@@ -406,8 +439,10 @@ export function ClassroomsPage() {
             </thead>
             <tbody>
               {visibleClassrooms.map((item) => {
-                const students = activeStudents(item.id)
-                const stats = getSubjectAssignmentStats(item.id)
+                const assigned = item.assignedTeacherCount
+                const total = item.subjectCount
+                const percentage = total === 0 ? 0 : Math.round((assigned / total) * 100)
+                const isComplete = total > 0 && assigned === total
 
                 return (
                   <tr key={item.id}>
@@ -428,7 +463,7 @@ export function ClassroomsPage() {
                     <td>
                       <span className="cls-student-count">
                         <Users size={14} />
-                        {students.length} học sinh
+                        {item.studentCount} học sinh
                       </span>
                     </td>
 
@@ -437,20 +472,20 @@ export function ClassroomsPage() {
                       <div className="cls-subject-progress">
                         <div
                           className={`cls-ratio-text ${getProgressStatusClass(
-                            stats.isComplete,
-                            stats.assigned
+                            isComplete,
+                            assigned
                           )}`}
                         >
-                          <span>{stats.ratioText}</span>
-                          <span>{stats.percentage}%</span>
+                          <span>{assigned}/{total} môn</span>
+                          <span>{percentage}%</span>
                         </div>
                         <div className="cls-progress-bar">
                           <div
                             className={`cls-progress-fill ${getProgressStatusClass(
-                              stats.isComplete,
-                              stats.assigned
+                              isComplete,
+                              assigned
                             )}`}
-                            style={{ width: `${stats.percentage}%` }}
+                            style={{ width: `${percentage}%` }}
                           />
                         </div>
                       </div>
@@ -547,8 +582,8 @@ export function ClassroomsPage() {
                 <div className="adm-notice" style={{ margin: 0, padding: '10px 14px' }}>
                   <BookOpen size={16} />
                   <span>
-                    Hệ thống sẽ tự động gán toàn bộ <strong>{subjects.length} môn học</strong> trong danh mục cho lớp mới
-                    với trạng thái <em>Chưa phân công</em> giáo viên.
+                    Hệ thống sẽ tự động gán các môn đang hoạt động trong danh mục cho lớp mới với trạng thái
+                    <em> Chưa phân công</em> giáo viên. Có thể nhập Excel sau khi mở chi tiết lớp.
                   </span>
                 </div>
 
@@ -558,12 +593,13 @@ export function ClassroomsPage() {
                     <label
                       htmlFor="excel-toggle"
                       className="cls-excel-title"
-                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                      style={{ cursor: 'default', userSelect: 'none' }}
                     >
                       <input
                         type="checkbox"
                         id="excel-toggle"
                         checked={enableExcel}
+                        disabled
                         onChange={(e) => {
                           setEnableExcel(e.target.checked)
                           if (!e.target.checked) {
@@ -573,7 +609,7 @@ export function ClassroomsPage() {
                         }}
                         style={{ accentColor: '#286449', width: 16, height: 16 }}
                       />
-                      <span>Thêm danh sách học sinh bằng Excel (.xlsx) ngay khi tạo</span>
+                      <span>Nhập danh sách học sinh bằng Excel sau khi tạo lớp</span>
                     </label>
 
                     <button
@@ -607,7 +643,7 @@ export function ClassroomsPage() {
                           onChange={(e) => setExcelPassword(e.target.value)}
                         />
                         <span style={{ fontSize: '12px', color: '#6b7280', marginTop: 3 }}>
-                          Bản giao diện mẫu chỉ kiểm tra mật khẩu; chưa tạo tài khoản hoặc cấp mật khẩu thật.
+                          Sau khi tạo lớp, mở chi tiết lớp để preview và nhập file qua máy chủ.
                         </span>
                       </div>
 
@@ -675,8 +711,8 @@ export function ClassroomsPage() {
                             Có {excelIssues.length} dòng dữ liệu không hợp lệ (Không thể tạo lớp kèm file):
                           </div>
                           <div className="cls-error-list">
-                            {excelIssues.map((err, idx) => (
-                              <div key={`${err.line}-${idx}`} className="cls-error-item">
+                            {excelIssues.map((err) => (
+                              <div key={`${err.line}-${err.message}`} className="cls-error-item">
                                 <span className="cls-error-line">Dòng {err.line}</span>
                                 <div>
                                   <span style={{ color: '#b72727' }}>{err.message}</span>
@@ -727,17 +763,12 @@ export function ClassroomsPage() {
                 <button
                   type="submit"
                   className="cls-btn-submit"
-                  disabled={
-                    enableExcel &&
-                    (!excelFileName || excelIssues.length > 0 || !excelPassword.trim() || Boolean(excelError))
-                  }
+                  disabled={isSaving}
                   title={
-                    enableExcel && excelIssues.length > 0
-                      ? 'Vui lòng sửa các dòng lỗi trong file trước khi xác nhận tạo lớp'
-                      : undefined
+                    isSaving ? 'Đang tạo lớp học' : undefined
                   }
                 >
-                  Xác nhận tạo lớp
+                  {isSaving ? 'Đang lưu...' : 'Xác nhận tạo lớp'}
                 </button>
               </div>
             </form>

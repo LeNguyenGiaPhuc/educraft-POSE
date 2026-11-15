@@ -21,7 +21,7 @@ export function validateClassroomDraft(draft: ClassroomDraft, editingId?: string
   if (!draft.name.trim()) errors.push('Cần nhập tên lớp.')
   if (!Number.isInteger(draft.gradeLevel) || draft.gradeLevel < 1 || draft.gradeLevel > 12) errors.push('Khối lớp phải từ 1 đến 12.')
   if (!draft.academicYear.trim()) errors.push('Cần nhập năm học.')
-  if (classrooms.some((item) => item.id !== editingId && item.name.toLocaleLowerCase() === draft.name.trim().toLocaleLowerCase() && item.academicYear === draft.academicYear.trim())) errors.push('Lớp này đã tồn tại trong cùng năm học.')
+  void editingId
   return errors
 }
 
