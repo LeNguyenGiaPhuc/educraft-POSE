@@ -2,13 +2,14 @@
 /* oxlint-disable react/only-export-components */
 import { type ComponentType, type ReactNode } from 'react'
 import { Navigate, Route, useLocation, useParams } from 'react-router'
-import { assignedClasses, assignedSubjects, currentTeacherId, getTeacherSubjectContext, isTeacherPreviewItem, sampleLessons, teacherSubjectPath, type TeacherWorkspaceTab } from './fixtures'
+import { assignedSubjects, getTeacherSubjectContext, isTeacherPreviewItem, sampleLessons, teacherSubjectPath, type TeacherWorkspaceTab } from './fixtures'
 import { assignedActivities } from './insights/fixtures'
 import { TeacherBackButton } from './components/TeacherBackButton'
 import { readActivityPreviews } from './activities/activities.mock'
 import { ActivitiesPage } from './activities/ActivitiesPage'
 import { PromptSummaryPage } from './ai-summary/PromptSummaryPage'
 import { AssignedClassesPage } from './classes/AssignedClassesPage'
+import { TeacherClassroomDetailPage } from './classes/TeacherClassroomDetailPage'
 import { TeacherSubjectWorkspace } from './classes/TeacherSubjectWorkspace'
 import { LessonsPage } from './lessons/LessonsPage'
 import { ProgressPage } from './progress/ProgressPage'
@@ -46,9 +47,8 @@ function TeacherWorkspaceRoute() {
 
 function TeacherClassRoute() {
   const { classroomId } = useParams()
-  const classroom = assignedClasses.find(item => item.id === classroomId)
-  const firstSubject = classroom?.subjects.find(item => item.teacherId === currentTeacherId)
-  return <Navigate to={firstSubject ? teacherSubjectPath(firstSubject.id) : '/teacher/classes'} replace />
+  if (!classroomId) return <Navigate to="/teacher/classes" replace />
+  return <TeacherClassroomDetailPage classroomId={classroomId} />
 }
 
 function getWorkspaceTabFromSection(section: string): TeacherWorkspaceTab {
