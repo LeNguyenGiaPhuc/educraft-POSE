@@ -225,4 +225,55 @@ export const enrollmentRepository = {
       };
     });
   },
+
+  async removeStudentAtomically(classroomId: string, studentId: string) {
+    return prisma.$transaction(async (tx) => {
+      await lockClassroom(tx, classroomId);
+      await lockStudent(tx, studentId);
+
+      const classroom = await tx.classroom.findUnique({
+        where: { id: classroomId },
+      });
+      if (!classroom) {
+        throw new NotFoundError('Không tìm thấy lớp học');
+      }
+      if (classroom.status === 'ARCHIVED') {
+        throw new BadRequestError('Không thể thay đổi thành viên của lớp học đã lưu trữ');
+      }
+
+      const student = await tx.user.findUnique({
+        where: { id: studentId },
+        select: { id: true, role: true },
+      });
+      if (!student) {
+        throw new NotFoundError('Không tìm thấy tài khoản học sinh');
+      }
+      if (student.role !== 'STUDENT') {
+        throw new BadRequestError('Tài khoản được chọn không phải là học sinh');
+      }
+
+      const currentEnrollment = await tx.classroomEnrollment.findFirst({
+        where: {
+          classroom_id: classroomId,
+          student_id: studentId,
+          left_at: null,
+        },
+      });
+      if (!currentEnrollment) {
+        throw new BadRequestError('Học sinh hiện không thuộc lớp học này');
+      }
+
+      const removedAt = new Date();
+      await tx.classroomEnrollment.update({
+        where: { id: currentEnrollment.id },
+        data: { left_at: removedAt },
+      });
+
+      return {
+        studentId,
+        classroomId,
+        removedAt,
+      };
+    });
+  },
 };

@@ -116,5 +116,26 @@ describe('Admin Enrollments API (E2E)', () => {
       expect(res.status).toBe(200);
       expect(res.body.data.newClassroomId).toBe('c3333333-3333-4333-8333-333333333333');
     });
+
+    it('DELETE /api/v1/admin/enrollments/classrooms/:id/students/:studentId removes current enrollment', async () => {
+      vi.spyOn(enrollmentService, 'removeStudent').mockResolvedValue({
+        studentId: 'c3333333-3333-4333-8333-333333333333',
+        classroomId: 'c1111111-1111-4111-8111-111111111111',
+        removedAt: '2026-09-12T00:00:00.000Z',
+      });
+
+      const res = await request(app)
+        .delete(
+          '/api/v1/admin/enrollments/classrooms/c1111111-1111-4111-8111-111111111111/students/c3333333-3333-4333-8333-333333333333'
+        )
+        .set('Cookie', ['educraft_session=mock_cookie']);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.classroomId).toBe('c1111111-1111-4111-8111-111111111111');
+      expect(enrollmentService.removeStudent).toHaveBeenCalledWith(
+        'c1111111-1111-4111-8111-111111111111',
+        'c3333333-3333-4333-8333-333333333333'
+      );
+    });
   });
 });

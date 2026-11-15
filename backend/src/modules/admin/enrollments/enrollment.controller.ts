@@ -8,6 +8,7 @@ import {
   transferStudentSchema,
   studentIdParamSchema,
   classroomIdParamSchema,
+  classroomStudentParamsSchema,
 } from './enrollment.schemas.js';
 
 export const enrollmentController = {
@@ -47,6 +48,16 @@ export const enrollmentController = {
       const data = transferStudentSchema.parse(req.body);
 
       const result = await enrollmentService.transferStudent(studentId, data);
+      sendSuccess(res, result);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async remove(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id: classroomId, studentId } = classroomStudentParamsSchema.parse(req.params);
+      const result = await enrollmentService.removeStudent(classroomId, studentId);
       sendSuccess(res, result);
     } catch (err) {
       next(err);

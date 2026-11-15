@@ -170,6 +170,23 @@ describe('ClassroomService', () => {
               username: 'nguyenvana',
               contact: '0901234567',
               created_at: new Date('2026-09-01'),
+              must_change_password: false,
+              password_changed_at: new Date('2026-09-03'),
+            },
+            left_at: null,
+          },
+          {
+            id: 'enr-2',
+            joined_at: new Date('2025-09-02'),
+            left_at: new Date('2026-08-31'),
+            student: {
+              id: 'stu-2',
+              full_name: 'Trần Thị B',
+              username: 'tranthib',
+              contact: null,
+              created_at: new Date('2025-09-01'),
+              must_change_password: true,
+              password_changed_at: null,
             },
           },
         ],
@@ -177,7 +194,13 @@ describe('ClassroomService', () => {
           {
             id: 'cs-1',
             subject: { id: 'sub-1', name: 'Toán học', is_active: true },
-            teacher: { id: 'tea-1', full_name: 'Thầy Bình', username: 'thaybinh' },
+            teacher: {
+              id: 'tea-1',
+              full_name: 'Thầy Bình',
+              username: 'thaybinh',
+              contact: 'thaybinh@example.edu.vn',
+              teacherProfile: { qualification: 'Cử nhân Sư phạm Toán' },
+            },
             _count: { lessons: 4 },
           },
           {
@@ -193,8 +216,12 @@ describe('ClassroomService', () => {
       expect(detail.id).toBe('cls-1');
       expect(detail.students).toHaveLength(1);
       expect(detail.students[0].fullName).toBe('Nguyễn Văn A');
+      expect(detail.students[0].passwordChangedAt).toBe('2026-09-03T00:00:00.000Z');
+      expect(detail.studentHistory).toHaveLength(1);
+      expect(detail.studentHistory[0].leftAt).toBe('2026-08-31T00:00:00.000Z');
       expect(detail.subjects).toHaveLength(2);
       expect(detail.subjects[0].teacher?.fullName).toBe('Thầy Bình');
+      expect(detail.subjects[0].teacher?.qualification).toBe('Cử nhân Sư phạm Toán');
       expect(detail.subjects[1].teacher).toBeNull();
     });
   });

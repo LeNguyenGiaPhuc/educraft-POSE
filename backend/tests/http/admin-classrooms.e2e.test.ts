@@ -154,8 +154,12 @@ describe('Admin Classrooms API (E2E)', () => {
             username: 'levanc',
             contact: '0988776655',
             joinedAt: '2026-09-01T00:00:00.000Z',
+            leftAt: null,
+            mustChangePassword: false,
+            passwordChangedAt: null,
           },
         ],
+        studentHistory: [],
         subjects: [
           {
             id: 'cs-1',
@@ -166,6 +170,8 @@ describe('Admin Classrooms API (E2E)', () => {
               id: 'tea-1',
               fullName: 'Thầy Toán',
               username: 'thaytoan',
+              contact: 'thaytoan@example.edu.vn',
+              qualification: 'Cử nhân Sư phạm Toán',
             },
             lessonCount: 3,
           },

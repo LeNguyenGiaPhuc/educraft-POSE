@@ -138,4 +138,33 @@ describe('EnrollmentService', () => {
       expect(res.total).toBe(1);
     });
   });
+
+  describe('removeStudent', () => {
+    it('closes the current enrollment and keeps the student account', async () => {
+      vi.spyOn(enrollmentRepository, 'removeStudentAtomically').mockResolvedValue({
+        studentId: 'stu-1',
+        classroomId: 'cls-1',
+        removedAt: new Date('2026-09-12'),
+      });
+
+      const result = await enrollmentService.removeStudent('cls-1', 'stu-1');
+
+      expect(result).toEqual({
+        studentId: 'stu-1',
+        classroomId: 'cls-1',
+        removedAt: '2026-09-12T00:00:00.000Z',
+      });
+      expect(enrollmentRepository.removeStudentAtomically).toHaveBeenCalledWith('cls-1', 'stu-1');
+    });
+
+    it('rejects removing a student who is no longer in the selected classroom', async () => {
+      vi.spyOn(enrollmentRepository, 'removeStudentAtomically').mockRejectedValue(
+        new BadRequestError('Học sinh hiện không thuộc lớp học này')
+      );
+
+      await expect(enrollmentService.removeStudent('cls-1', 'stu-1')).rejects.toThrow(
+        BadRequestError
+      );
+    });
+  });
 });

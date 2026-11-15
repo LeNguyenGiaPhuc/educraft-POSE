@@ -1,9 +1,11 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../../../lib/prisma.js';
+import { BadRequestError, NotFoundError } from '../../../shared/errors/app-error.js';
 import type { PaginationParams } from '../../../shared/pagination/pagination.dto.js';
 import type { CreateClassroomInput, UpdateClassroomInput } from './classroom.schemas.js';
 
 export interface ClassroomFilterParams extends PaginationParams {
+  search?: string;
   status?: 'ACTIVE' | 'ARCHIVED';
   gradeLevel?: number;
   academicYear?: string;
@@ -25,10 +27,20 @@ export const classroomRepository = {
       where.academic_year = filters.academicYear;
     }
     if (filters.search) {
-      where.name = {
-        contains: filters.search,
-        mode: 'insensitive',
-      };
+      where.OR = [
+        {
+          name: {
+            contains: filters.search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          academic_year: {
+            contains: filters.search,
+            mode: 'insensitive',
+          },
+        },
+      ];
     }
 
     const orderBy: Prisma.ClassroomOrderByWithRelationInput = {};
@@ -104,7 +116,6 @@ export const classroomRepository = {
       where: { id },
       include: {
         enrollments: {
-          where: { left_at: null },
           orderBy: { joined_at: 'asc' },
           include: {
             student: {
@@ -114,6 +125,8 @@ export const classroomRepository = {
                 username: true,
                 contact: true,
                 created_at: true,
+                must_change_password: true,
+                password_changed_at: true,
               },
             },
           },
@@ -133,6 +146,12 @@ export const classroomRepository = {
                 id: true,
                 full_name: true,
                 username: true,
+                contact: true,
+                teacherProfile: {
+                  select: {
+                    qualification: true,
+                  },
+                },
               },
             },
             _count: {
@@ -175,7 +194,21 @@ export const classroomRepository = {
         });
       }
 
-      return classroom;
+      return tx.classroom.findUniqueOrThrow({
+        where: { id: classroom.id },
+        include: {
+          _count: {
+            select: {
+              enrollments: { where: { left_at: null } },
+              classroomSubjects: true,
+            },
+          },
+          classroomSubjects: {
+            where: { teacher_id: { not: null } },
+            select: { id: true },
+          },
+        },
+      });
     });
   },
 
@@ -201,21 +234,42 @@ export const classroomRepository = {
   },
 
   async archiveClassroom(id: string) {
-    return prisma.classroom.update({
-      where: { id },
-      data: {
-        status: 'ARCHIVED',
-      },
-      include: {
-        _count: {
-          select: {
-            enrollments: {
-              where: { left_at: null },
+    return prisma.$transaction(async (tx) => {
+      const classroom = await tx.classroom.findUnique({
+        where: { id },
+      });
+
+      if (!classroom) {
+        throw new NotFoundError('Không tìm thấy lớp học');
+      }
+
+      if (classroom.status === 'ARCHIVED') {
+        throw new BadRequestError('Lớp học đã được lưu trữ trước đó');
+      }
+
+      const archivedAt = new Date();
+      await tx.classroomEnrollment.updateMany({
+        where: {
+          classroom_id: id,
+          left_at: null,
+        },
+        data: { left_at: archivedAt },
+      });
+
+      return tx.classroom.update({
+        where: { id },
+        data: { status: 'ARCHIVED' },
+        include: {
+          _count: {
+            select: {
+              enrollments: {
+                where: { left_at: null },
+              },
+              classroomSubjects: true,
             },
-            classroomSubjects: true,
           },
         },
-      },
+      });
     });
   },
 };

@@ -22,6 +22,7 @@ export const classroomController = {
 
       const { items, total } = await classroomService.listClassrooms({
         ...pagination,
+        search: query.search,
         status: query.status,
         gradeLevel,
         academicYear: query.academicYear,

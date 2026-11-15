@@ -40,4 +40,14 @@ export const enrollmentService = {
       transferredAt: transferred.transferredAt.toISOString(),
     };
   },
+
+  async removeStudent(classroomId: string, studentId: string) {
+    const removed = await enrollmentRepository.removeStudentAtomically(classroomId, studentId);
+
+    return {
+      studentId: removed.studentId,
+      classroomId: removed.classroomId,
+      removedAt: removed.removedAt.toISOString(),
+    };
+  },
 };
