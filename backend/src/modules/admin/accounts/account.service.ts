@@ -135,15 +135,15 @@ export class AccountService {
       return this.toDto(created);
     }
 
-    // 4. Handle Student or Admin creation
+    // 4. Handle Student creation
     let created: UserWithDetails;
     try {
-      created = await this.repo.createStudentOrAdmin({
-      role: input.role,
-      username: input.username,
-      fullName: input.fullName,
-      contact: input.contact,
-      passwordHash,
+      created = await this.repo.createStudent({
+        role: 'STUDENT',
+        username: input.username,
+        fullName: input.fullName,
+        contact: input.contact,
+        passwordHash,
       });
     } catch (error) {
       if ((error as { code?: string }).code === 'P2002') {

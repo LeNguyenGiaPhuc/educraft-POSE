@@ -152,7 +152,7 @@ export const rosterService = {
             contact: row.contact.trim() || null,
             role: 'STUDENT',
             status: 'ACTIVE',
-            must_change_password: true,
+            must_change_password: false,
           },
         });
 

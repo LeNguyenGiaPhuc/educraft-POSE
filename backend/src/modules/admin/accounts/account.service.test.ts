@@ -16,7 +16,7 @@ describe('AccountService', () => {
       findMany: vi.fn(),
       findById: vi.fn(),
       findByUsernameCaseInsensitive: vi.fn(),
-      createStudentOrAdmin: vi.fn(),
+      createStudent: vi.fn(),
       createTeacher: vi.fn(),
       updateUser: vi.fn(),
       updateStatus: vi.fn(),
@@ -45,7 +45,7 @@ describe('AccountService', () => {
       updated_at: new Date(),
       enrollments: [],
     };
-    vi.spyOn(repo, 'createStudentOrAdmin').mockResolvedValue(createdUser);
+    vi.spyOn(repo, 'createStudent').mockResolvedValue(createdUser);
 
     const result = await service.createAccount({
       role: 'STUDENT',
@@ -185,7 +185,7 @@ describe('AccountService', () => {
   it('maps a database username collision to conflict after a clean precheck', async () => {
     vi.spyOn(repo, 'findByUsernameCaseInsensitive').mockResolvedValue(null);
     vi.spyOn(passwordService, 'hashPassword').mockResolvedValue('hash');
-    vi.spyOn(repo, 'createStudentOrAdmin').mockRejectedValue({ code: 'P2002' });
+    vi.spyOn(repo, 'createStudent').mockRejectedValue({ code: 'P2002' });
     await expect(service.createAccount({ role: 'STUDENT', username: 'race', fullName: 'Race', password: 'Password123' })).rejects.toThrow(ConflictError);
   });
 

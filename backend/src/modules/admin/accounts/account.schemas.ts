@@ -17,13 +17,6 @@ export const createAccountSchema = z.discriminatedUnion('role', [
     qualification: z.string().trim().min(1, 'Giáo viên cần có bằng cấp'),
     specializedSubjectId: z.string().uuid('Môn học chuyên môn không hợp lệ'),
   }),
-  z.object({
-    role: z.literal('ADMIN'),
-    username: z.string().trim().min(3, 'Tên đăng nhập phải có ít nhất 3 ký tự').max(100),
-    fullName: z.string().trim().min(1, 'Họ và tên không được để trống').max(200),
-    contact: z.string().trim().optional().nullable(),
-    password: z.string().min(6, 'Mật khẩu phải có ít nhất 6 ký tự').max(128),
-  }),
 ]);
 
 export const updateAccountSchema = z.object({
