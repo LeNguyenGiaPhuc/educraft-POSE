@@ -117,17 +117,27 @@ export const lessonRepository = {
         lessonContext.classroom_subject_id
       );
 
-      const processedMaterial = await tx.learningMaterial.findFirst({
+      const activeMaterials = await tx.learningMaterial.findMany({
         where: {
           lesson_id: id,
           status: { not: 'ARCHIVED' },
-          versions: { some: { processing_status: 'PROCESSED' } },
         },
-        select: { id: true },
+        select: {
+          id: true,
+          versions: {
+            orderBy: { version_no: 'desc' },
+            take: 1,
+            select: { processing_status: true },
+          },
+        },
       });
-      if (!processedMaterial) {
+      const allMaterialsProcessed =
+        activeMaterials.length > 0 &&
+        activeMaterials.every((material) => material.versions[0]?.processing_status === 'PROCESSED');
+
+      if (!allMaterialsProcessed) {
         throw new BadRequestError(
-          'Bài học cần ít nhất một học liệu đã được xử lý thành công để công bố'
+          'Tất cả học liệu đang giữ lại phải được xử lý thành công trước khi công bố'
         );
       }
 

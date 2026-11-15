@@ -135,7 +135,7 @@ export const notebookCheckService = {
       throw new NotFoundError('Không tìm thấy hoạt động kiểm tra vở');
     }
 
-    await requireAssignedSubject(actorId, activity.classroom_subject_id);
+    await requireAssignedSubject(actorId, activity.classroom_subject_id, { allowArchived: false });
 
     if (activity.notebookCheck?.criteria_locked_at) {
       throw new ConflictError(
@@ -169,7 +169,7 @@ export const notebookCheckService = {
       throw new NotFoundError('Không tìm thấy hoạt động kiểm tra vở');
     }
 
-    await requireAssignedSubject(actorId, activity.classroom_subject_id);
+    await requireAssignedSubject(actorId, activity.classroom_subject_id, { allowArchived: false });
 
     if (activity.notebookCheck?.criteria_locked_at) {
       throw new ConflictError(
@@ -261,7 +261,7 @@ export const notebookCheckService = {
       throw new NotFoundError('Không tìm thấy hoạt động kiểm tra vở');
     }
 
-    await requireAssignedSubject(actorId, activity.classroom_subject_id);
+    await requireAssignedSubject(actorId, activity.classroom_subject_id, { allowArchived: false });
 
     const refFilesCount = activity.notebookCheck?.referenceFiles?.length ?? 0;
     if (refFilesCount === 0) {
@@ -290,7 +290,7 @@ export const notebookCheckService = {
       throw new NotFoundError('Không tìm thấy hoạt động kiểm tra vở');
     }
 
-    await requireAssignedSubject(actorId, activity.classroom_subject_id);
+    await requireAssignedSubject(actorId, activity.classroom_subject_id, { allowArchived: false });
 
     const dueAt = new Date(input.dueAt);
     if (dueAt.getTime() <= Date.now()) {
@@ -393,7 +393,8 @@ export const notebookCheckService = {
 
     await requireAssignedSubject(
       actorId,
-      submission.period.activity.activity.classroom_subject_id
+      submission.period.activity.activity.classroom_subject_id,
+      { allowArchived: false }
     );
 
     if (submission.status !== 'LOCKED') {
@@ -473,7 +474,8 @@ export const notebookCheckService = {
 
     await requireAssignedSubject(
       actorId,
-      submission.period.activity.activity.classroom_subject_id
+      submission.period.activity.activity.classroom_subject_id,
+      { allowArchived: false }
     );
 
     // If already finalized, check idempotency

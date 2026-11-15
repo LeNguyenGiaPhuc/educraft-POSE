@@ -90,7 +90,7 @@ describe('LessonService', () => {
       );
     });
 
-    it('publishes lesson and its active materials when at least one material is PROCESSED', async () => {
+    it('publishes lesson when every active material has a processed latest version', async () => {
       vi.spyOn(lessonRepository, 'findLessonDetail').mockResolvedValue({
         id: 'lesson-1',
         classroom_subject_id: 'cs-1',
@@ -113,6 +113,23 @@ describe('LessonService', () => {
       const published = await lessonService.publishLesson('lesson-1', 'teacher-1');
       expect(published.status).toBe('PUBLISHED');
       expect(published.publishedAt).toBeDefined();
+    });
+
+    it('rejects publication when one active material is still pending', async () => {
+      vi.spyOn(lessonRepository, 'findLessonDetail').mockResolvedValue({
+        id: 'lesson-1',
+        classroom_subject_id: 'cs-1',
+        status: 'DRAFT',
+        materials: [
+          { id: 'mat-1', status: 'DRAFT', versions: [{ version_no: 1, processing_status: 'PROCESSED' }] },
+          { id: 'mat-2', status: 'DRAFT', versions: [{ version_no: 1, processing_status: 'PENDING' }] },
+        ],
+      } as any);
+      vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue(mockPolicyCtx);
+
+      await expect(lessonService.publishLesson('lesson-1', 'teacher-1')).rejects.toThrow(
+        'Tất cả học liệu đang giữ lại phải được xử lý thành công trước khi công bố'
+      );
     });
   });
 });

@@ -136,12 +136,14 @@ export const lessonService = {
       throw new BadRequestError('Bài học cần ít nhất một học liệu đã được xử lý thành công để công bố');
     }
 
-    const hasProcessedMaterial = activeMaterials.some((m) =>
-      m.versions.some((v) => v.processing_status === 'PROCESSED')
+    const allMaterialsProcessed = activeMaterials.every((m) =>
+      m.versions[0]?.processing_status === 'PROCESSED'
     );
 
-    if (!hasProcessedMaterial) {
-      throw new BadRequestError('Bài học cần ít nhất một học liệu đã được xử lý thành công để công bố');
+    if (!allMaterialsProcessed) {
+      throw new BadRequestError(
+        'Tất cả học liệu đang giữ lại phải được xử lý thành công trước khi công bố'
+      );
     }
 
     const published = await lessonRepository.publishLessonWithMaterials(lessonId, teacherId);

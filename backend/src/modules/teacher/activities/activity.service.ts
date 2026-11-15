@@ -60,7 +60,7 @@ export const activityService = {
       throw new NotFoundError('Không tìm thấy hoạt động bài tập');
     }
 
-    await requireAssignedSubject(actorId, activity.classroom_subject_id);
+    await requireAssignedSubject(actorId, activity.classroom_subject_id, { allowArchived: false });
 
     // Validate lesson IDs belong to this classroom subject
     const lessons = await prisma.lesson.findMany({
@@ -106,7 +106,7 @@ export const activityService = {
       throw new NotFoundError('Không tìm thấy hoạt động bài tập');
     }
 
-    await requireAssignedSubject(actorId, activity.classroom_subject_id);
+    await requireAssignedSubject(actorId, activity.classroom_subject_id, { allowArchived: false });
 
     const exerciseType = activity.exercise.exercise_type;
 
