@@ -1,5 +1,5 @@
-import { sampleLessons, type LessonPreview } from '../fixtures'
-import { canPublishMaterials } from './lessons.mock'
+import { sampleLessons, type LessonPreview } from '../demo/teacherDemoData'
+import { canPublishMaterials } from './lessonRules'
 
 // Shared preview state for Teacher screens. A reload clears it; no backend write occurs.
 export const publishedLessonPreviews = new Map<string, LessonPreview>()

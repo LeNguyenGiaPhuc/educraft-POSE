@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { assignedSubjects } from './fixtures'
+import { assignedSubjects } from '../demo/teacherInsightsDemo'
 import './insights.css'
 
 export function TeacherHeading({ title, description, children }: { title: string; description: string; children?: ReactNode }) {

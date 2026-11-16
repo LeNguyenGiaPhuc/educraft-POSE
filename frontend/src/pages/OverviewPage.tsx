@@ -3,9 +3,10 @@ import { Link, useLocation } from 'react-router'
 import type { Role } from '../data/demo'
 import { navigation } from '../data/navigation'
 import { overview } from '../data/overview'
-import { assignedClasses } from '../features/teacher/fixtures'
-import { readActivityPreviews, sampleActivities } from '../features/teacher/activities/activities.mock'
-import { notebookRecords } from '../features/teacher/submissions/submissions.mock'
+import { assignedClasses } from '../features/teacher/demo/teacherDemoData'
+import { sampleActivities } from '../features/teacher/demo/teacherActivityDemo'
+import { readActivityPreviews } from '../features/teacher/activities/activityPreviewStore'
+import { notebookRecords } from '../features/teacher/demo/teacherSubmissionDemo'
 
 export function OverviewPage({ role }: { role: Role }) {
   const { search } = useLocation()

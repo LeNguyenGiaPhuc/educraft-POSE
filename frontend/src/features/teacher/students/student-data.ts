@@ -1,7 +1,8 @@
-import { sampleActivities, readActivityPreviews } from '../activities/activities.mock'
-import { getTeacherSubjectContext } from '../fixtures'
-import { scorePoints } from '../insights/fixtures'
-import { exerciseResults, notebookRecords } from '../submissions/submissions.mock'
+import { sampleActivities } from '../demo/teacherActivityDemo'
+import { readActivityPreviews } from '../activities/activityPreviewStore'
+import { getTeacherSubjectContext } from '../demo/teacherDemoData'
+import { scorePoints } from '../demo/teacherInsightsDemo'
+import { exerciseResults, notebookRecords } from '../demo/teacherSubmissionDemo'
 
 export const resultLabels = { GRADED: 'Đã chấm', PROCESSING: 'Đang chấm', FAILED: 'Chấm thất bại · chưa có điểm', MISSING: 'Chưa nộp' }
 

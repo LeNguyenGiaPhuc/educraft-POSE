@@ -1,10 +1,9 @@
-import { assignedClasses } from '../fixtures'
+import { assignedClasses } from './teacherDemoData'
 
 export type AssignedSubject = { id: string; classroom: string; subject: string }
 export type Student = { id: string; name: string }
 
 export const assignedSubjects: AssignedSubject[] = assignedClasses.flatMap((classroom) => classroom.subjects.map((subject) => ({ id: subject.id, classroom: classroom.name, subject: subject.name })))
-
 export const studentsByClass: Record<string, Student[]> = Object.fromEntries(assignedClasses.map((classroom) => [classroom.name, classroom.students]))
 
 export type ScheduleItem = { id: string; subjectId: string; title: string; details: string; type: string; startsAt: string; published: boolean }
@@ -53,8 +52,4 @@ export const promptTopics: PromptTopic[] = [
   { id: 'topic-archived', subjectId: 'history-10a1-archived', studentId: 'tuan', topic: 'Chủ nghĩa phong kiến phương Đông (Lớp lưu trữ)', askedAt: '2025-10-15' },
 ]
 
-export const criterionLabels = {
-  RECORDED: 'Đã ghi',
-  NEEDS_SUPPLEMENTATION: 'Cần bổ sung',
-  UNDETERMINED: 'Chưa xác định',
-} as const
+export const criterionLabels = { RECORDED: 'Đã ghi', NEEDS_SUPPLEMENTATION: 'Cần bổ sung', UNDETERMINED: 'Chưa xác định' } as const

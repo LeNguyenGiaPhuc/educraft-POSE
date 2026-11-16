@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ArrowRight, LogOut, Menu, X } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import type { DemoUser } from '../data/demo'
-import { getTeacherSubjectContext } from '../features/teacher/fixtures'
+import { getTeacherSubjectContext } from '../features/teacher/demo/teacherDemoData'
 import { navigation, roleNames } from '../data/navigation'
 
 type Props = { user: DemoUser; onSignOut: () => void }

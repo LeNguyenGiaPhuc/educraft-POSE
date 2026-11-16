@@ -1,32 +1,19 @@
-// Route elements and the legacy registry are shared with the role shell.
+// Route elements are shared with the role shell.
 /* oxlint-disable react/only-export-components */
-import { type ComponentType, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import { Navigate, Route, useLocation, useParams } from 'react-router'
-import { assignedSubjects, getTeacherSubjectContext, teacherSubjectPath, type TeacherWorkspaceTab } from './fixtures'
+import { assignedSubjects, getTeacherSubjectContext } from './demo/teacherDemoData'
+import { getWorkspaceTabFromSection, teacherSubjectPath, type TeacherWorkspaceTab } from './navigation'
 import { TeacherBackButton } from './components/TeacherBackButton'
 import { ActivitiesPage } from './activities/ActivitiesPage'
 import { PromptSummaryPage } from './ai-summary/PromptSummaryPage'
 import { AssignedClassesPage } from './classes/AssignedClassesPage'
 import { TeacherClassroomDetailPage } from './classes/TeacherClassroomDetailPage'
 import { TeacherSubjectWorkspace } from './classes/TeacherSubjectWorkspace'
-import { LessonsPage } from './lessons/LessonsPage'
-import { ProgressPage } from './progress/ProgressPage'
+import { TeacherLessonPage } from './lessons/TeacherLessonPage'
 import { SchedulePage } from './schedule/SchedulePage'
-import { ClassStatisticsPage } from './statistics/ClassStatisticsPage'
-import { SubmissionsPage } from './submissions/SubmissionsPage'
 import { StudentDetailPage } from './students/StudentDetailPage'
 import { teacherWorkspacePath } from '../../lib/api/teacher/workspace'
-
-export const teacherPages: Record<string, ComponentType> = {
-  classes: AssignedClassesPage,
-  lessons: LessonsPage,
-  activities: ActivitiesPage,
-  schedule: SchedulePage,
-  statistics: ClassStatisticsPage,
-  submissions: SubmissionsPage,
-  progress: ProgressPage,
-  'ai-summary': PromptSummaryPage,
-}
 
 export function TeacherContextRoute({ children, tab = 'lessons' }: { children: ReactNode; tab?: TeacherWorkspaceTab }) {
   const { classroomId, classroomSubjectId, lessonId, activityId, studentId } = useParams()
@@ -49,13 +36,6 @@ function TeacherClassRoute() {
   return <TeacherClassroomDetailPage classroomId={classroomId} />
 }
 
-function getWorkspaceTabFromSection(section: string): TeacherWorkspaceTab {
-  if (section === 'lessons') return 'lessons'
-  if (section === 'statistics') return 'statistics'
-  if (section === 'progress' || section === 'ai-summary') return 'students'
-  return 'activities'
-}
-
 function LegacyTeacherRedirect({ section }: { section: string }) {
   const location = useLocation()
   const query = new URLSearchParams(location.search)
@@ -67,7 +47,7 @@ function LegacyTeacherRedirect({ section }: { section: string }) {
   const tab: TeacherWorkspaceTab = getWorkspaceTabFromSection(section)
   query.set('tab', tab)
   query.set('classroomSubjectId', context.subject.id)
-  const base = teacherSubjectPath(context.subject.id, tab).split('?')[0]
+  const base = teacherSubjectPath(context.subject.classroomId, context.subject.id, tab).split('?')[0]
   return <Navigate to={`${base}?${query}`} replace />
 }
 
@@ -75,7 +55,7 @@ export const teacherRouteElements = <>
   <Route path="classes" element={<><TeacherBackButton fallbackTo="/teacher" /><AssignedClassesPage /></>} />
   <Route path="classes/:classroomId" element={<TeacherClassRoute />} />
   <Route path="classes/:classroomId/subjects/:classroomSubjectId" element={<TeacherWorkspaceRoute />} />
-  <Route path="classes/:classroomId/subjects/:classroomSubjectId/lessons/:lessonId" element={<TeacherContextRoute><LessonsPage /></TeacherContextRoute>} />
+  <Route path="classes/:classroomId/subjects/:classroomSubjectId/lessons/:lessonId" element={<TeacherContextRoute><TeacherLessonPage /></TeacherContextRoute>} />
   <Route path="classes/:classroomId/subjects/:classroomSubjectId/activities/:activityId" element={<TeacherContextRoute tab="activities"><ActivitiesPage /></TeacherContextRoute>} />
   <Route path="classes/:classroomId/subjects/:classroomSubjectId/students/:studentId" element={<TeacherContextRoute tab="students"><StudentDetailPage /></TeacherContextRoute>} />
   <Route path="ai-summary" element={<PromptSummaryPage />} />

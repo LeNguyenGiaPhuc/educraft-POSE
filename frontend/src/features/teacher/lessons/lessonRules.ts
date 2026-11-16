@@ -1,10 +1,27 @@
-export const publicationLabels = { DRAFT: 'Bản nháp', PUBLISHED: 'Đã công bố', ARCHIVED: 'Đã lưu trữ' } as const
-export const processingLabels = { PROCESSED: 'Đã xử lý', PROCESSING: 'Đang xử lý', FAILED: 'Xử lý thất bại' } as const
 export const acceptedMaterialTypes = '.pdf,.pptx,.docx,.jpg,.jpeg,.png'
 export const maxMaterialBytes = 20 * 1024 * 1024
 
+export const publicationLabels = {
+  DRAFT: 'Bản nháp',
+  PUBLISHED: 'Đã công bố',
+  ARCHIVED: 'Đã lưu trữ',
+} as const
+
+export const processingLabels = {
+  PENDING: 'Chờ xử lý',
+  PROCESSING: 'Đang xử lý',
+  PROCESSED: 'Đã xử lý',
+  FAILED: 'Xử lý thất bại',
+} as const
+
 export function isSupportedMaterial(file: File): boolean {
   return /\.(pdf|pptx|docx|jpe?g|png)$/i.test(file.name)
+}
+
+export function getMaterialProcessingClass(status: string): string {
+  if (status === 'FAILED') return 'failed'
+  if (status === 'PENDING' || status === 'PROCESSING') return 'processing'
+  return 'processed'
 }
 
 export function canPublishMaterials(materials: { processing: string; local?: boolean }[]): boolean {

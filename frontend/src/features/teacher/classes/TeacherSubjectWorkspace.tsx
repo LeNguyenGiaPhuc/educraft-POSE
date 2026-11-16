@@ -4,13 +4,18 @@ import { AlertCircle, Archive, ArrowLeft, BookOpen, RotateCcw, School, Users } f
 import { ApiError } from '../../../lib/api/client'
 import { teacherWorkspaceApi, teacherWorkspacePath } from '../../../lib/api/teacher/workspace'
 import type { TeacherClassroomStudent, TeacherClassroomSubjectContext } from '../../../lib/api/teacher/types'
+import { TeacherLessonsPanel } from '../lessons/TeacherLessonsPanel'
+import { ClassStatisticsPage } from '../statistics/ClassStatisticsPage'
+import { SubmissionsPage } from '../submissions/SubmissionsPage'
+import { ActivitiesPage } from '../activities/ActivitiesPage'
 import './classes.css'
 
-type WorkspaceTab = 'lessons' | 'activities' | 'students' | 'statistics'
+type WorkspaceTab = 'lessons' | 'activities' | 'submissions' | 'students' | 'statistics'
 
 const tabs: { id: WorkspaceTab; label: string }[] = [
   { id: 'lessons', label: 'Bài học & học liệu' },
   { id: 'activities', label: 'Hoạt động' },
+  { id: 'submissions', label: 'Bài nộp & kết quả' },
   { id: 'students', label: 'Học sinh' },
   { id: 'statistics', label: 'Thống kê' },
 ]
@@ -144,7 +149,7 @@ export function TeacherSubjectWorkspace() {
       {context.readOnly && (
         <div className="tc-archive-notice" role="status">
           <Archive size={16} />
-          <span>Lớp đã lưu trữ. Bạn vẫn xem được học liệu và dữ liệu lịch sử khi API tương ứng được nối, nhưng không thể thay đổi nội dung.</span>
+          <span>Lớp đã lưu trữ. Bạn vẫn xem được học liệu và dữ liệu lịch sử, nhưng không thể thay đổi nội dung.</span>
         </div>
       )}
 
@@ -162,7 +167,20 @@ export function TeacherSubjectWorkspace() {
         ))}
       </nav>
 
-      {tab === 'students' ? (
+      {tab === 'lessons' ? (
+        <TeacherLessonsPanel context={context} />
+      ) : tab === 'activities' ? (
+        <ActivitiesPage classroomSubjectId={context.classroomSubjectId} />
+      ) : tab === 'statistics' ? (
+        <ClassStatisticsPage classroomSubjectId={context.classroomSubjectId} embedded />
+      ) : tab === 'submissions' ? (
+        <SubmissionsPage
+          classroomSubjectId={context.classroomSubjectId}
+          classroomName={context.classroomName}
+          subjectName={context.subjectName}
+          readOnly={context.readOnly}
+        />
+      ) : tab === 'students' ? (
         <section className="panel tw-api-panel">
           <div className="page-heading">
             <h2>Học sinh trong môn học</h2>
@@ -176,7 +194,7 @@ export function TeacherSubjectWorkspace() {
             <div className="tc-empty"><Users size={25} /><h2>Không tìm thấy học sinh</h2><p>Thử tìm bằng một phần tên hoặc bỏ từ khóa.</p></div>
           ) : (
             <ul className="tw-students">
-              {visibleStudents.map((student) => <StudentRow key={`${student.id}-${student.joinedAt ?? 'membership'}`} student={student} archived={context.readOnly} />)}
+              {visibleStudents.map((student) => <StudentRow key={`${student.id}-${student.joinedAt ?? 'membership'}`} student={student} archived={context.readOnly} studentPath={`${teacherWorkspacePath(context.classroomId, context.classroomSubjectId)}/students/${student.id}`} />)}
             </ul>
           )}
         </section>
@@ -184,7 +202,7 @@ export function TeacherSubjectWorkspace() {
         <section className="panel tw-api-panel" aria-live="polite">
           <BookOpen size={25} />
           <h2>{tabs.find((item) => item.id === tab)?.label}</h2>
-          <p>{context.readOnly ? 'Dữ liệu lịch sử được giữ ở chế độ chỉ xem.' : 'Chức năng này sẽ được nối API trong đợt Lessons/Activities tiếp theo.'}</p>
+          <p>{context.readOnly ? 'Dữ liệu lịch sử được giữ ở chế độ chỉ xem.' : 'Chức năng này sẽ được nối API trong đợt Activities/Statistics tiếp theo.'}</p>
           <span className="tc-muted">Chưa dùng dữ liệu fixture để tránh hiển thị hoặc ghi nhầm dữ liệu mẫu.</span>
         </section>
       )}
@@ -192,10 +210,10 @@ export function TeacherSubjectWorkspace() {
   )
 }
 
-function StudentRow({ student, archived }: { student: TeacherClassroomStudent; archived: boolean }) {
+function StudentRow({ student, archived, studentPath }: { student: TeacherClassroomStudent; archived: boolean; studentPath: string }) {
   return (
     <li>
-      <strong>{student.name}</strong>
+      <strong><Link to={studentPath}>{student.name}</Link></strong>
       <span>@{student.username}</span>
       {archived && student.joinedAt && <span>Vào lớp: {formatDate(student.joinedAt)}</span>}
       {archived && student.leftAt && <span>Rời lớp: {formatDate(student.leftAt)}</span>}

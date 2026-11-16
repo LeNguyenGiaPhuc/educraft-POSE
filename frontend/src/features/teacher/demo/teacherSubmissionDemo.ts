@@ -1,4 +1,4 @@
-import type { Criterion } from '../insights/fixtures'
+import type { Criterion } from './teacherInsightsDemo'
 
 export type NotebookRecord = {
   studentId: string

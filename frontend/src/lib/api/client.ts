@@ -3,6 +3,11 @@ export type ApiEnvelope<T> = {
   meta?: unknown
 }
 
+export type ApiDownload = {
+  blob: Blob
+  fileName: string | null
+}
+
 export type ApiErrorPayload = {
   code?: string
   message?: string
@@ -53,6 +58,27 @@ async function readPayload(response: Response): Promise<unknown> {
   }
 }
 
+function getSafeFileName(contentDisposition: string | null): string | null {
+  if (!contentDisposition) return null
+
+  const match = contentDisposition.match(/filename\*?=(?:UTF-8''|")?([^;"]+)/i)
+  if (!match?.[1]) return null
+
+  let fileName = match[1].trim()
+  try {
+    fileName = decodeURIComponent(fileName)
+  } catch {
+    // Keep the original header value when it is not valid URI encoding.
+  }
+
+  const safeFileName = fileName
+    .replace(/[\\/:*?"<>|]/g, '_')
+    .replace(/\.\./g, '_')
+    .trim()
+
+  return safeFileName || null
+}
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<ApiEnvelope<T>> {
   const headers = new Headers(options.headers)
   const isFormData = options.body instanceof FormData
@@ -92,4 +118,44 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   return payload as ApiEnvelope<T>
+}
+
+export async function apiDownload(path: string, options: RequestOptions = {}): Promise<ApiDownload> {
+  const headers = new Headers(options.headers)
+  const isFormData = options.body instanceof FormData
+
+  if (options.body !== undefined && !isFormData && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
+  }
+
+  let response: Response
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, {
+      ...options,
+      credentials: 'include',
+      headers,
+      body: options.body === undefined || isFormData ? options.body as BodyInit | undefined : JSON.stringify(options.body),
+    })
+  } catch {
+    throw new ApiError(0, {
+      code: 'NETWORK_ERROR',
+      message: 'Không thể kết nối tới máy chủ. Hãy kiểm tra backend rồi thử lại.',
+    })
+  }
+
+  if (!response.ok) {
+    const payload = await readPayload(response)
+    const error = isRecord(payload) && isRecord(payload.error) ? payload.error : {}
+    throw new ApiError(response.status, {
+      code: typeof error.code === 'string' ? error.code : undefined,
+      message: typeof error.message === 'string' ? error.message : undefined,
+      requestId: typeof error.requestId === 'string' ? error.requestId : undefined,
+      fieldErrors: isRecord(error.fieldErrors) ? error.fieldErrors as Record<string, string[]> : undefined,
+    })
+  }
+
+  return {
+    blob: await response.blob(),
+    fileName: getSafeFileName(response.headers.get('content-disposition')),
+  }
 }
