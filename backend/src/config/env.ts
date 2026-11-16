@@ -21,6 +21,14 @@ const envSchema = z.object({
     }, 'FRONTEND_ORIGINS must contain valid HTTP(S) origins'),
   SESSION_COOKIE_NAME: z.string().trim().min(1).regex(/^[A-Za-z0-9_-]+$/).default('educraft_session'),
   SESSION_MAX_AGE_DAYS: z.coerce.number().int().min(1).max(30).default(7),
+  AI_PROVIDER: z.enum(['disabled', 'gemini']).default('disabled'),
+  GEMINI_API_KEY: z.string().trim().optional(),
+  GEMINI_MODEL: z.string().trim().min(1).default('gemini-2.5-flash'),
+  AI_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(120_000).default(30_000),
+  AI_MAX_RETRIES: z.coerce.number().int().min(0).max(3).default(1),
+  AI_MAX_REFERENCE_IMAGES: z.coerce.number().int().min(1).max(10).default(4),
+  AI_MAX_SUBMISSION_IMAGES: z.coerce.number().int().min(1).max(20).default(10),
+  AI_MAX_TOTAL_BYTES: z.coerce.number().int().min(1).default(15 * 1024 * 1024),
 });
 
 export function parseEnv(input: NodeJS.ProcessEnv | Record<string, string | undefined>) {
@@ -35,6 +43,12 @@ export function parseEnv(input: NodeJS.ProcessEnv | Record<string, string | unde
 
   if (!parsed.success) {
     throw new Error('Invalid environment configuration', { cause: parsed.error });
+  }
+
+  if (parsed.data.AI_PROVIDER === 'gemini' && !parsed.data.GEMINI_API_KEY) {
+    throw new Error('Invalid environment configuration', {
+      cause: new Error('GEMINI_API_KEY is required when AI_PROVIDER is gemini.'),
+    });
   }
 
   return {

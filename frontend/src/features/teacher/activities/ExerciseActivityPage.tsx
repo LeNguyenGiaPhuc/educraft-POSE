@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { ArrowLeft, CircleAlert, FileSearch, Sparkles } from 'lucide-react'
 import { readPublishedTeacherLessons } from '../lessons/lesson-preview-store'
-import { difficultyLabels, exampleQuestions, type Difficulty, type ExerciseQuestion, type ExerciseType, type ActivityPublicationDraft } from './activities.mock'
+import { exampleQuestions } from '../demo/teacherActivityDemo'
+import { difficultyLabels } from './activityRules'
+import type { Difficulty, ExerciseQuestion, ExerciseType, ActivityPublicationDraft } from './activityTypes'
 
 type Props = { classroomSubjectId: string; type: ExerciseType; onBack: () => void; onPublish?: (value: ActivityPublicationDraft) => void }
 

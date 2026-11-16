@@ -683,6 +683,16 @@ export const notebookCheckRepository = {
             activity: {
               include: {
                 activity: true,
+                referenceFiles: {
+                  orderBy: { sort_order: 'asc' },
+                  select: {
+                    id: true,
+                    storage_key: true,
+                    mime_type: true,
+                    byte_size: true,
+                    sort_order: true,
+                  },
+                },
                 criteria: {
                   orderBy: { order_index: 'asc' },
                 },

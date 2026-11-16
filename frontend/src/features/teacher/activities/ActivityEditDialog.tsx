@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import { notebookCriteria } from '../insights/fixtures'
-import { exampleQuestions, type ActivityContent, type ActivityPreview, type ExerciseQuestion } from './activities.mock'
+import { notebookCriteria } from '../demo/teacherInsightsDemo'
+import { exampleQuestions } from '../demo/teacherActivityDemo'
+import type { ActivityContent, ActivityPreview, ExerciseQuestion } from './activityTypes'
 
 type Props = {
   activity: ActivityPreview

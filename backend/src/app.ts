@@ -17,8 +17,31 @@ import { teacherCalendarRouter } from './modules/teacher/calendar/calendar.route
 import { teacherActivityRouter } from './modules/teacher/activities/activity.routes.js';
 import { teacherNotebookCheckRouter } from './modules/teacher/notebook-checks/notebook-check.routes.js';
 import { teacherResultsRouter } from './modules/teacher/results/results.routes.js';
+import {
+  DefaultNotebookAiAnalysisProvider,
+  setNotebookAiProvider,
+} from './modules/teacher/notebook-checks/notebook-ai-analysis.provider.js';
+import { createGeminiNotebookAiProvider } from './modules/teacher/notebook-checks/gemini-notebook-ai.provider.js';
+
+function configureNotebookAiProvider(): void {
+  if (env.AI_PROVIDER !== 'gemini') {
+    setNotebookAiProvider(new DefaultNotebookAiAnalysisProvider());
+    return;
+  }
+
+  setNotebookAiProvider(createGeminiNotebookAiProvider({
+    apiKey: env.GEMINI_API_KEY,
+    model: env.GEMINI_MODEL,
+    timeoutMs: env.AI_TIMEOUT_MS,
+    maxRetries: env.AI_MAX_RETRIES,
+    maxReferenceImages: env.AI_MAX_REFERENCE_IMAGES,
+    maxSubmissionImages: env.AI_MAX_SUBMISSION_IMAGES,
+    maxTotalBytes: env.AI_MAX_TOTAL_BYTES,
+  }));
+}
 
 export function createApp(): Express {
+  configureNotebookAiProvider();
   const app = express();
 
   // 1. Security & request identification

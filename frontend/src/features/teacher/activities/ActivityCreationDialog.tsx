@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { AlertTriangle, X } from 'lucide-react'
 import { ExerciseActivityPage } from './ExerciseActivityPage'
-import { NotebookActivityPage } from './NotebookActivityPage'
-import type { ActivityPublicationDraft } from './activities.mock'
+import { NotebookChecksPanel } from './NotebookChecksPanel'
+import type { ActivityPublicationDraft } from './activityTypes'
 import './activities.css'
 
 export interface ActivityCreationDialogProps {
@@ -102,10 +102,9 @@ export function ActivityCreationDialog({
         {/* Dialog Scrollable Body */}
         <div className="ta-dialog-body">
           {kind === 'NOTEBOOK' ? (
-            <NotebookActivityPage
+            <NotebookChecksPanel
               classroomSubjectId={classroomSubjectId}
-              onBack={requestClose}
-              onPublish={handlePublished}
+              readOnly={false}
             />
           ) : (
             <ExerciseActivityPage

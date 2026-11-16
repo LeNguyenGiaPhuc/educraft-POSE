@@ -30,10 +30,10 @@ function toPublicNotebookCheck(activity: NonNullable<NotebookCheckDetail>) {
     notebookCheck: {
       ...activity.notebookCheck,
       referenceFiles: (activity.notebookCheck.referenceFiles ?? []).map((file) => ({
-          id: file.id,
-          mime_type: file.mime_type,
-          byte_size: Number(file.byte_size),
-          sort_order: file.sort_order,
+        id: file.id,
+        mime_type: file.mime_type,
+        byte_size: Number(file.byte_size),
+        sort_order: file.sort_order,
       })),
     },
   };
@@ -408,14 +408,23 @@ export const notebookCheckService = {
       content: c.content,
       orderIndex: c.order_index,
     }));
+    const referenceFiles = submission.period.activity.referenceFiles ?? [];
 
     const attemptId = randomUUID();
     await notebookCheckRepository.startSubmissionAnalysis(actorId, submissionId, attemptId);
 
     try {
-      const files = [];
+      const referenceImages = [];
+      for (const file of referenceFiles) {
+        referenceImages.push({
+          buffer: await storage.open(file.storage_key),
+          mimeType: file.mime_type,
+        });
+      }
+
+      const submissionImages = [];
       for (const file of submission.files) {
-        files.push({
+        submissionImages.push({
           buffer: await storage.open(file.storage_key),
           mimeType: file.mime_type,
         });
@@ -423,7 +432,8 @@ export const notebookCheckService = {
 
       const result = await notebookAiProvider.analyzeSubmission({
         submissionId,
-        files,
+        referenceFiles: referenceImages,
+        submissionFiles: submissionImages,
         criteria,
       });
 
