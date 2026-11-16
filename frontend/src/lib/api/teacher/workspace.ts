@@ -6,6 +6,10 @@ import type {
   TeacherSubjectStudent,
 } from './types'
 
+export function teacherWorkspacePath(classroomId: string, classroomSubjectId: string): string {
+  return `/teacher/classes/${encodeURIComponent(classroomId)}/subjects/${encodeURIComponent(classroomSubjectId)}`
+}
+
 export const teacherWorkspaceApi = {
   async listClassrooms(): Promise<TeacherClassroomSummary[]> {
     const response = await apiRequest<TeacherClassroomSummary[]>('/teacher/classrooms')

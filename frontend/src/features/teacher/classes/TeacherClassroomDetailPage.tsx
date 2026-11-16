@@ -2,9 +2,15 @@ import { useEffect, useState } from 'react'
 import { AlertCircle, ArrowLeft, Archive, BookOpen, RotateCcw, School, Users } from 'lucide-react'
 import { Link } from 'react-router'
 import { ApiError } from '../../../lib/api/client'
-import { teacherWorkspaceApi } from '../../../lib/api/teacher/workspace'
+import { teacherWorkspaceApi, teacherWorkspacePath } from '../../../lib/api/teacher/workspace'
 import type { TeacherClassroomDetail } from '../../../lib/api/teacher/types'
 import './classes.css'
+
+const dateFormatter = new Intl.DateTimeFormat('vi-VN', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+})
 
 type Props = {
   classroomId: string
@@ -107,13 +113,13 @@ export function TeacherClassroomDetailPage({ classroomId }: Props) {
         ) : (
           <div className="tc-subject-list">
             {classroom.subjects.map((subject) => (
-              <div key={subject.id} className="tc-subject-row">
+              <Link key={subject.id} className="tc-subject-row" to={teacherWorkspacePath(classroom.id, subject.id)}>
                 <BookOpen size={17} />
                 <div>
                   <strong>{subject.name}</strong>
                   <small>Môn học đã được phân công cho bạn</small>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
@@ -144,5 +150,5 @@ export function TeacherClassroomDetailPage({ classroomId }: Props) {
 }
 
 function formatDate(value: string): string {
-  return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(value))
+  return dateFormatter.format(new Date(value))
 }

@@ -2,10 +2,8 @@
 /* oxlint-disable react/only-export-components */
 import { type ComponentType, type ReactNode } from 'react'
 import { Navigate, Route, useLocation, useParams } from 'react-router'
-import { assignedSubjects, getTeacherSubjectContext, isTeacherPreviewItem, sampleLessons, teacherSubjectPath, type TeacherWorkspaceTab } from './fixtures'
-import { assignedActivities } from './insights/fixtures'
+import { assignedSubjects, getTeacherSubjectContext, teacherSubjectPath, type TeacherWorkspaceTab } from './fixtures'
 import { TeacherBackButton } from './components/TeacherBackButton'
-import { readActivityPreviews } from './activities/activities.mock'
 import { ActivitiesPage } from './activities/ActivitiesPage'
 import { PromptSummaryPage } from './ai-summary/PromptSummaryPage'
 import { AssignedClassesPage } from './classes/AssignedClassesPage'
@@ -17,6 +15,7 @@ import { SchedulePage } from './schedule/SchedulePage'
 import { ClassStatisticsPage } from './statistics/ClassStatisticsPage'
 import { SubmissionsPage } from './submissions/SubmissionsPage'
 import { StudentDetailPage } from './students/StudentDetailPage'
+import { teacherWorkspacePath } from '../../lib/api/teacher/workspace'
 
 export const teacherPages: Record<string, ComponentType> = {
   classes: AssignedClassesPage,
@@ -31,18 +30,17 @@ export const teacherPages: Record<string, ComponentType> = {
 
 export function TeacherContextRoute({ children, tab = 'lessons' }: { children: ReactNode; tab?: TeacherWorkspaceTab }) {
   const { classroomId, classroomSubjectId, lessonId, activityId, studentId } = useParams()
-  const context = getTeacherSubjectContext(classroomSubjectId, classroomId)
-  if (!context) return <Navigate to="/teacher/classes" replace />
-  const parent = teacherSubjectPath(context.subject.id, tab)
-  const invalidLesson = lessonId && lessonId !== 'new' && !isTeacherPreviewItem('lesson', lessonId, context.subject.id) && !sampleLessons.some((item) => item.id === lessonId && item.classroomSubjectId === context.subject.id)
-  const invalidActivity = activityId && activityId !== 'new' && !isTeacherPreviewItem('activity', activityId, context.subject.id) && !readActivityPreviews().some((item) => item.id === activityId && item.classroomSubjectId === context.subject.id) && !assignedActivities.some((item) => item.id === activityId && item.subjectId === context.subject.id)
-  const invalidStudent = studentId && !context.classroom.students.some((item) => item.id === studentId)
-  if (invalidLesson || invalidActivity || invalidStudent) return <Navigate to={parent} replace />
+  if (!classroomId || !classroomSubjectId) return <Navigate to="/teacher/classes" replace />
+  const parent = `${teacherWorkspacePath(classroomId, classroomSubjectId)}?tab=${tab}`
+  void lessonId
+  void activityId
+  void studentId
   return <>{!lessonId && !activityId && <TeacherBackButton fallbackTo={studentId ? parent : '/teacher/classes'} />}{children}</>
 }
 
 function TeacherWorkspaceRoute() {
-  return <TeacherContextRoute><TeacherSubjectWorkspace /></TeacherContextRoute>
+  const { classroomSubjectId } = useParams()
+  return <TeacherContextRoute><TeacherSubjectWorkspace key={classroomSubjectId} /></TeacherContextRoute>
 }
 
 function TeacherClassRoute() {
