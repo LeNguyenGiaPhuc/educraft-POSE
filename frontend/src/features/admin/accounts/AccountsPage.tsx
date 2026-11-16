@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { ArrowRight, Check, CheckCircle2, CircleHelp, Filter, Plus, Search, ShieldCheck, UserRound, Users, X } from 'lucide-react'
-import { type AccountRole, type AccountStatus } from '../fixtures'
-import { accountDraftFrom, emptyAccountDraft, validateAccountDraft, type AccountDraft } from './accounts.mock'
+import { CheckCircle2, CircleHelp, Plus, ShieldCheck, Users } from 'lucide-react'
+import { accountDraftFrom, emptyAccountDraft, validateAccountDraft, type AccountDraft } from './accountForm'
+import { PasswordResetDialog } from './PasswordResetDialog'
+import { AccountFormDialog } from './AccountFormDialog'
+import { AccountFilters } from './AccountFilters'
+import { AccountsTable } from './AccountsTable'
 import { adminApi, type AdminAccount, type AdminSubject } from '../../../lib/api/admin'
 import { ApiError } from '../../../lib/api/client'
 
 type ModalMode = 'create' | 'edit' | null
+type AccountRole = Exclude<AdminAccount['role'], 'ADMIN'>
+type AccountStatus = AdminAccount['status']
 
 export function AccountsPage() {
   const [accountList, setAccountList] = useState<AdminAccount[]>([])
@@ -22,6 +27,8 @@ export function AccountsPage() {
   const [password, setPassword] = useState('')
   const [errors, setErrors] = useState<string[]>([])
   const [message, setMessage] = useState('')
+  const [passwordResetAccount, setPasswordResetAccount] = useState<AdminAccount | null>(null)
+  const [isResettingPassword, setIsResettingPassword] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -152,6 +159,19 @@ export function AccountsPage() {
     }
   }
 
+  async function handleResetPassword(passwordValue: string) {
+    if (!passwordResetAccount) return
+
+    setIsResettingPassword(true)
+    try {
+      await adminApi.resetAccountPassword(passwordResetAccount.id, passwordValue)
+      setMessage(`Đã đặt lại mật khẩu cho tài khoản “${passwordResetAccount.fullName}”.`)
+      setPasswordResetAccount(null)
+    } finally {
+      setIsResettingPassword(false)
+    }
+  }
+
   return (
     <div className="page-content adm-page">
       <div className="page-heading">
@@ -197,63 +217,21 @@ export function AccountsPage() {
             <Users size={19} />
           </div>
 
-          <div className="adm-filters">
-            <label className="adm-search">
-              <Search size={17} />
-              <span className="sr-only">Tìm tài khoản</span>
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm theo tên hoặc tên đăng nhập" />
-            </label>
-            <label className="adm-filter">
-              <Filter size={16} />
-              <span className="sr-only">Lọc vai trò</span>
-              <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value as AccountRole | 'ALL')}>
-                <option value="ALL">Mọi vai trò</option>
-                <option value="TEACHER">Giáo viên</option>
-                <option value="STUDENT">Học sinh</option>
-              </select>
-            </label>
-            <label className="adm-filter">
-              <span className="sr-only">Lọc trạng thái</span>
-              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as AccountStatus | 'ALL')}>
-                <option value="ALL">Mọi trạng thái</option>
-                <option value="ACTIVE">Đang hoạt động</option>
-                <option value="INACTIVE">Ngừng hoạt động</option>
-              </select>
-            </label>
-          </div>
+          <AccountFilters
+            search={search}
+            roleFilter={roleFilter}
+            statusFilter={statusFilter}
+            onSearchChange={setSearch}
+            onRoleChange={setRoleFilter}
+            onStatusChange={setStatusFilter}
+          />
 
-          {isLoading ? (
-            <div className="adm-empty"><UserRound size={30} /><strong>Đang tải tài khoản...</strong></div>
-          ) : visible.length === 0 ? (
-            <div className="adm-empty">
-              <UserRound size={30} />
-              <strong>Không tìm thấy tài khoản</strong>
-              <p>Thử đổi từ khóa hoặc bộ lọc.</p>
-            </div>
-          ) : (
-            <div className="adm-list">
-              {visible.map((account) => (
-                <button
-                  key={account.id}
-                  type="button"
-                  className={`adm-row ${selected?.id === account.id ? 'is-selected' : ''}`}
-                  onClick={() => { setSelectedId(account.id); setMessage('') }}
-                >
-                  <span className={`adm-avatar ${account.role === 'TEACHER' ? 'is-teacher' : ''}`}>
-                    {account.fullName.split(' ').slice(-2).map((part) => part[0]).join('')}
-                  </span>
-                  <span className="adm-row-copy">
-                    <strong>{account.fullName}</strong>
-                    <small>@{account.username} · {account.role === 'TEACHER' ? 'Giáo viên' : 'Học sinh'}</small>
-                  </span>
-                  <span className={`adm-status ${account.status === 'ACTIVE' ? 'active' : 'inactive'}`}>
-                    {account.status === 'ACTIVE' ? 'Hoạt động' : 'Tạm khóa'}
-                  </span>
-                  <ArrowRight size={15} />
-                </button>
-              ))}
-            </div>
-          )}
+          <AccountsTable
+            accounts={visible}
+            selectedId={selected?.id ?? null}
+            isLoading={isLoading}
+            onSelect={(accountId) => { setSelectedId(accountId); setMessage('') }}
+          />
         </section>
 
         <aside className="adm-card adm-detail">
@@ -296,7 +274,7 @@ export function AccountsPage() {
                 }}>
                   {selected.status === 'ACTIVE' ? 'Ngừng hoạt động' : 'Kích hoạt lại'}
                 </button>
-                <button type="button" className="adm-text-button" onClick={() => setMessage('Chỉ xem trước: chưa gửi yêu cầu đặt lại mật khẩu và không tạo mật khẩu tạm.')}>
+                <button type="button" className="adm-text-button" onClick={() => setPasswordResetAccount(selected)}>
                   Đặt lại mật khẩu
                 </button>
               </div>
@@ -310,149 +288,30 @@ export function AccountsPage() {
         </aside>
       </div>
 
-      {/* Modal Popup Form (Tạo mới & Chỉnh sửa tài khoản) */}
       {modalMode && (
-        <div
-          className="adm-modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="account-modal-title"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) closeModal()
-          }}
-        >
-          <div className="adm-modal-window">
-            <div className="adm-modal-head">
-              <div>
-                <span className="adm-modal-eyebrow">POPUP QUẢN TRỊ TÀI KHOẢN</span>
-                <h3 id="account-modal-title" className="adm-modal-title">
-                  {modalMode === 'create' ? 'Tạo tài khoản mới' : `Chỉnh sửa tài khoản: ${selected?.fullName ?? ''}`}
-                </h3>
-              </div>
-              <button
-                type="button"
-                className="adm-modal-close"
-                onClick={closeModal}
-                aria-label="Đóng biểu mẫu tài khoản"
-                title="Đóng (Escape)"
-              >
-                <X size={18} />
-              </button>
-            </div>
+        <AccountFormDialog
+          mode={modalMode}
+          accountName={selected?.fullName ?? ''}
+          draft={draft}
+          password={password}
+          subjects={subjectList}
+          errors={errors}
+          isSaving={isSaving}
+          onClose={closeModal}
+          onSubmit={handleSubmitAccount}
+          onDraftChange={setDraft}
+          onPasswordChange={setPassword}
+          onClearErrors={() => setErrors([])}
+        />
+      )}
 
-            <form onSubmit={handleSubmitAccount} onChange={() => setErrors([])} noValidate>
-              <div className="adm-modal-body">
-                <div className="adm-form-grid">
-                  <label>
-                    Vai trò
-                    <select
-                      value={draft.role}
-                      disabled={modalMode === 'edit'}
-                      onChange={(event) => setDraft({ ...draft, role: event.target.value as AccountRole })}
-                    >
-                      <option value="STUDENT">Học sinh</option>
-                      <option value="TEACHER">Giáo viên</option>
-                    </select>
-                  </label>
-
-                  <label>
-                    Họ và tên
-                    <input
-                      required
-                      value={draft.fullName}
-                      onChange={(event) => setDraft({ ...draft, fullName: event.target.value })}
-                      placeholder="Ví dụ: Nguyễn Minh Anh"
-                    />
-                  </label>
-
-                  <label>
-                    Tên đăng nhập
-                    <input
-                      required
-                      value={draft.username}
-                      disabled={modalMode === 'edit'}
-                      onChange={(event) => setDraft({ ...draft, username: event.target.value })}
-                      placeholder="Ví dụ: nguyen.minh.anh"
-                    />
-                  </label>
-
-                  <label>
-                    Thông tin liên hệ
-                    <input
-                      value={draft.contact}
-                      onChange={(event) => setDraft({ ...draft, contact: event.target.value })}
-                      placeholder="Email hoặc số liên hệ"
-                    />
-                  </label>
-
-                  {modalMode === 'create' && (
-                    <label>
-                      Mật khẩu khởi tạo
-                      <input
-                        type="password"
-                        autoComplete="new-password"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        placeholder="Nhập mật khẩu cho tài khoản"
-                      />
-                    </label>
-                  )}
-
-                  {draft.role === 'TEACHER' && (
-                    <>
-                      <label>
-                        Bằng cấp
-                        <input
-                          value={draft.qualification}
-                          onChange={(event) => setDraft({ ...draft, qualification: event.target.value })}
-                          placeholder="Ví dụ: Cử nhân Sư phạm"
-                        />
-                      </label>
-                      <label>
-                        Môn học chuyên môn
-                        <select
-                          value={draft.specializedSubjectId}
-                          onChange={(event) => setDraft({ ...draft, specializedSubjectId: event.target.value })}
-                        >
-                          <option value="">Chọn từ danh mục môn học</option>
-                          {subjectList.map((subject) => (
-                            <option key={subject.id} value={subject.id}>{subject.name}</option>
-                          ))}
-                        </select>
-                      </label>
-                    </>
-                  )}
-                </div>
-
-                {draft.role === 'STUDENT' && (
-                  <p className="adm-inline-note" style={{ marginTop: 14 }}>
-                    Có thể tạo tài khoản trước. Admin sẽ thêm học sinh vào lớp trong mục Lớp học.
-                  </p>
-                )}
-
-                {errors.length > 0 && (
-                  <div className="adm-errors" role="alert" style={{ marginTop: 14 }}>
-                    <strong>Hãy kiểm tra lại:</strong>
-                    <ul>
-                      {errors.map((error) => (
-                        <li key={error}>{error}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-
-              <div className="adm-modal-foot">
-                <button type="button" className="adm-secondary" onClick={closeModal}>
-                  Hủy bỏ
-                </button>
-                <button type="submit" className="adm-primary" disabled={isSaving}>
-                  <Check size={16} /> {isSaving ? 'Đang lưu...' : modalMode === 'create' ? 'Lưu tài khoản' : 'Lưu thay đổi'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {passwordResetAccount && (
+        <PasswordResetDialog
+          account={passwordResetAccount}
+          isSaving={isResettingPassword}
+          onClose={() => setPasswordResetAccount(null)}
+          onSave={handleResetPassword}
+        />
       )}
     </div>
   )

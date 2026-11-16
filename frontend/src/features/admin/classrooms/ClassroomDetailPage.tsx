@@ -31,13 +31,14 @@ import {
   adminApi,
   type AdminAccount,
   type AdminClassroomDetail,
+  type AdminClassroomSummary,
   type AdminClassroomSubject,
   type AdminEligibleTeacher,
   type AdminUnassignedStudent,
 } from '../../../lib/api/admin'
-import { validateClassroomDraft, type ClassroomDraft } from './classrooms.mock'
-import { type Classroom, type ClassroomSubject, type Subject } from '../fixtures'
+import { validateClassroomDraft, type ClassroomDraft } from './classroomForm'
 import { StudentExcelImportModal } from './StudentExcelImportModal'
+import { TransferStudentDialog } from './TransferStudentDialog'
 import './classrooms.css'
 
 export interface ClassroomDetailPageProps {
@@ -57,6 +58,15 @@ type StudentRow = {
   }
   student: AdminAccount
 }
+
+type ClassroomSubjectRow = {
+  id: string
+  classroomId: string
+  subjectId: string
+  teacherId: string | null
+}
+
+type SubjectOption = { id: string; name: string }
 
 function mapStudentRow(classroomId: string, student: AdminClassroomDetail['students'][number]): StudentRow {
   return {
@@ -82,7 +92,7 @@ function mapStudentRow(classroomId: string, student: AdminClassroomDetail['stude
   }
 }
 
-function mapClassroomSubject(subject: AdminClassroomSubject, classroomId: string): ClassroomSubject {
+function mapClassroomSubject(subject: AdminClassroomSubject, classroomId: string): ClassroomSubjectRow {
   return {
     id: subject.id,
     classroomId,
@@ -98,6 +108,9 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
   const [isMutating, setIsMutating] = useState(false)
   const [eligibleTeachers, setEligibleTeachers] = useState<AdminEligibleTeacher[]>([])
   const [unassignedStudents, setUnassignedStudents] = useState<AdminUnassignedStudent[]>([])
+  const [transferClassrooms, setTransferClassrooms] = useState<AdminClassroomSummary[]>([])
+  const [isTransferLoading, setIsTransferLoading] = useState(false)
+  const [isTransferring, setIsTransferring] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -132,17 +145,6 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
     }
   }
 
-  const loadedClassroom: Classroom | undefined = useMemo(() => {
-    if (!apiClassroom) return undefined
-    return {
-      id: apiClassroom.id,
-      name: apiClassroom.name,
-      gradeLevel: apiClassroom.gradeLevel,
-      academicYear: apiClassroom.academicYear,
-      status: apiClassroom.status,
-    }
-  }, [apiClassroom])
-
   // Active top-level tab
   const [activeTab, setActiveTab] = useState<ActiveTab>('SUBJECTS')
   // Student sub-tab
@@ -159,7 +161,7 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
   const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false)
 
   // Teacher Assignment Modal state
-  const [assigningSubject, setAssigningSubject] = useState<{ cs: ClassroomSubject; subject: Subject } | null>(null)
+  const [assigningSubject, setAssigningSubject] = useState<{ cs: ClassroomSubjectRow; subject: SubjectOption } | null>(null)
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null)
 
   // Manual Add Student Modal state
@@ -172,6 +174,7 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
 
   // Unenroll / remove student confirmation modal
   const [removingStudent, setRemovingStudent] = useState<AdminAccount | null>(null)
+  const [transferringStudent, setTransferringStudent] = useState<AdminAccount | null>(null)
 
   // Subjects data
   const classroomSubjectList = useMemo(() => {
@@ -190,7 +193,7 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
     return apiClassroom.studentHistory.map((student) => mapStudentRow(apiClassroom.id, student))
   }, [apiClassroom])
 
-  function getSubject(id: string): Subject | undefined {
+  function getSubject(id: string): SubjectOption | undefined {
     const subject = apiClassroom?.subjects.find((item) => item.subjectId === id)
     return subject ? { id: subject.subjectId, name: subject.subjectName } : undefined
   }
@@ -223,7 +226,7 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
     )
   }
 
-  if (loadError || !loadedClassroom || !apiClassroom) {
+  if (loadError || !apiClassroom) {
     return (
       <div className="page-content adm-page cls-container">
         <div className="cls-not-found-card">
@@ -248,16 +251,16 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
     )
   }
 
-  const classroom = loadedClassroom
+  const classroom = apiClassroom
   const isArchived = classroom.status === 'ARCHIVED'
 
   // Open Edit modal
   function openEditModal() {
     if (isArchived) return
     setEditDraft({
-      name: classroom!.name,
-      gradeLevel: classroom!.gradeLevel,
-      academicYear: classroom!.academicYear,
+      name: classroom.name,
+      gradeLevel: classroom.gradeLevel,
+      academicYear: classroom.academicYear,
     })
     setEditErrors([])
     setIsEditOpen(true)
@@ -265,7 +268,7 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
 
   async function handleSaveEdit(e: FormEvent) {
     e.preventDefault()
-    const validationErrors = validateClassroomDraft(editDraft, classroom.id)
+    const validationErrors = validateClassroomDraft(editDraft)
     if (validationErrors.length > 0) {
       setEditErrors(validationErrors)
       return
@@ -300,7 +303,7 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
   }
 
   // Open Assign Teacher Modal
-  async function handleOpenAssignTeacher(cs: ClassroomSubject) {
+  async function handleOpenAssignTeacher(cs: ClassroomSubjectRow) {
     if (isArchived) return
     const sub = getSubject(cs.subjectId)
     if (!sub) return
@@ -378,6 +381,42 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
       setFeedback({ type: 'error', message: error instanceof ApiError ? error.message : 'Không thể chuyển học sinh ra khỏi lớp.' })
     } finally {
       setIsMutating(false)
+    }
+  }
+
+  async function openTransferStudent(student: AdminAccount) {
+    if (isArchived) return
+    setTransferringStudent(student)
+    setTransferClassrooms([])
+    setIsTransferLoading(true)
+    try {
+      const result = await adminApi.listClassrooms({ status: 'ACTIVE', page: 1, limit: 100 })
+      setTransferClassrooms(result.items.filter((item) => item.id !== classroom.id))
+    } catch (error) {
+      setTransferringStudent(null)
+      setFeedback({ type: 'error', message: error instanceof ApiError ? error.message : 'Không thể tải danh sách lớp đích.' })
+    } finally {
+      setIsTransferLoading(false)
+    }
+  }
+
+  async function handleTransferStudent(targetClassroomId: string) {
+    if (!transferringStudent) return
+    setIsTransferring(true)
+    try {
+      await adminApi.transferStudent(transferringStudent.id, targetClassroomId)
+      const studentName = transferringStudent.fullName
+      setTransferringStudent(null)
+      await refresh()
+      setFeedback({ type: 'success', message: `Đã chuyển ${studentName} sang lớp mới.` })
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        await refresh()
+        setFeedback({ type: 'error', message: 'Danh sách phân lớp vừa thay đổi. Đã tải lại dữ liệu, bạn hãy kiểm tra rồi thử lại.' })
+      }
+      throw error
+    } finally {
+      setIsTransferring(false)
     }
   }
 
@@ -727,7 +766,7 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
                       <th style={{ width: '220px' }}>Liên hệ</th>
                       <th style={{ width: '180px' }}>Trạng thái mật khẩu</th>
                       <th style={{ width: '130px' }}>Ngày vào lớp</th>
-                      <th style={{ width: '110px', textAlign: 'right' }}>Thao tác</th>
+                      <th style={{ width: '210px', textAlign: 'right' }}>Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -768,6 +807,15 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
                           <span className="cls-date-text">{membership.joinedAt}</span>
                         </td>
                         <td style={{ textAlign: 'right' }}>
+                          <button
+                            type="button"
+                            className="cls-btn-action-outline"
+                            onClick={() => void openTransferStudent(student)}
+                            disabled={isArchived}
+                            title={isArchived ? 'Lớp đã lưu trữ' : 'Chuyển học sinh sang lớp đang hoạt động khác'}
+                          >
+                            <UserCheck size={14} /> Chuyển lớp
+                          </button>
                           <button
                             type="button"
                             className="cls-btn-remove-student"
@@ -1267,6 +1315,18 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
             </div>
           </div>
         </div>
+      )}
+
+      {transferringStudent && (
+        <TransferStudentDialog
+          student={transferringStudent}
+          currentClassroomName={classroom.name}
+          classrooms={transferClassrooms}
+          isLoading={isTransferLoading}
+          isSaving={isTransferring}
+          onClose={() => setTransferringStudent(null)}
+          onSave={handleTransferStudent}
+        />
       )}
 
       {/* 6. Modal Import Excel (Task 5 Component) */}

@@ -1,23 +1,13 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import {
-  AlertCircle,
-  BookOpen,
-  CheckCircle2,
-  GraduationCap,
-  Pencil,
-  Power,
-  PowerOff,
-  Plus,
-  School,
-  Search,
-  Sparkles,
-  X,
-} from 'lucide-react'
+import { BookOpen, CheckCircle2, GraduationCap, School, X } from 'lucide-react'
 import type { AdminAccount, AdminSubject } from '../../../lib/api/admin'
 import { adminApi } from '../../../lib/api/admin'
 import { ApiError } from '../../../lib/api/client'
-import { slugifySubjectName, validateNewSubject } from './subjects.mock'
+import { validateSubjectName } from './subjectRules'
 import { SubjectEditDialog } from './SubjectEditDialog'
+import { SubjectCreateDialog } from './SubjectCreateDialog'
+import { SubjectToolbar } from './SubjectToolbar'
+import { SubjectsTable } from './SubjectsTable'
 import './subjects.css'
 
 export function ClassroomSubjectsPage() {
@@ -80,12 +70,6 @@ export function ClassroomSubjectsPage() {
     )
   }, [subjectList, searchTerm])
 
-  // Suggested slug preview for modal
-  const previewSlug = useMemo(
-    () => slugifySubjectName(newSubjectName),
-    [newSubjectName]
-  )
-
   function openAddModal() {
     setNewSubjectName('')
     setFormErrors([])
@@ -100,7 +84,7 @@ export function ClassroomSubjectsPage() {
 
   async function handleCreateSubject(e: FormEvent) {
     e.preventDefault()
-    const errors = validateNewSubject(newSubjectName)
+    const errors = validateSubjectName(newSubjectName, subjectList)
     if (errors.length > 0) {
       setFormErrors(errors)
       return
@@ -151,14 +135,6 @@ export function ClassroomSubjectsPage() {
     } finally {
       setStatusSavingId(null)
     }
-  }
-
-  function getTeacherInitials(fullName: string): string {
-    const parts = fullName.trim().split(/\s+/)
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
-    }
-    return (parts[0]?.[0] || 'GV').toUpperCase()
   }
 
   return (
@@ -245,291 +221,34 @@ export function ClassroomSubjectsPage() {
         </div>
       </div>
 
-      {/* Toolbar: Search and Action */}
-      <div className="sbj-toolbar">
-        <div className="sbj-search-box">
-          <Search size={18} color="#7d9484" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Tìm kiếm theo tên môn học hoặc mã định danh..."
-            aria-label="Tìm kiếm môn học"
-          />
-          {searchTerm && (
-            <button
-              type="button"
-              className="sbj-alert-close"
-              onClick={() => setSearchTerm('')}
-              aria-label="Xóa tìm kiếm"
-            >
-              <X size={15} />
-            </button>
-          )}
-        </div>
+      <SubjectToolbar value={searchTerm} onChange={setSearchTerm} onCreate={openAddModal} />
 
-        <div className="sbj-toolbar-actions">
-          <button
-            type="button"
-            className="sbj-btn-primary"
-            onClick={openAddModal}
-          >
-            <Plus size={17} /> Thêm môn học mới
-          </button>
-        </div>
-      </div>
+      <SubjectsTable
+        subjects={filteredSubjects}
+        teachers={teachers}
+        activeClassroomCount={activeClassroomCount}
+        isLoading={isLoading}
+        loadError={loadError}
+        searchTerm={searchTerm}
+        statusSavingId={statusSavingId}
+        onClearSearch={() => setSearchTerm('')}
+        onEdit={setEditingSubject}
+        onToggleStatus={(subject) => void handleToggleSubjectStatus(subject)}
+      />
 
-      {/* Catalog Table Card */}
-      <div className="sbj-table-card">
-        <div className="sbj-table-header">
-          <div className="sbj-table-header-title">
-            <span>Danh sách môn học</span>
-            <span className="sbj-table-count-badge">
-              {filteredSubjects.length} môn
-            </span>
-          </div>
-        </div>
-
-        {isLoading ? (
-          <div className="sbj-empty-state">
-            <BookOpen size={28} />
-            <h3>Đang tải danh mục môn học...</h3>
-          </div>
-        ) : loadError ? (
-          <div className="sbj-empty-state" role="alert">
-            <AlertCircle size={28} />
-            <h3>Không thể tải danh mục môn học</h3>
-            <p>{loadError}</p>
-          </div>
-        ) : filteredSubjects.length === 0 ? (
-          <div className="sbj-empty-state">
-            <div className="sbj-empty-icon">
-              <BookOpen size={28} />
-            </div>
-            <h3>Không tìm thấy môn học phù hợp</h3>
-            <p>
-              Không có môn học nào khớp với từ khóa &ldquo;{searchTerm}&rdquo;. Hãy thử tìm kiếm bằng từ khóa khác hoặc thêm môn mới.
-            </p>
-            <button
-              type="button"
-              className="sbj-btn-secondary"
-              onClick={() => setSearchTerm('')}
-            >
-              Xóa bộ lọc tìm kiếm
-            </button>
-          </div>
-        ) : (
-          <div className="sbj-table-responsive">
-            <table className="sbj-table">
-              <thead>
-                <tr>
-                  <th style={{ width: '28%' }}>Tên môn học</th>
-                  <th style={{ width: '18%' }}>Mã môn (ID)</th>
-                  <th style={{ width: '32%' }}>Giáo viên chuyên môn</th>
-                  <th style={{ width: '18%' }}>Phạm vi áp dụng</th>
-                  <th style={{ width: '14%' }}>Trạng thái & thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredSubjects.map((subject) => {
-                  const eligible = teachers.filter((teacher) => teacher.specializedSubjectId === subject.id)
-                  const hasEligible = eligible.length > 0
-                  let statusActionLabel = subject.isActive ? 'Tắt' : 'Bật'
-                  if (statusSavingId === subject.id) statusActionLabel = 'Đang lưu...'
-
-                  return (
-                    <tr key={subject.id}>
-                      {/* Subject Name */}
-                      <td>
-                        <div className="sbj-subject-cell">
-                          <div className="sbj-subject-icon">
-                            <BookOpen size={18} />
-                          </div>
-                          <div>
-                            <span className="sbj-subject-name">{subject.name}</span>
-                            <span className="sbj-subject-meta">Môn học chuẩn</span>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Subject ID */}
-                      <td>
-                        <span className="sbj-code-badge">{subject.id}</span>
-                      </td>
-
-                      {/* Qualified Teachers */}
-                      <td>
-                        <div className="sbj-teachers-col">
-                          {hasEligible ? (
-                            <>
-                              <div className="sbj-teachers-summary">
-                                <span>{eligible.length} giáo viên chuyên môn:</span>
-                              </div>
-                              <div className="sbj-teacher-tags">
-                                {eligible.map((teacher) => (
-                                  <span
-                                    key={teacher.id}
-                                    className="sbj-teacher-tag"
-                                    title={`${teacher.fullName} (${teacher.qualification || 'Giáo viên'})`}
-                                  >
-                                    <span className="sbj-teacher-avatar-sm">
-                                      {getTeacherInitials(teacher.fullName)}
-                                    </span>
-                                    <span>{teacher.fullName}</span>
-                                  </span>
-                                ))}
-                              </div>
-                            </>
-                          ) : (
-                            <span className="sbj-no-teachers-badge">
-                              <AlertCircle size={14} /> Chưa có giáo viên chuyên môn
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Scope of Application */}
-                      <td>
-                        <div>
-                          <span className={`sbj-scope-badge ${subject.isActive ? '' : 'is-inactive'}`}>
-                            <Sparkles size={13} /> Áp dụng cho tất cả lớp đang học
-                          </span>
-                          <span className="sbj-scope-sub">
-                            {subject.isActive ? `Tự động mở tại ${activeClassroomCount} lớp ACTIVE` : 'Không mở thêm cho lớp mới'}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td>
-                        <div className="sbj-status-cell">
-                          <span className={`sbj-status-badge ${subject.isActive ? 'is-active' : 'is-inactive'}`}>
-                            {subject.isActive ? 'Đang áp dụng' : 'Ngừng áp dụng'}
-                          </span>
-                          <div className="sbj-row-actions">
-                            <button type="button" className="sbj-row-action" onClick={() => setEditingSubject(subject)} aria-label={`Sửa môn ${subject.name}`}>
-                              <Pencil size={14} /> Sửa
-                            </button>
-                            <button
-                              type="button"
-                              className="sbj-row-action sbj-row-action-muted"
-                              onClick={() => void handleToggleSubjectStatus(subject)}
-                              disabled={statusSavingId === subject.id}
-                            >
-                              {subject.isActive ? <PowerOff size={14} /> : <Power size={14} />}
-                              {statusActionLabel}
-                            </button>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Modal Thêm môn học mới */}
       {isModalOpen && (
-        <div
-          className="sbj-modal-backdrop"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) closeAddModal()
+        <SubjectCreateDialog
+          name={newSubjectName}
+          activeClassroomCount={activeClassroomCount}
+          formErrors={formErrors}
+          isSaving={isSaving}
+          onClose={closeAddModal}
+          onSubmit={handleCreateSubject}
+          onNameChange={(name) => {
+            setNewSubjectName(name)
+            if (formErrors.length > 0) setFormErrors([])
           }}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-add-subject-title"
-        >
-          <div className="sbj-modal">
-            <div className="sbj-modal-head">
-              <h2 id="modal-add-subject-title" className="sbj-modal-title">
-                <Plus size={20} color="#286449" /> Thêm môn học mới
-              </h2>
-              <button
-                type="button"
-                className="sbj-modal-close-btn"
-                onClick={closeAddModal}
-                aria-label="Đóng cửa sổ"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateSubject}>
-              <div className="sbj-modal-body">
-                <p className="sbj-modal-intro">
-                  Khi thêm một môn mới, hệ thống sẽ tự động tạo môn cho mọi lớp <strong>đang hoạt động</strong> (trạng thái: <em>Chưa phân công giáo viên</em>). Các lớp đã lưu trữ giữ nguyên dữ liệu lịch sử.
-                </p>
-
-                {/* Subject Name Input */}
-                <div className="sbj-form-field">
-                  <label htmlFor="new-subject-name" className="sbj-form-label">
-                    Tên môn học <span style={{ color: '#dc2626' }}>*</span>
-                  </label>
-                  <input
-                    id="new-subject-name"
-                    type="text"
-                    className="sbj-form-input"
-                    value={newSubjectName}
-                    onChange={(e) => {
-                      setNewSubjectName(e.target.value)
-                      if (formErrors.length > 0) setFormErrors([])
-                    }}
-                    placeholder="Ví dụ: Hóa học, Sinh học, Tin học..."
-                    autoFocus
-                  />
-                  {newSubjectName.trim() && (
-                    <div className="sbj-slug-preview">
-                      <span>Mã môn dự kiến:</span>
-                      <code>{previewSlug}</code>
-                    </div>
-                  )}
-                </div>
-
-                {/* Scope Preview */}
-                <div className="sbj-scope-preview-box">
-                  <span className="sbj-scope-preview-label">
-                    Phạm vi áp dụng tự động ({activeClassroomCount} lớp đang học):
-                  </span>
-                  <div className="sbj-scope-classes-list">
-                    <span className="sbj-scope-class-chip">
-                      <School size={12} /> Dữ liệu lớp đang hoạt động lấy từ backend
-                    </span>
-                  </div>
-                  <span className="sbj-scope-preview-note">
-                    * Môn học sẽ được mở với trạng thái Chưa phân công giáo viên. Admin có thể phân công giáo viên sau tại chi tiết từng lớp.
-                  </span>
-                </div>
-
-                {/* Form Errors */}
-                {formErrors.length > 0 && (
-                  <div className="sbj-form-errors" role="alert">
-                    <strong>Không thể thêm môn học:</strong>
-                    <ul>
-                      {formErrors.map((err) => (
-                        <li key={err}>{err}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-
-              <div className="sbj-modal-foot">
-                <button
-                  type="button"
-                  className="sbj-btn-secondary"
-                  onClick={closeAddModal}
-                >
-                  Hủy
-                </button>
-                <button type="submit" className="sbj-btn-primary" disabled={isSaving}>
-                  <Plus size={16} /> {isSaving ? 'Đang lưu...' : 'Xác nhận thêm môn'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        />
       )}
 
       {editingSubject && (
