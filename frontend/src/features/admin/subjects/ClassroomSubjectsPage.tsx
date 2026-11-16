@@ -4,6 +4,9 @@ import {
   BookOpen,
   CheckCircle2,
   GraduationCap,
+  Pencil,
+  Power,
+  PowerOff,
   Plus,
   School,
   Search,
@@ -14,6 +17,7 @@ import type { AdminAccount, AdminSubject } from '../../../lib/api/admin'
 import { adminApi } from '../../../lib/api/admin'
 import { ApiError } from '../../../lib/api/client'
 import { slugifySubjectName, validateNewSubject } from './subjects.mock'
+import { SubjectEditDialog } from './SubjectEditDialog'
 import './subjects.css'
 
 export function ClassroomSubjectsPage() {
@@ -30,6 +34,9 @@ export function ClassroomSubjectsPage() {
   const [formErrors, setFormErrors] = useState<string[]>([])
   const [successNotice, setSuccessNotice] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [editingSubject, setEditingSubject] = useState<AdminSubject | null>(null)
+  const [statusSavingId, setStatusSavingId] = useState<string | null>(null)
+  const [statusError, setStatusError] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -115,6 +122,37 @@ export function ClassroomSubjectsPage() {
     }
   }
 
+  async function handleSaveSubjectName(name: string): Promise<AdminSubject> {
+    if (!editingSubject) throw new Error('Không tìm thấy môn học cần sửa.')
+
+    const updated = await adminApi.updateSubject(editingSubject.id, name)
+    setSubjectList((current) => current.map((subject) => subject.id === updated.id ? updated : subject))
+    setSuccessNotice(`Đã cập nhật tên môn học thành “${updated.name}”. ID và dữ liệu liên quan được giữ nguyên.`)
+    return updated
+  }
+
+  async function handleToggleSubjectStatus(subject: AdminSubject) {
+    const nextStatus = !subject.isActive
+    const action = nextStatus ? 'bật lại' : 'tắt'
+    const detail = nextStatus
+      ? `Bật lại môn “${subject.name}” cho các lớp đang hoạt động?`
+      : `Tắt môn “${subject.name}”? Dữ liệu lớp và lịch sử học tập sẽ không bị xóa.`
+
+    if (!window.confirm(detail)) return
+
+    setStatusSavingId(subject.id)
+    setStatusError('')
+    try {
+      const updated = await adminApi.updateSubjectStatus(subject.id, nextStatus)
+      setSubjectList((current) => current.map((item) => item.id === updated.id ? updated : item))
+      setSuccessNotice(`Đã ${action} môn “${updated.name}”.`)
+    } catch (error) {
+      setStatusError(error instanceof ApiError ? error.message : `Không thể ${action} môn học.`)
+    } finally {
+      setStatusSavingId(null)
+    }
+  }
+
   function getTeacherInitials(fullName: string): string {
     const parts = fullName.trim().split(/\s+/)
     if (parts.length >= 2) {
@@ -157,6 +195,15 @@ export function ClassroomSubjectsPage() {
             onClick={() => setSuccessNotice(null)}
             aria-label="Đóng thông báo"
           >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
+      {statusError && (
+        <div className="sbj-form-errors" role="alert">
+          {statusError}
+          <button type="button" className="sbj-alert-close" onClick={() => setStatusError('')} aria-label="Đóng lỗi">
             <X size={16} />
           </button>
         </div>
@@ -279,13 +326,16 @@ export function ClassroomSubjectsPage() {
                   <th style={{ width: '28%' }}>Tên môn học</th>
                   <th style={{ width: '18%' }}>Mã môn (ID)</th>
                   <th style={{ width: '32%' }}>Giáo viên chuyên môn</th>
-                  <th style={{ width: '22%' }}>Phạm vi áp dụng</th>
+                  <th style={{ width: '18%' }}>Phạm vi áp dụng</th>
+                  <th style={{ width: '14%' }}>Trạng thái & thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredSubjects.map((subject) => {
                   const eligible = teachers.filter((teacher) => teacher.specializedSubjectId === subject.id)
                   const hasEligible = eligible.length > 0
+                  let statusActionLabel = subject.isActive ? 'Tắt' : 'Bật'
+                  if (statusSavingId === subject.id) statusActionLabel = 'Đang lưu...'
 
                   return (
                     <tr key={subject.id}>
@@ -341,12 +391,34 @@ export function ClassroomSubjectsPage() {
                       {/* Scope of Application */}
                       <td>
                         <div>
-                          <span className="sbj-scope-badge">
+                          <span className={`sbj-scope-badge ${subject.isActive ? '' : 'is-inactive'}`}>
                             <Sparkles size={13} /> Áp dụng cho tất cả lớp đang học
                           </span>
                           <span className="sbj-scope-sub">
-                            Tự động mở tại {activeClassroomCount} lớp ACTIVE
+                            {subject.isActive ? `Tự động mở tại ${activeClassroomCount} lớp ACTIVE` : 'Không mở thêm cho lớp mới'}
                           </span>
+                        </div>
+                      </td>
+
+                      <td>
+                        <div className="sbj-status-cell">
+                          <span className={`sbj-status-badge ${subject.isActive ? 'is-active' : 'is-inactive'}`}>
+                            {subject.isActive ? 'Đang áp dụng' : 'Ngừng áp dụng'}
+                          </span>
+                          <div className="sbj-row-actions">
+                            <button type="button" className="sbj-row-action" onClick={() => setEditingSubject(subject)} aria-label={`Sửa môn ${subject.name}`}>
+                              <Pencil size={14} /> Sửa
+                            </button>
+                            <button
+                              type="button"
+                              className="sbj-row-action sbj-row-action-muted"
+                              onClick={() => void handleToggleSubjectStatus(subject)}
+                              disabled={statusSavingId === subject.id}
+                            >
+                              {subject.isActive ? <PowerOff size={14} /> : <Power size={14} />}
+                              {statusActionLabel}
+                            </button>
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -458,6 +530,15 @@ export function ClassroomSubjectsPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {editingSubject && (
+        <SubjectEditDialog
+          subject={editingSubject}
+          subjects={subjectList}
+          onClose={() => setEditingSubject(null)}
+          onSave={handleSaveSubjectName}
+        />
       )}
     </div>
   )

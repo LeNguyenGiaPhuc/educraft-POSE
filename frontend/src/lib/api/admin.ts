@@ -167,6 +167,14 @@ export const adminApi = {
     return response.data
   },
 
+  async updateSubject(id: string, name: string): Promise<AdminSubject> {
+    const response = await apiRequest<AdminSubject>(`/admin/subjects/${id}`, {
+      method: 'PATCH',
+      body: { name },
+    })
+    return response.data
+  },
+
   async updateSubjectStatus(id: string, isActive: boolean): Promise<AdminSubject> {
     const response = await apiRequest<AdminSubject>(`/admin/subjects/${id}/status`, {
       method: 'PATCH',
