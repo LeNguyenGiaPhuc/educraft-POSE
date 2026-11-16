@@ -6,10 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "oxlint",
+    "lint": "cd .. && oxlint frontend/src tests/frontend",
     "test": "npm run test:unit && npm run test:node",
     "test:unit": "vitest run --exclude \"**/*.test.mjs\"",
-    "test:node": "node --test src/features/admin/classrooms/studentImport.test.mjs src/features/teacher/activities/activitiesPermission.test.mjs src/features/teacher/schedule/calendarDate.test.mjs test/vite-config.test.mjs",
+    "test:node": "node --test ../tests/frontend/src/features/admin/classrooms/studentImport.test.mjs ../tests/frontend/src/features/teacher/activities/activitiesPermission.test.mjs ../tests/frontend/src/features/teacher/schedule/calendarDate.test.mjs ../tests/frontend/test/vite-config.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

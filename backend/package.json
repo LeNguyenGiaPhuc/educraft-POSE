@@ -8,7 +8,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "lint": "biome lint src tests",
+    "lint": "biome lint src ../tests/backend",
     "test": "vitest run",
     "test:integration": "node scripts/run-integration-tests.mjs",
     "test:watch": "vitest",
