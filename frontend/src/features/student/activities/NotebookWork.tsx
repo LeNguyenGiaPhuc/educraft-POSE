@@ -20,7 +20,7 @@ export function NotebookWork({ readOnly }: { readOnly: boolean }) {
     setQualityExample(false)
   }
 
-  function selectImages(event: ChangeEvent<HTMLInputElement>) {
+  function selectImages(event: ChangeEvent<HTMLInputElement>, replace: boolean) {
     const files = Array.from(event.target.files ?? [])
     event.currentTarget.value = ''
     if (!files.length) return
@@ -28,8 +28,10 @@ export function NotebookWork({ readOnly }: { readOnly: boolean }) {
       setMessage('Chỉ chọn ảnh JPEG hoặc PNG rõ nội dung. Hãy chọn lại tệp.')
       return
     }
-    setImages(files.map((file) => file.name))
-    setMessage('Đã thay ảnh trong bản xem trước trên máy. Chưa tải ảnh hoặc sửa bài nộp thật.')
+    const names = files.map((file) => file.name)
+    setImages((current) => replace ? names : [...current, ...names])
+    setHasSubmission(true)
+    setMessage(`${replace ? 'Đã thay ảnh' : 'Đã thêm ảnh'} trong bản xem trước trên máy. Chưa tải ảnh hoặc sửa bài nộp thật.`)
   }
 
   function deleteCurrentSubmission() {
@@ -50,7 +52,7 @@ export function NotebookWork({ readOnly }: { readOnly: boolean }) {
     {period === 'CLOSED' && <p className="student-notice">Bài gần nhất đã khóa để AI phân tích và giáo viên xem lại. Không thể thay hoặc xóa ảnh lúc này.</p>}
     {period === 'REOPENED' && <p className="student-notice">Giáo viên đã mở lại thời gian nộp. Đây là bài hiện tại mới; kết quả đã chốt trước đó vẫn được giữ.</p>}
     <div className="sa-image-list"><h3>{hasSubmission ? 'Ảnh của bài nộp hiện tại' : 'Bài nộp hiện tại'}</h3>{currentImages.length ? <ul>{currentImages.map((name, index) => <li key={`${name}-${index}`}>{index + 1}. {name}</li>)}</ul> : <p>{hasSubmission ? 'Chưa chọn ảnh nào.' : 'Chưa có bài nộp hiện tại.'}</p>}</div>
-    {editable && <div className="student-stack"><label className="student-field">Thay ảnh bài hiện tại<input type="file" accept="image/jpeg,image/png" multiple onChange={selectImages} /></label><div className="student-toolbar"><button type="button" className="student-action secondary" onClick={deleteCurrentSubmission} disabled={!hasSubmission && !currentImages.length}>{hasSubmission ? 'Xóa bài nộp hiện tại' : 'Xóa ảnh đã chọn'}</button><button type="button" className="student-action secondary" onClick={() => setQualityExample((value) => !value)}>Xem ví dụ ảnh chưa đạt</button></div>{qualityExample && <p className="student-notice">Ví dụ cảnh báo: ảnh bị mờ, thiếu sáng, nghiêng nhiều hoặc bị cắt mất mép trang. Bạn nên chụp lại trước khi nộp. Chưa có phân tích ảnh thật.</p>}<div className="student-toolbar"><button type="button" className="student-action" onClick={previewSubmission}>Kiểm tra trước khi nộp</button><button type="button" disabled title="Cần kết nối API để lưu ảnh">Nộp ảnh · chưa kết nối</button></div></div>}
+    {editable && <div className="student-stack"><label className="student-field">Thêm ảnh vào bài hiện tại<input type="file" accept="image/jpeg,image/png" multiple onChange={(event) => selectImages(event, false)} /></label><label className="student-field">Thay toàn bộ ảnh bài hiện tại<input type="file" accept="image/jpeg,image/png" multiple onChange={(event) => selectImages(event, true)} /></label><div className="student-toolbar"><button type="button" className="student-action secondary" onClick={deleteCurrentSubmission} disabled={!hasSubmission && !currentImages.length}>{hasSubmission ? 'Xóa bài nộp hiện tại' : 'Xóa ảnh đã chọn'}</button><button type="button" className="student-action secondary" onClick={() => setQualityExample((value) => !value)}>Xem ví dụ ảnh chưa đạt</button></div>{qualityExample && <p className="student-notice">Ví dụ cảnh báo: ảnh bị mờ, thiếu sáng, nghiêng nhiều hoặc bị cắt mất mép trang. Bạn nên chụp lại trước khi nộp. Chưa có phân tích ảnh thật.</p>}<div className="student-toolbar"><button type="button" className="student-action" onClick={previewSubmission}>Kiểm tra trước khi nộp</button><button type="button" disabled title="Cần kết nối API để lưu ảnh">Nộp ảnh · chưa kết nối</button></div></div>}
     {message && <p className="student-notice" role="status">{message}</p>}
     <div className="sa-history"><h3>Lịch sử đã chốt</h3><p>{notebookActivity.previousFinalized.date} · {notebookActivity.previousFinalized.teacher}</p><p>{notebookActivity.previousFinalized.summary}. Xem từng tiêu chí trong mục Kết quả.</p></div>
   </section>

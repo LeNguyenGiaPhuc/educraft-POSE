@@ -30,10 +30,11 @@ function NotebookFeedback({ result, previous }: { result: NotebookResult; previo
   return <article className="panel result-card"><div className="student-panel-heading"><div><span className="student-badge">Giáo viên đã chốt</span><h3>{previous ? 'Lần chốt trước' : 'Kiểm tra vở · Kết quả mới nhất'}</h3><p>Lịch sử · 11A2 · {date(result.finalizedAt)}</p></div><BookCheck size={24} aria-hidden="true" /></div><dl className="result-criteria">{result.criteria.map((criterion) => <div key={criterion.title}><dt>{criterion.title}</dt><dd><span className={`student-badge ${criterion.status === 'RECORDED' ? '' : 'warning'}`}>{findingLabels[criterion.status]}</span><p>{criterion.note}</p></dd></div>)}</dl><div className="result-teacher"><strong>Giáo viên đánh giá: {result.evaluator}</strong><p>{result.comment}</p></div></article>
 }
 
-export function ActivityResultDetail({ activityId }: { activityId: string }) {
+export function ActivityResultDetail({ activityId, gradeState = 'GRADED' }: { activityId: string; gradeState?: GradeState }) {
   const exercise = exerciseResults.find((result) => result.activityId === activityId)
+  const shownExercise = exercise?.classroomSubjectId === 'history-11a2' ? asGradePreview(exercise, gradeState) : exercise
   const notebooks = notebookResults.filter((result) => result.activityId === activityId)
-  if (exercise) return <ExerciseFeedback result={exercise} />
+  if (shownExercise) return <ExerciseFeedback result={shownExercise} />
   if (notebooks.length) return <div className="student-stack"><NotebookFeedback result={notebooks[0]} previous={false} />{notebooks.length > 1 && <details className="result-history"><summary>Xem {notebooks.length - 1} lần chốt trước</summary><div className="student-stack">{notebooks.slice(1).map((result) => <NotebookFeedback key={result.id} result={result} previous />)}</div></details>}</div>
   return <section className="panel student-empty"><BookCheck size={26} aria-hidden="true" /><h2>Chưa có kết quả</h2><p>Bài này chưa được chấm hoặc chưa có phản hồi đã chốt.</p></section>
 }

@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router'
 import { StudentScenarioControl } from '../ScenarioControl'
 import { useStudentScenario } from '../useStudentScenario'
 import { getAccessibleSubjects } from '../studentRules'
-import { exerciseResults, notebookResults } from '../results/results.mock'
+import { exerciseResults, notebookResults, type GradeState } from '../results/results.mock'
 import { ActivityResultDetail } from '../results/ResultsPage'
 import { assignedExercises, notebookActivity, type AssignedExercise } from './activities.mock'
 import { ExerciseWork } from './ExerciseWork'
@@ -36,13 +36,18 @@ function resultStatus(item: ActivityItem) {
   return exerciseResults.find((result) => result.activityId === item.id)?.status ?? item.exercise?.grading ?? 'PENDING'
 }
 
+function displayedResultStatus(item: ActivityItem, gradeState: GradeState) {
+  if (item.kind !== 'NOTEBOOK' && item.classroomSubjectId === 'history-11a2') return gradeState
+  return resultStatus(item)
+}
+
 function activityType(item: ActivityItem) {
   if (item.kind === 'NOTEBOOK') return 'Kiểm tra vở'
   return item.kind === 'QUIZ' ? 'Trắc nghiệm' : 'Tự luận ngắn'
 }
 
-function statusLabel(item: ActivityItem, view: 'assigned' | 'results') {
-  const status = view === 'results' ? resultStatus(item) : item.submitted ? 'SUBMITTED' : item.state === 'OPEN' ? 'OPEN' : 'CLOSED'
+function statusLabel(item: ActivityItem, view: 'assigned' | 'results', gradeState: GradeState) {
+  const status = view === 'results' ? displayedResultStatus(item, gradeState) : item.submitted ? 'SUBMITTED' : item.state === 'OPEN' ? 'OPEN' : 'CLOSED'
   return status.replace('GRADED', 'Đã chấm').replace('PENDING', 'Chờ chấm').replace('FAILED', 'Chấm lỗi').replace('SUBMITTED', 'Đã nộp').replace('OPEN', 'Đang mở').replace('CLOSED', 'Đã đóng')
 }
 
@@ -57,6 +62,7 @@ export function ActivitiesPage() {
   const [subjectFilter, setSubjectFilter] = useState(() => params.get('subject') ?? 'all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [selectedId, setSelectedId] = useState('')
+  const [gradeState, setGradeState] = useState<GradeState>('GRADED')
   const view = params.get('view') === 'results' ? 'results' : 'assigned'
   const classScope = scenario === 'history-only' || params.get('class') === 'history' ? 'history' : 'current'
   const accessible = getAccessibleSubjects(scenario)
@@ -76,7 +82,7 @@ export function ActivitiesPage() {
   const visibleItems = items.filter((item) => {
     if (subjectFilter !== 'all' && item.classroomSubjectId !== subjectFilter) return false
     if (view === 'results') {
-      const status = resultStatus(item)
+      const status = displayedResultStatus(item, gradeState)
       if (!item.submitted) return false
       return statusFilter === 'all' || status === statusFilter
     }
@@ -103,12 +109,13 @@ export function ActivitiesPage() {
     {scenario === 'unassigned' ? <section className="panel student-empty"><ClipboardCheck size={30} /><h2>Chưa có bài được giao</h2><p>Hoạt động sẽ xuất hiện sau khi em được xếp vào một lớp đang học.</p></section> : <>
       <div className="activity-tabs" role="tablist" aria-label="Nội dung hoạt động"><button type="button" role="tab" aria-selected={view === 'assigned'} onClick={() => updateQuery('view', 'assigned')}><ClipboardList size={17} /> Bài được giao</button><button type="button" role="tab" aria-selected={view === 'results'} onClick={() => updateQuery('view', 'results')}><BookCheck size={17} /> Kết quả & phản hồi</button></div>
       {!selected && <><div className="activity-filters"><label>Phạm vi lớp<select value={classScope} disabled={scenario === 'history-only'} onChange={(event) => updateQuery('class', event.target.value)}><option value="current">Lớp hiện tại · 11A2</option><option value="history">Lớp đã học · 10A1</option></select></label><label>Môn học<select value={subjectFilter} onChange={(event) => { setSubjectFilter(event.target.value); setSelectedId('') }}><option value="all">Tất cả môn</option>{subjects.map((subject) => <option value={subject.id} key={subject.id}>{subject.name}</option>)}</select></label><label>Trạng thái<select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setSelectedId('') }}><option value="all">Tất cả trạng thái</option>{view === 'assigned' ? <><option value="open">Cần làm</option><option value="submitted">Đã nộp</option><option value="closed">Đã đóng</option></> : <><option value="GRADED">Đã chấm</option><option value="PENDING">Chờ chấm</option><option value="FAILED">Chấm lỗi</option></>}</select></label></div>
+        {view === 'results' && classScope === 'current' && <div className="student-toolbar"><label>Tình huống chấm mẫu<select aria-label="Tình huống chấm mẫu" value={gradeState} onChange={(event) => setGradeState(event.target.value as GradeState)}><option value="GRADED">Đã chấm</option><option value="PENDING">Đang chờ chấm</option><option value="FAILED">Chấm gặp lỗi</option></select></label><p className="student-muted">Dùng để xem các trạng thái mẫu; câu trả lời không bị xóa và không có điểm giả.</p></div>}
         {classScope === 'history' && <p className="student-notice">Lớp đã học chỉ cho phép xem lại bài đã nộp và kết quả cũ.</p>}
       </>}
-      {selected ? <section className="activity-detail-page" aria-live="polite"><button type="button" className="activity-back-button" onClick={() => setSelectedId('')}><ArrowLeft size={16} /> Về danh sách bài</button><div className="activity-detail-title"><div><span>{selectedSubject?.name} · {selectedSubject?.classroomName}</span><h2>{selected.title}</h2></div></div>{view === 'results' ? <ActivityResultDetail activityId={selected.id} /> : selected.kind === 'NOTEBOOK' ? <NotebookWork readOnly={classScope === 'history'} /> : <ExerciseWork key={selected.id} activity={selected.exercise!} readOnly={classScope === 'history'} />}</section> : <section className="activity-list-page" aria-label={view === 'assigned' ? 'Danh sách bài được giao' : 'Danh sách kết quả'}><div className="activity-list-heading"><div><span className="eyebrow"><span className="eyebrow-line" />DANH SÁCH HOẠT ĐỘNG</span><h2>{view === 'assigned' ? 'Đang mở và đã chốt' : 'Bài đã có kết quả'}</h2></div><span>{visibleItems.length} mục</span></div><div className="activity-list-cards">{visibleItems.length ? visibleItems.map((item) => {
+      {selected ? <section className="activity-detail-page" aria-live="polite"><button type="button" className="activity-back-button" onClick={() => setSelectedId('')}><ArrowLeft size={16} /> Về danh sách bài</button><div className="activity-detail-title"><div><span>{selectedSubject?.name} · {selectedSubject?.classroomName}</span><h2>{selected.title}</h2></div></div>{view === 'results' ? <ActivityResultDetail activityId={selected.id} gradeState={gradeState} /> : selected.kind === 'NOTEBOOK' ? <NotebookWork readOnly={classScope === 'history'} /> : <ExerciseWork key={selected.id} activity={selected.exercise!} readOnly={classScope === 'history'} />}</section> : <section className="activity-list-page" aria-label={view === 'assigned' ? 'Danh sách bài được giao' : 'Danh sách kết quả'}><div className="activity-list-heading"><div><span className="eyebrow"><span className="eyebrow-line" />DANH SÁCH HOẠT ĐỘNG</span><h2>{view === 'assigned' ? 'Đang mở và đã chốt' : 'Bài đã có kết quả'}</h2></div><span>{visibleItems.length} mục</span></div><div className="activity-list-cards">{visibleItems.length ? visibleItems.map((item) => {
         const subject = subjects.find((entry) => entry.id === item.classroomSubjectId)
         const Icon = item.kind === 'QUIZ' ? ClipboardList : item.kind === 'NOTEBOOK' ? BookCheck : ClipboardCheck
-        return <button className="activity-list-card" type="button" key={item.id} onClick={() => setSelectedId(item.id)}><span className="activity-list-card-icon" aria-hidden="true"><Icon size={21} /></span><span className="activity-list-card-copy"><small>{subject?.name} · {activityType(item)}</small><strong>{item.title}</strong><p>{activityDescription(item)}</p><span className="activity-list-card-meta">{view === 'assigned' && !item.submitted && item.state === 'OPEN' ? 'Mở để bắt đầu làm bài' : 'Mở để xem chi tiết'}</span></span><span className="activity-list-card-status">{statusLabel(item, view)}</span><ArrowRight className="activity-list-card-arrow" size={18} /></button>
+        return <button className="activity-list-card" type="button" key={item.id} onClick={() => setSelectedId(item.id)}><span className="activity-list-card-icon" aria-hidden="true"><Icon size={21} /></span><span className="activity-list-card-copy"><small>{subject?.name} · {activityType(item)}</small><strong>{item.title}</strong><p>{activityDescription(item)}</p><span className="activity-list-card-meta">{view === 'assigned' && !item.submitted && item.state === 'OPEN' ? 'Mở để bắt đầu làm bài' : 'Mở để xem chi tiết'}</span></span><span className="activity-list-card-status">{statusLabel(item, view, gradeState)}</span><ArrowRight className="activity-list-card-arrow" size={18} /></button>
       }) : <p className="student-muted">Không có hoạt động phù hợp với bộ lọc.</p>}</div></section>}
     </>}
   </div>

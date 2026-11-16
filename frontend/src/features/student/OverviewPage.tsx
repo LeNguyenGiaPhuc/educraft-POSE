@@ -14,7 +14,7 @@ function QuickLink({ to, title, detail, icon: Icon }: { to: string; title: strin
 export function StudentOverviewPage() {
   const { scenario } = useStudentScenario()
   const { current, historic } = getAccessibleSubjects(scenario)
-  const visibleSubjects = [...current, ...historic]
+  const visibleSubjects = scenario === 'current' ? current : historic
   const publishedLessonCount = visibleSubjects.reduce((total, subject) => total + getVisibleLessons(subject.id).length, 0)
   const openActivityCount = scenario === 'current'
     ? assignedExercises.filter((activity) => activity.state === 'OPEN').length + 1
@@ -29,7 +29,7 @@ export function StudentOverviewPage() {
       <section className="student-stat-grid" aria-label="Tổng quan học tập">
         <div className="student-stat-card"><span className="student-stat-icon sage"><BookOpen size={19} /></span><p>Môn học</p><strong>{String(visibleSubjects.length).padStart(2, '0')}</strong><small>{scenario === 'current' ? 'Trong lớp 11A2' : 'Lớp 10A1 · chỉ đọc'}</small></div>
         <div className="student-stat-card"><span className="student-stat-icon peach"><ClipboardList size={19} /></span><p>Việc sắp tới</p><strong>{String(openActivityCount).padStart(2, '0')}</strong><small>{scenario === 'current' ? 'Bài giáo viên giao' : 'Không có việc mới'}</small></div>
-        <div className="student-stat-card"><span className="student-stat-icon blue"><BookOpen size={19} /></span><p>Bài đã công bố</p><strong>{String(publishedLessonCount).padStart(2, '0')}</strong><small>Học liệu đủ điều kiện để xem</small></div>
+        <div className="student-stat-card"><span className="student-stat-icon blue"><BookOpen size={19} /></span><p>Bài đã công bố</p><strong>{String(publishedLessonCount).padStart(2, '0')}</strong><small>{scenario === 'current' ? 'Trong lớp 11A2' : 'Trong lớp 10A1 · chỉ đọc'}</small></div>
       </section>
       <div className="student-overview-grid">
         <section className="panel"><div className="student-panel-heading"><div><span className="student-overline">BẮT ĐẦU TỪ ĐÂY</span><h2>{scenario === 'current' ? 'Gợi ý cho em' : 'Xem lại việc đã học'}</h2></div></div><div className="student-quick-list">
