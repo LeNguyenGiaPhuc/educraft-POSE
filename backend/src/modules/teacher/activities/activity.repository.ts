@@ -2,7 +2,19 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '../../../lib/prisma.js';
 import { BadRequestError, ConflictError, NotFoundError } from '../../../shared/errors/app-error.js';
 import { requireAssignedSubjectForMutation } from '../access/teacher-subject.policy.js';
-import type { CreateActivityInput, QuestionInput, ReopenActivityInput, UpdateActivityInput } from './activity.schemas.js';
+import {
+  requireQuestionCitations,
+  validateExerciseQuestionShape,
+  validateQuestionSources,
+  type EligibleActivitySegment,
+} from './activity-validation.js';
+import type {
+  CreateActivityInput,
+  QuestionInput,
+  ReopenActivityInput,
+  UpdateActivityInput,
+  UpdateExerciseContentInput,
+} from './activity.schemas.js';
 
 async function lockActivityForContentMutation(
   tx: Prisma.TransactionClient,
@@ -148,6 +160,127 @@ export const activityRepository = {
     });
   },
 
+  async publishExerciseActivityAtomically(
+    actorId: string,
+    classroomSubjectId: string,
+    input: CreateActivityInput & { questions: QuestionInput[] }
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const context = await requireAssignedSubjectForMutation(tx, actorId, classroomSubjectId);
+      const selectedLessons = await tx.lesson.findMany({
+        where: {
+          id: { in: input.lessonIds ?? [] },
+          classroom_subject_id: classroomSubjectId,
+          status: 'PUBLISHED',
+        },
+        select: { id: true },
+      });
+
+      if (selectedLessons.length !== (input.lessonIds ?? []).length) {
+        throw new BadRequestError('Bài học phải thuộc môn học này và đã được công bố.');
+      }
+
+      const selectedLessonIds = new Set(selectedLessons.map((lesson) => lesson.id));
+      const segments = await tx.materialSegment.findMany({
+        where: {
+          processing_status: 'PROCESSED',
+          materialVersion: {
+            processing_status: 'PROCESSED',
+            material: {
+              status: 'PUBLISHED',
+              lesson: { classroom_subject_id: classroomSubjectId, status: 'PUBLISHED' },
+            },
+          },
+        },
+        select: {
+          id: true,
+          content: true,
+          materialVersion: { select: { material: { select: { lesson_id: true } } } },
+        },
+      });
+      validateExerciseQuestionShape(input.exerciseType, input.questions);
+
+      const eligibleSegments: EligibleActivitySegment[] = segments
+        .filter((segment) => selectedLessonIds.has(segment.materialVersion.material.lesson_id))
+        .map((segment) => ({
+          id: segment.id,
+          content: segment.content,
+          lessonId: segment.materialVersion.material.lesson_id,
+        }));
+
+      requireQuestionCitations(input.questions);
+      validateQuestionSources(input.questions, selectedLessonIds, eligibleSegments);
+
+      const activity = await tx.activity.create({
+        data: {
+          classroom_subject_id: classroomSubjectId,
+          created_by_id: actorId,
+          kind: 'EXERCISE',
+          title: input.title,
+          description: input.description,
+          status: 'PUBLISHED',
+          published_at: new Date(),
+          closes_at: input.closesAt ? new Date(input.closesAt) : null,
+        },
+      });
+
+      await tx.exerciseActivity.create({
+        data: {
+          activity_id: activity.id,
+          exercise_type: input.exerciseType,
+          difficulty: input.difficulty,
+          question_count: input.questions.length,
+        },
+      });
+
+      await tx.exerciseActivityLesson.createMany({
+        data: (input.lessonIds ?? []).map((lessonId) => ({ activity_id: activity.id, lesson_id: lessonId })),
+      });
+
+      for (const [index, question] of input.questions.entries()) {
+        const createdQuestion = await tx.question.create({
+          data: {
+            exercise_activity_id: activity.id,
+            lesson_id: question.lessonId,
+            prompt: question.prompt,
+            options: question.options ?? undefined,
+            answer_key: question.answerKey || null,
+            marking_criteria: question.markingCriteria || null,
+            explanation: question.explanation,
+            max_points: question.maxPoints,
+            sort_order: index + 1,
+          },
+        });
+        await tx.questionCitation.createMany({
+          data: question.citations.map((citation) => ({
+            question_id: createdQuestion.id,
+            segment_id: citation.segmentId,
+            excerpt: citation.excerpt || null,
+          })),
+        });
+      }
+
+      const enrollments = await tx.classroomEnrollment.findMany({
+        where: { classroom_id: context.classroomId, left_at: null },
+        select: { student_id: true },
+      });
+      if (enrollments.length > 0) {
+        await tx.notification.createMany({
+          data: enrollments.map((enrollment) => ({
+            recipient_id: enrollment.student_id,
+            activity_id: activity.id,
+            dedupe_key: `activity:${activity.id}`,
+            title: `Hoạt động mới: ${input.title}`,
+            body: `Giáo viên đã công bố bài tập "${input.title}" môn ${context.subjectName}. Vui lòng hoàn thành trước hạn nộp.`,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      return this.findActivityById(activity.id, tx);
+    });
+  },
+
   async updateActivityAtomically(
     actorId: string,
     activityId: string,
@@ -233,6 +366,146 @@ export const activityRepository = {
     });
   },
 
+  async updateExerciseContentAtomically(
+    actorId: string,
+    activityId: string,
+    input: UpdateExerciseContentInput
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.activity.findUnique({
+        where: { id: activityId },
+        include: { exercise: true },
+      });
+
+      if (!existing?.exercise) {
+        throw new NotFoundError('Không tìm thấy hoạt động bài tập');
+      }
+
+      await requireAssignedSubjectForMutation(tx, actorId, existing.classroom_subject_id);
+      await lockActivityForContentMutation(tx, activityId);
+
+      const submissionCount = await tx.exerciseSubmission.count({
+        where: { activity_id: activityId },
+      });
+      if (submissionCount > 0) {
+        throw new ConflictError('Không thể sửa hoạt động đã có bài nộp');
+      }
+
+      validateExerciseQuestionShape(existing.exercise.exercise_type, input.questions);
+      if (existing.status !== 'DRAFT') {
+        requireQuestionCitations(input.questions);
+      }
+
+      const selectedLessons = await tx.lesson.findMany({
+        where: {
+          id: { in: input.lessonIds },
+          classroom_subject_id: existing.classroom_subject_id,
+        },
+        select: { id: true },
+      });
+      if (selectedLessons.length !== input.lessonIds.length) {
+        throw new BadRequestError('Một hoặc nhiều bài học liên kết không thuộc môn học này');
+      }
+
+      const selectedLessonIds = new Set(selectedLessons.map((lesson) => lesson.id));
+      const eligibleSegments: EligibleActivitySegment[] = (await tx.materialSegment.findMany({
+        where: {
+          processing_status: 'PROCESSED',
+          materialVersion: {
+            processing_status: 'PROCESSED',
+            material: {
+              status: 'PUBLISHED',
+              lesson: {
+                id: { in: input.lessonIds },
+                classroom_subject_id: existing.classroom_subject_id,
+                status: 'PUBLISHED',
+              },
+            },
+          },
+        },
+        select: {
+          id: true,
+          content: true,
+          materialVersion: { select: { material: { select: { lesson_id: true } } } },
+        },
+      })).map((segment) => ({
+        id: segment.id,
+        content: segment.content,
+        lessonId: segment.materialVersion.material.lesson_id,
+      }));
+      validateQuestionSources(input.questions, selectedLessonIds, eligibleSegments);
+
+      await tx.activity.update({
+        where: { id: activityId },
+        data: {
+          title: input.title,
+          description: input.description,
+          closes_at: input.closesAt !== undefined
+            ? (input.closesAt ? new Date(input.closesAt) : null)
+            : existing.closes_at,
+        },
+      });
+
+      await tx.exerciseActivity.update({
+        where: { activity_id: activityId },
+        data: { difficulty: input.difficulty },
+      });
+
+      await tx.exerciseActivityLesson.deleteMany({
+        where: { activity_id: activityId },
+      });
+      if (input.lessonIds.length > 0) {
+        await tx.exerciseActivityLesson.createMany({
+          data: input.lessonIds.map((lessonId) => ({
+            activity_id: activityId,
+            lesson_id: lessonId,
+          })),
+        });
+      }
+
+      await tx.questionCitation.deleteMany({
+        where: { question: { exercise_activity_id: activityId } },
+      });
+      await tx.question.deleteMany({
+        where: { exercise_activity_id: activityId },
+      });
+
+      for (let index = 0; index < input.questions.length; index += 1) {
+        const question = input.questions[index];
+        const createdQuestion = await tx.question.create({
+          data: {
+            exercise_activity_id: activityId,
+            lesson_id: question.lessonId,
+            prompt: question.prompt,
+            options: question.options ?? undefined,
+            answer_key: question.answerKey || null,
+            marking_criteria: question.markingCriteria || null,
+            explanation: question.explanation,
+            max_points: question.maxPoints,
+            sort_order: index + 1,
+          },
+        });
+
+        if (question.citations.length > 0) {
+          await tx.questionCitation.createMany({
+            data: question.citations.map((citation) => ({
+              question_id: createdQuestion.id,
+              segment_id: citation.segmentId,
+              excerpt: citation.excerpt || null,
+            })),
+          });
+        }
+      }
+
+      await tx.exerciseActivity.update({
+        where: { activity_id: activityId },
+        data: { question_count: input.questions.length },
+      });
+
+      return this.findActivityById(activityId, tx);
+    });
+  },
+
   async deleteActivityAtomically(actorId: string, activityId: string) {
     return prisma.$transaction(async (tx) => {
       const existing = await tx.activity.findUnique({
@@ -297,7 +570,13 @@ export const activityRepository = {
     return prisma.$transaction(async (tx) => {
       const existing = await tx.activity.findUnique({
         where: { id: activityId },
-        include: { exercise: true },
+        include: {
+          exercise: {
+            include: {
+              lessons: { select: { lesson_id: true } },
+            },
+          },
+        },
       });
 
       if (!existing?.exercise) {
@@ -315,6 +594,42 @@ export const activityRepository = {
       if (submissionCount > 0) {
         throw new ConflictError('Không thể chỉnh sửa danh sách câu hỏi vì hoạt động đã có bài nộp');
       }
+
+      validateExerciseQuestionShape(existing.exercise.exercise_type, questions);
+      if (existing.status !== 'DRAFT') {
+        requireQuestionCitations(questions);
+      }
+
+      const selectedLessonIds = new Set(existing.exercise.lessons.map((lesson) => lesson.lesson_id));
+      const hasCitations = questions.some((question) => question.citations.length > 0);
+      const eligibleSegments: EligibleActivitySegment[] = hasCitations
+        ? (await tx.materialSegment.findMany({
+            where: {
+              processing_status: 'PROCESSED',
+              materialVersion: {
+                processing_status: 'PROCESSED',
+                material: {
+                  status: 'PUBLISHED',
+                  lesson: {
+                    classroom_subject_id: existing.classroom_subject_id,
+                    status: 'PUBLISHED',
+                    id: { in: Array.from(selectedLessonIds) },
+                  },
+                },
+              },
+            },
+            select: {
+              id: true,
+              content: true,
+              materialVersion: { select: { material: { select: { lesson_id: true } } } },
+            },
+          })).map((segment) => ({
+            id: segment.id,
+            content: segment.content,
+            lessonId: segment.materialVersion.material.lesson_id,
+          }))
+        : [];
+      validateQuestionSources(questions, selectedLessonIds, eligibleSegments);
 
       // 1. Delete existing citations & questions
       await tx.questionCitation.deleteMany({
@@ -369,6 +684,7 @@ export const activityRepository = {
         include: {
           exercise: {
             include: {
+              lessons: { select: { lesson_id: true } },
               _count: { select: { questions: true } },
             },
           },
@@ -392,6 +708,13 @@ export const activityRepository = {
       const questions = await tx.question.findMany({
         where: { exercise_activity_id: activityId },
         select: {
+          lesson_id: true,
+          prompt: true,
+          options: true,
+          answer_key: true,
+          marking_criteria: true,
+          explanation: true,
+          max_points: true,
           lesson: {
             select: {
               classroom_subject_id: true,
@@ -400,8 +723,11 @@ export const activityRepository = {
           },
           citations: {
             select: {
+              excerpt: true,
               segment: {
                 select: {
+                  id: true,
+                  content: true,
                   processing_status: true,
                   materialVersion: {
                     select: {
@@ -411,6 +737,7 @@ export const activityRepository = {
                           status: true,
                           lesson: {
                             select: {
+                              id: true,
                               classroom_subject_id: true,
                               status: true,
                             },
@@ -425,6 +752,35 @@ export const activityRepository = {
           },
         },
       });
+
+      const questionsForValidation: QuestionInput[] = questions.map((question) => ({
+        prompt: question.prompt,
+        options: Array.isArray(question.options)
+          ? question.options.filter((option): option is string => typeof option === 'string')
+          : undefined,
+        answerKey: question.answer_key ?? undefined,
+        markingCriteria: question.marking_criteria ?? undefined,
+        explanation: question.explanation,
+        maxPoints: Number(question.max_points),
+        lessonId: question.lesson_id,
+        citations: question.citations.map((citation) => ({
+          segmentId: citation.segment.id,
+          excerpt: citation.excerpt ?? undefined,
+        })),
+      }));
+
+      validateExerciseQuestionShape(existing.exercise.exercise_type, questionsForValidation);
+      const selectedLessonIds = new Set(existing.exercise.lessons.map((lesson) => lesson.lesson_id));
+      requireQuestionCitations(questionsForValidation);
+      validateQuestionSources(
+        questionsForValidation,
+        selectedLessonIds,
+        questions.flatMap((question) => question.citations.map((citation) => ({
+          id: citation.segment.id,
+          content: citation.segment.content,
+          lessonId: citation.segment.materialVersion.material.lesson.id,
+        })))
+      );
 
       for (const question of questions) {
         const lessonIsEligible =

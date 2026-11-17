@@ -84,19 +84,7 @@ describe('Teacher Activities API (E2E)', () => {
       expect(res.body.data[0].title).toBe('Kiểm tra 15 phút');
     });
 
-    it('POST /classroom-subjects/:id/activities creates activity with 201', async () => {
-      vi.spyOn(activityService, 'createActivity').mockResolvedValue({
-        id: sampleActivityId,
-        title: 'Bài tập mới',
-        status: 'DRAFT',
-        kind: 'EXERCISE',
-        exercise: {
-          exercise_type: 'QUIZ',
-          difficulty: 'BASIC',
-          question_count: 0,
-        },
-      } as any);
-
+    it('POST /classroom-subjects/:id/activities is removed to prevent empty drafts', async () => {
       const res = await request(app)
         .post(`/api/v1/teacher/classroom-subjects/${sampleClassroomSubjectId}/activities`)
         .set('Cookie', ['educraft_session=mock_cookie'])
@@ -108,11 +96,10 @@ describe('Teacher Activities API (E2E)', () => {
           lessonIds: [sampleLessonId],
         });
 
-      expect(res.status).toBe(201);
-      expect(res.body.data.id).toBe(sampleActivityId);
+      expect(res.status).toBe(404);
     });
 
-    it('POST /classroom-subjects/:id/activities validates input and rejects 400', async () => {
+    it('POST /classroom-subjects/:id/activities remains unavailable for invalid input', async () => {
       const res = await request(app)
         .post(`/api/v1/teacher/classroom-subjects/${sampleClassroomSubjectId}/activities`)
         .set('Cookie', ['educraft_session=mock_cookie'])
@@ -121,8 +108,7 @@ describe('Teacher Activities API (E2E)', () => {
           exerciseType: 'INVALID_TYPE',
         });
 
-      expect(res.status).toBe(400);
-      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+      expect(res.status).toBe(404);
     });
 
     it('GET /activities/:id returns detail with 200', async () => {
@@ -158,6 +144,41 @@ describe('Teacher Activities API (E2E)', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.data.title).toBe('Tiêu đề đã đổi');
+    });
+
+    it('PUT /activities/:id/exercise-content updates metadata and questions atomically', async () => {
+      vi.spyOn(activityService, 'updateExerciseContent').mockResolvedValue({
+        id: sampleActivityId,
+        title: 'Hoạt động đã cập nhật',
+      } as any);
+
+      const res = await request(app)
+        .put(`/api/v1/teacher/activities/${sampleActivityId}/exercise-content`)
+        .set('Cookie', ['educraft_session=mock_cookie'])
+        .send({
+          title: 'Hoạt động đã cập nhật',
+          description: 'Mô tả mới',
+          difficulty: 'ADVANCED',
+          lessonIds: [sampleLessonId],
+          closesAt: null,
+          questions: [{
+            prompt: 'Câu hỏi?',
+            options: ['A', 'B', 'C', 'D'],
+            answerKey: 'A',
+            explanation: 'Giải thích',
+            maxPoints: 1,
+            lessonId: sampleLessonId,
+            citations: [],
+          }],
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.title).toBe('Hoạt động đã cập nhật');
+      expect(activityService.updateExerciseContent).toHaveBeenCalledWith(
+        mockTeacherUser.id,
+        sampleActivityId,
+        expect.objectContaining({ difficulty: 'ADVANCED' })
+      );
     });
 
     it('DELETE /activities/:id deletes activity with 200', async () => {
@@ -201,6 +222,48 @@ describe('Teacher Activities API (E2E)', () => {
       expect(res.status).toBe(200);
       expect(res.body.data.status).toBe('READY');
       expect(res.body.data.questions).toHaveLength(1);
+    });
+
+    it('POST /classroom-subjects/:id/exercise-drafts generates without an activity id', async () => {
+      vi.spyOn(activityService, 'generateExerciseDraft').mockResolvedValue({ status: 'READY', questions: [] });
+
+      const res = await request(app)
+        .post(`/api/v1/teacher/classroom-subjects/${sampleClassroomSubjectId}/exercise-drafts`)
+        .set('Cookie', ['educraft_session=mock_cookie'])
+        .send({
+          exerciseType: 'QUIZ',
+          lessonIds: [sampleLessonId],
+          questionCount: 1,
+          difficulty: 'BASIC',
+          instructions: 'Tập trung mốc thời gian',
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.status).toBe('READY');
+      expect(activityService.generateExerciseDraft).toHaveBeenCalledWith(
+        mockTeacherUser.id,
+        sampleClassroomSubjectId,
+        expect.objectContaining({ instructions: 'Tập trung mốc thời gian' })
+      );
+    });
+
+    it('POST /classroom-subjects/:id/exercise-activities/publish calls atomic publish service', async () => {
+      vi.spyOn(activityService, 'publishExerciseActivity').mockResolvedValue({ id: sampleActivityId, status: 'PUBLISHED' } as any);
+
+      const res = await request(app)
+        .post(`/api/v1/teacher/classroom-subjects/${sampleClassroomSubjectId}/exercise-activities/publish`)
+        .set('Cookie', ['educraft_session=mock_cookie'])
+        .send({
+          title: 'Quiz mới', description: 'Ôn tập', exerciseType: 'QUIZ', difficulty: 'BASIC',
+          lessonIds: [sampleLessonId], closesAt: null,
+          questions: [{
+            prompt: 'Câu hỏi?', options: ['A', 'B', 'C', 'D'], answerKey: 'A', explanation: 'Giải thích', maxPoints: 1,
+            lessonId: sampleLessonId, citations: [{ segmentId: sampleLessonId, excerpt: 'Nguồn' }],
+          }],
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.status).toBe('PUBLISHED');
     });
 
     it('POST /activities/:id/ai-draft rejects more than 20 questions', async () => {

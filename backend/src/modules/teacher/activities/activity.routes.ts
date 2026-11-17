@@ -10,11 +10,13 @@ router.use(requireRole('TEACHER'));
 
 // Classroom-subject scoped activities
 router.get('/classroom-subjects/:classroomSubjectId/activities', activityController.list);
-router.post('/classroom-subjects/:classroomSubjectId/activities', activityController.create);
+router.post('/classroom-subjects/:classroomSubjectId/exercise-drafts', activityController.exerciseDraft);
+router.post('/classroom-subjects/:classroomSubjectId/exercise-activities/publish', activityController.publishExerciseActivity);
 
 // Individual activity endpoints
 router.get('/activities/:activityId', activityController.getDetail);
 router.patch('/activities/:activityId', activityController.update);
+router.put('/activities/:activityId/exercise-content', activityController.updateExerciseContent);
 router.delete('/activities/:activityId', activityController.delete);
 router.post('/activities/:activityId/ai-draft', activityController.aiDraft);
 router.put('/activities/:activityId/questions', activityController.putQuestions);

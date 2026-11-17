@@ -18,8 +18,8 @@ describe('teacher activities API', () => {
     stubResponse([{
       id: 'activity-id',
       classroom_subject_id: 'subject-id',
-      title: 'Ôn tập',
-      description: 'Mô tả',
+      title: 'Review',
+      description: 'Description',
       kind: 'EXERCISE',
       status: 'DRAFT',
       published_at: null,
@@ -35,7 +35,7 @@ describe('teacher activities API', () => {
 
     await expect(teacherActivitiesApi.list('subject/id')).resolves.toEqual([expect.objectContaining({
       id: 'activity-id',
-      title: 'Ôn tập',
+      title: 'Review',
       kind: 'EXERCISE',
       exercise: expect.objectContaining({ exercise_type: 'QUIZ' }),
       submissionCount: 0,
@@ -48,39 +48,11 @@ describe('teacher activities API', () => {
     )
   })
 
-  it('creates an exercise activity with lesson links', async () => {
-    stubResponse({ id: 'activity-id', title: 'Quiz mới' })
-
-    await teacherActivitiesApi.create('subject/id', {
-      title: 'Quiz mới',
-      description: 'Mô tả',
-      exerciseType: 'QUIZ',
-      difficulty: 'BASIC',
-      lessonIds: ['lesson/id'],
-      closesAt: '2026-11-20T10:00:00.000Z',
-    })
-
-    expect(fetch).toHaveBeenCalledWith(
-      '/api/v1/teacher/classroom-subjects/subject%2Fid/activities',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({
-          title: 'Quiz mới',
-          description: 'Mô tả',
-          exerciseType: 'QUIZ',
-          difficulty: 'BASIC',
-          lessonIds: ['lesson/id'],
-          closesAt: '2026-11-20T10:00:00.000Z',
-        }),
-      })
-    )
-  })
-
   it('updates an activity and requests an AI draft', async () => {
-    stubResponse({ id: 'activity-id', title: 'Quiz đã sửa' })
+    stubResponse({ id: 'activity-id', title: 'Updated quiz' })
 
     await teacherActivitiesApi.update('activity/id', {
-      title: 'Quiz đã sửa',
+      title: 'Updated quiz',
       difficulty: 'ADVANCED',
       lessonIds: ['lesson/id'],
       closesAt: null,
@@ -96,7 +68,7 @@ describe('teacher activities API', () => {
       '/api/v1/teacher/activities/activity%2Fid',
       expect.objectContaining({
         method: 'PATCH',
-        body: JSON.stringify({ title: 'Quiz đã sửa', difficulty: 'ADVANCED', lessonIds: ['lesson/id'], closesAt: null }),
+        body: JSON.stringify({ title: 'Updated quiz', difficulty: 'ADVANCED', lessonIds: ['lesson/id'], closesAt: null }),
       })
     )
     expect(fetch).toHaveBeenNthCalledWith(
@@ -104,20 +76,47 @@ describe('teacher activities API', () => {
       '/api/v1/teacher/activities/activity%2Fid/ai-draft',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ lessonIds: ['lesson/id'], questionCount: 3, difficulty: 'ADVANCED' }),
+        body: JSON.stringify({ lessonIds: ['lesson/id'], questionCount: 3, difficulty: 'ADVANCED', instructions: '' }),
       })
     )
   })
 
+  it('updates activity metadata and questions with one PUT request', async () => {
+    stubResponse({ id: 'activity-id', title: 'Updated quiz' })
+
+    await teacherActivitiesApi.updateExerciseContent('activity/id', {
+      title: 'Updated quiz',
+      description: 'Description',
+      difficulty: 'ADVANCED',
+      lessonIds: ['lesson/id'],
+      closesAt: null,
+      questions: [{
+        prompt: 'Question?',
+        options: ['A', 'B', 'C', 'D'],
+        answerKey: 'A',
+        explanation: 'Explanation',
+        maxPoints: 1,
+        lessonId: 'lesson/id',
+        citations: [],
+      }],
+    })
+
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/v1/teacher/activities/activity%2Fid/exercise-content',
+      expect.objectContaining({ method: 'PUT' })
+    )
+  })
+
   it('updates questions and publishes an activity', async () => {
-    stubResponse({ id: 'activity-id', title: 'Quiz đã cập nhật' })
+    stubResponse({ id: 'activity-id', title: 'Updated quiz' })
 
     await teacherActivitiesApi.putQuestions('activity/id', [{
-      prompt: 'Câu hỏi?',
-      options: ['A', 'B'],
+      prompt: 'Question?',
+      options: ['A', 'B', 'C', 'D'],
       answerKey: 'A',
       markingCriteria: undefined,
-      explanation: 'Giải thích',
+      explanation: 'Explanation',
       maxPoints: 1,
       lessonId: 'lesson/id',
       citations: [],
@@ -134,6 +133,36 @@ describe('teacher activities API', () => {
       '/api/v1/teacher/activities/activity%2Fid/publish',
       expect.objectContaining({ method: 'POST' })
     )
+  })
+
+  it('generates a subject draft and atomically publishes approved questions', async () => {
+    stubResponse({ id: 'activity-id', title: 'Published quiz' })
+
+    await teacherActivitiesApi.exerciseDraft('subject/id', {
+      exerciseType: 'QUIZ',
+      lessonIds: ['lesson/id'],
+      questionCount: 2,
+      difficulty: 'BASIC',
+      instructions: 'Focus on the timeline',
+    })
+    await teacherActivitiesApi.publishGenerated('subject/id', {
+      title: 'New quiz',
+      description: 'Description',
+      exerciseType: 'QUIZ',
+      difficulty: 'BASIC',
+      lessonIds: ['lesson/id'],
+      closesAt: null,
+      questions: [{
+        prompt: 'Question?', options: ['A', 'B', 'C', 'D'], answerKey: 'A', explanation: 'Explanation', maxPoints: 1,
+        lessonId: 'lesson/id', citations: [{ segmentId: 'segment/id', excerpt: 'Source' }],
+      }],
+    })
+
+    expect(fetch).toHaveBeenNthCalledWith(1, '/api/v1/teacher/classroom-subjects/subject%2Fid/exercise-drafts', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ exerciseType: 'QUIZ', lessonIds: ['lesson/id'], questionCount: 2, difficulty: 'BASIC', instructions: 'Focus on the timeline' }),
+    }))
+    expect(fetch).toHaveBeenNthCalledWith(2, '/api/v1/teacher/classroom-subjects/subject%2Fid/exercise-activities/publish', expect.objectContaining({ method: 'POST' }))
   })
 
   it('calls close, reopen, and delete endpoints', async () => {

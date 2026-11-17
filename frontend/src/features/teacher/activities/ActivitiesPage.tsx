@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, Archive, FileText, Plus, RotateCcw, Sparkles, Trash2 } from 'lucide-react'
 import { useParams, useSearchParams } from 'react-router'
 import { ApiError } from '../../../lib/api/client'
-import { teacherActivitiesApi, type TeacherActivityDetail, type TeacherActivityStatus, type TeacherActivitySummary, type TeacherAiDraftResult, type TeacherCreateActivityInput, type TeacherQuestionInput, type TeacherUpdateActivityInput } from '../../../lib/api/teacher/activities'
+import { teacherActivitiesApi, type TeacherActivityDetail, type TeacherActivityStatus, type TeacherActivitySummary, type TeacherAiDraftResult, type TeacherCreateActivityInput, type TeacherQuestionInput, type TeacherUpdateActivityInput, type TeacherUpdateExerciseContentInput } from '../../../lib/api/teacher/activities'
 import { teacherLessonsApi, type TeacherLessonSummary } from '../../../lib/api/teacher/lessons'
 import { teacherWorkspaceApi } from '../../../lib/api/teacher/workspace'
 import type { TeacherClassroomSubjectContext } from '../../../lib/api/teacher/types'
@@ -164,16 +164,17 @@ export function ActivitiesPage({ classroomSubjectId: propClassroomSubjectId }: P
     try {
       let saved: TeacherActivityDetail
       if (activityForm?.mode === 'edit' && activityForm.activity) {
-        saved = await teacherActivitiesApi.update(activityForm.activity.id, input as TeacherUpdateActivityInput)
-        saved = await teacherActivitiesApi.putQuestions(saved.id, questions)
+        saved = await teacherActivitiesApi.updateExerciseContent(
+          activityForm.activity.id,
+          { ...(input as TeacherUpdateActivityInput), questions } as TeacherUpdateExerciseContentInput,
+        )
       } else {
         if (!('exerciseType' in input)) throw new Error('Thiếu loại hoạt động.')
-        saved = await teacherActivitiesApi.create(classroomSubjectId, input)
-        saved = await teacherActivitiesApi.putQuestions(saved.id, questions)
+        saved = await teacherActivitiesApi.publishGenerated(classroomSubjectId, { ...input, questions })
       }
       replaceActivity(saved)
       setActivityForm(null)
-      setNotice('Đã lưu hoạt động vào backend.')
+      setNotice(activityForm?.mode === 'edit' ? 'Đã lưu thay đổi hoạt động.' : 'Đã công bố hoạt động và tạo thông báo.')
       selectActivity(saved.id)
       setReloadKey((value) => value + 1)
     } finally {
@@ -273,7 +274,7 @@ export function ActivitiesPage({ classroomSubjectId: propClassroomSubjectId }: P
         <section className="panel ta-editor"><div className="ta-history-filters"><label>Tìm hoạt động<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tên hoạt động" /></label><label>Loại<select value={filterType} onChange={(event) => setFilterType(event.target.value as ActivityFilter)}><option value="">Tất cả</option><option value="QUIZ">Quiz</option><option value="WRITTEN">Tự luận</option></select></label><label>Trạng thái<select value={filterStatus} onChange={(event) => setFilterStatus(event.target.value as StatusFilter)}><option value="">Tất cả</option><option value="DRAFT">Bản nháp</option><option value="PUBLISHED">Đang mở</option><option value="CLOSED">Đã đóng</option></select></label></div>{visibleActivities.length === 0 ? <p className="ta-empty">Chưa có hoạt động phù hợp.</p> : <div className="ta-activity-list">{visibleActivities.map((activity) => <button type="button" className="ta-activity-row" key={activity.id} onClick={() => selectActivity(activity.id)}><div><strong>{activity.title}</strong><small>{activityTypeLabel(activity)} · {activity.submissionCount} bài nộp · Đóng: {formatDate(activity.closes_at)}</small></div><span className={`ta-status ${activity.status === 'CLOSED' ? 'closed' : ''}`}>{statusLabels[activity.status]}</span><span>Xem chi tiết</span></button>)}</div>}</section>
       </>}
 
-      {activityForm && <section className="panel ta-editor"><div className="ta-editor-head"><span className="ta-step">ACTIVITY API</span><h2>{activityForm.mode === 'edit' ? 'Sửa hoạt động' : activityForm.type === 'QUIZ' ? 'Tạo Quiz' : 'Tạo Tự luận'}</h2><p>Hoạt động được lưu ở DRAFT trước, chỉ công bố sau khi câu hỏi hợp lệ.</p></div><ExerciseActivityForm activity={activityForm.activity} exerciseType={activityForm.type} lessons={lessons} isSaving={isSaving} onCancel={() => setActivityForm(null)} onSave={saveActivity} /></section>}
+      {activityForm && <section className="panel ta-editor"><div className="ta-editor-head"><span className="ta-step">ACTIVITY API</span><h2>{activityForm.mode === 'edit' ? 'Sửa hoạt động' : activityForm.type === 'QUIZ' ? 'Tạo Quiz' : 'Tạo Tự luận'}</h2><p>{activityForm.mode === 'edit' ? 'Giáo viên kiểm tra và lưu thay đổi trước khi tiếp tục.' : 'Gemini tạo bản nháp trong luồng hiện tại; chỉ khi giáo viên xác nhận thì hoạt động mới được công bố.'}</p></div><ExerciseActivityForm activity={activityForm.activity} exerciseType={activityForm.type} lessons={lessons} classroomSubjectId={classroomSubjectId} isSaving={isSaving} onCancel={() => setActivityForm(null)} onSave={saveActivity} /></section>}
 
       {selectedActivityId && !activityForm && <>
         <button type="button" className="ta-back" onClick={clearSelection}>← Danh sách hoạt động</button>

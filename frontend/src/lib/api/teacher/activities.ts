@@ -68,6 +68,15 @@ export type TeacherUpdateActivityInput = {
   closesAt?: string | null
 }
 
+export type TeacherUpdateExerciseContentInput = {
+  title: string
+  description: string
+  difficulty: TeacherActivityDifficulty
+  lessonIds: string[]
+  closesAt: string | null
+  questions: TeacherQuestionInput[]
+}
+
 export type TeacherQuestionInput = {
   prompt: string
   options?: string[]
@@ -77,6 +86,18 @@ export type TeacherQuestionInput = {
   maxPoints: number
   lessonId: string
   citations: Array<{ segmentId: string; excerpt?: string }>
+}
+
+export type TeacherExerciseDraftInput = {
+  exerciseType: TeacherExerciseType
+  lessonIds: string[]
+  questionCount: number
+  difficulty: TeacherActivityDifficulty
+  instructions: string
+}
+
+export type TeacherPublishExerciseActivityInput = TeacherCreateActivityInput & {
+  questions: TeacherQuestionInput[]
 }
 
 export type TeacherAiDraftResult = {
@@ -178,14 +199,6 @@ export const teacherActivitiesApi = {
     return mapDetail(response.data)
   },
 
-  async create(classroomSubjectId: string, input: TeacherCreateActivityInput): Promise<TeacherActivityDetail> {
-    const response = await apiRequest<RawActivityDetail>(`/teacher/classroom-subjects/${encodeURIComponent(classroomSubjectId)}/activities`, {
-      method: 'POST',
-      body: input,
-    })
-    return mapDetail(response.data)
-  },
-
   async update(activityId: string, input: TeacherUpdateActivityInput): Promise<TeacherActivityDetail> {
     const response = await apiRequest<RawActivityDetail>(`/teacher/activities/${encodeURIComponent(activityId)}`, {
       method: 'PATCH',
@@ -194,12 +207,36 @@ export const teacherActivitiesApi = {
     return mapDetail(response.data)
   },
 
-  async aiDraft(activityId: string, input: { lessonIds: string[]; questionCount: number; difficulty: TeacherActivityDifficulty }): Promise<TeacherAiDraftResult> {
+  async updateExerciseContent(activityId: string, input: TeacherUpdateExerciseContentInput): Promise<TeacherActivityDetail> {
+    const response = await apiRequest<RawActivityDetail>(`/teacher/activities/${encodeURIComponent(activityId)}/exercise-content`, {
+      method: 'PUT',
+      body: input,
+    })
+    return mapDetail(response.data)
+  },
+
+  async aiDraft(activityId: string, input: { lessonIds: string[]; questionCount: number; difficulty: TeacherActivityDifficulty; instructions?: string }): Promise<TeacherAiDraftResult> {
     const response = await apiRequest<TeacherAiDraftResult>(`/teacher/activities/${encodeURIComponent(activityId)}/ai-draft`, {
+      method: 'POST',
+      body: { ...input, instructions: input.instructions ?? '' },
+    })
+    return response.data
+  },
+
+  async exerciseDraft(classroomSubjectId: string, input: TeacherExerciseDraftInput): Promise<TeacherAiDraftResult> {
+    const response = await apiRequest<TeacherAiDraftResult>(`/teacher/classroom-subjects/${encodeURIComponent(classroomSubjectId)}/exercise-drafts`, {
       method: 'POST',
       body: input,
     })
     return response.data
+  },
+
+  async publishGenerated(classroomSubjectId: string, input: TeacherPublishExerciseActivityInput): Promise<TeacherActivityDetail> {
+    const response = await apiRequest<RawActivityDetail>(`/teacher/classroom-subjects/${encodeURIComponent(classroomSubjectId)}/exercise-activities/publish`, {
+      method: 'POST',
+      body: input,
+    })
+    return mapDetail(response.data)
   },
 
   async putQuestions(activityId: string, questions: TeacherQuestionInput[]): Promise<TeacherActivityDetail> {

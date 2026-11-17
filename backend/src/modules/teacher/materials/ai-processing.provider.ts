@@ -36,4 +36,16 @@ export class DefaultAiProcessingProvider implements AiProcessingProvider {
   }
 }
 
-export const defaultAiProcessingProvider = new DefaultAiProcessingProvider();
+let activeAiProcessingProvider: AiProcessingProvider = new DefaultAiProcessingProvider();
+
+// Keep one stable object so existing services and tests can use the same provider contract.
+// The app swaps the implementation at startup when AI_PROVIDER=gemini.
+export const defaultAiProcessingProvider: AiProcessingProvider = {
+  process(params) {
+    return activeAiProcessingProvider.process(params);
+  },
+};
+
+export function setAiProcessingProvider(provider: AiProcessingProvider): void {
+  activeAiProcessingProvider = provider;
+}

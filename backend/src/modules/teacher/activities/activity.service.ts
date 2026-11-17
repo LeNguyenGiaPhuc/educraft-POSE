@@ -6,11 +6,14 @@ import {
   type AiDraftResult,
 } from './activity-ai-draft.provider.js';
 import { activityRepository } from './activity.repository.js';
+import { validateExerciseQuestionShape } from './activity-validation.js';
 import type {
   AiDraftInput,
-  CreateActivityInput,
+  ExerciseDraftInput,
+  PublishExerciseActivityInput,
   PutQuestionsInput,
   ReopenActivityInput,
+  UpdateExerciseContentInput,
   UpdateActivityInput,
 } from './activity.schemas.js';
 
@@ -30,12 +33,12 @@ export const activityService = {
     return activity;
   },
 
-  async createActivity(
+  async publishExerciseActivity(
     actorId: string,
     classroomSubjectId: string,
-    input: CreateActivityInput
+    input: PublishExerciseActivityInput
   ) {
-    return activityRepository.createActivityAtomically(actorId, classroomSubjectId, input);
+    return activityRepository.publishExerciseActivityAtomically(actorId, classroomSubjectId, input);
   },
 
   async updateActivity(
@@ -44,6 +47,14 @@ export const activityService = {
     input: UpdateActivityInput
   ) {
     return activityRepository.updateActivityAtomically(actorId, activityId, input);
+  },
+
+  async updateExerciseContent(
+    actorId: string,
+    activityId: string,
+    input: UpdateExerciseContentInput
+  ) {
+    return activityRepository.updateExerciseContentAtomically(actorId, activityId, input);
   },
 
   async deleteActivity(actorId: string, activityId: string) {
@@ -92,6 +103,45 @@ export const activityService = {
       difficulty: input.difficulty,
       questionCount: input.questionCount,
       lessonIds: input.lessonIds,
+      teacherInstructions: input.instructions,
+      segments: formattedSegments,
+    });
+  },
+
+  async generateExerciseDraft(
+    actorId: string,
+    classroomSubjectId: string,
+    input: ExerciseDraftInput
+  ): Promise<AiDraftResult> {
+    await requireAssignedSubject(actorId, classroomSubjectId, { allowArchived: false });
+
+    const lessons = await prisma.lesson.findMany({
+      where: {
+        id: { in: input.lessonIds },
+        classroom_subject_id: classroomSubjectId,
+        status: 'PUBLISHED',
+      },
+      select: { id: true },
+    });
+
+    if (lessons.length !== input.lessonIds.length) {
+      throw new BadRequestError('Bài học phải thuộc môn học này và đã được công bố.');
+    }
+
+    const segments = await activityRepository.findEligibleSegments(classroomSubjectId, input.lessonIds);
+    const formattedSegments = segments.map((segment) => ({
+      id: segment.id,
+      content: segment.content,
+      lessonId: segment.materialVersion.material.lesson_id,
+      materialTitle: segment.materialVersion.material.file_name,
+    }));
+
+    return aiDraftProvider.generateDraft({
+      exerciseType: input.exerciseType,
+      difficulty: input.difficulty,
+      questionCount: input.questionCount,
+      lessonIds: input.lessonIds,
+      teacherInstructions: input.instructions,
       segments: formattedSegments,
     });
   },
@@ -180,6 +230,8 @@ export const activityService = {
         );
       }
     }
+
+    validateExerciseQuestionShape(exerciseType, input.questions);
 
     return activityRepository.putQuestionsAtomically(actorId, activityId, input.questions);
   },

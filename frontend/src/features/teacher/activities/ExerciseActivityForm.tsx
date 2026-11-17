@@ -7,8 +7,11 @@ import type {
   TeacherExerciseType,
   TeacherQuestionInput,
   TeacherUpdateActivityInput,
+  TeacherAiDraftResult,
 } from '../../../lib/api/teacher/activities'
+import { teacherActivitiesApi } from '../../../lib/api/teacher/activities'
 import { difficultyLabels } from './activityRules'
+import { AiDraftPanel } from './AiDraftPanel'
 
 type DraftQuestion = TeacherQuestionInput & { id: string }
 
@@ -18,6 +21,7 @@ type Props = {
   lessons: TeacherLessonSummary[]
   isSaving: boolean
   onCancel: () => void
+  classroomSubjectId: string
   onSave: (input: TeacherCreateActivityInput | TeacherUpdateActivityInput, questions: TeacherQuestionInput[]) => Promise<void>
 }
 
@@ -51,7 +55,7 @@ function questionsFromActivity(activity: TeacherActivityDetail, type: TeacherExe
     prompt: question.prompt,
     ...(type === 'QUIZ'
       ? { options: question.options.length > 0 ? question.options : ['', '', '', ''], answerKey: question.answerKey ?? '' }
-      : { markingCriteria: question.markingCriteria ?? '' }),
+      : { answerKey: question.answerKey ?? '', markingCriteria: question.markingCriteria ?? '' }),
     explanation: question.explanation,
     maxPoints: question.maxPoints,
     lessonId: question.lessonId,
@@ -59,7 +63,7 @@ function questionsFromActivity(activity: TeacherActivityDetail, type: TeacherExe
   }))
 }
 
-export function ExerciseActivityForm({ activity, exerciseType = activity?.exercise?.exercise_type ?? 'QUIZ', lessons, isSaving, onCancel, onSave }: Props) {
+export function ExerciseActivityForm({ activity, exerciseType = activity?.exercise?.exercise_type ?? 'QUIZ', lessons, classroomSubjectId, isSaving, onCancel, onSave }: Props) {
   const publishedLessons = lessons.filter((lesson) => lesson.status === 'PUBLISHED')
   const initialLessonIds = activity?.lessons.map((lesson) => lesson.id) ?? (publishedLessons[0]?.id ? [publishedLessons[0].id] : [])
   const [title, setTitle] = useState(activity?.title ?? '')
@@ -67,7 +71,11 @@ export function ExerciseActivityForm({ activity, exerciseType = activity?.exerci
   const [difficulty, setDifficulty] = useState<TeacherActivityDifficulty>(activity?.exercise?.difficulty ?? 'BASIC')
   const [closesAt, setClosesAt] = useState(localDateTime(activity?.closes_at))
   const [lessonIds, setLessonIds] = useState<string[]>(initialLessonIds)
-  const [questions, setQuestions] = useState<DraftQuestion[]>(() => activity ? questionsFromActivity(activity, exerciseType) : [createQuestion(exerciseType, initialLessonIds[0] ?? '', 0)])
+  const [questions, setQuestions] = useState<DraftQuestion[]>(() => activity ? questionsFromActivity(activity, exerciseType) : [])
+  const [instructions, setInstructions] = useState('')
+  const [questionCount, setQuestionCount] = useState(5)
+  const [aiDraft, setAiDraft] = useState<TeacherAiDraftResult | null>(null)
+  const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState('')
 
   function updateQuestion(id: string, patch: Partial<DraftQuestion>) {
@@ -83,14 +91,40 @@ export function ExerciseActivityForm({ activity, exerciseType = activity?.exerci
   }
 
   function removeQuestion(id: string) {
-    setQuestions((current) => current.length > 1 ? current.filter((question) => question.id !== id) : current)
+    setQuestions((current) => current.filter((question) => question.id !== id))
+  }
+
+  async function generateDraft() {
+    if (lessonIds.length === 0) {
+      setError('Cần chọn ít nhất một bài học đã công bố trước khi tạo bản nháp AI.')
+      return
+    }
+    setIsGenerating(true)
+    setError('')
+    try {
+      const result = await teacherActivitiesApi.exerciseDraft(classroomSubjectId, {
+        exerciseType,
+        lessonIds,
+        questionCount,
+        difficulty,
+        instructions: instructions.trim(),
+      })
+      setAiDraft(result)
+      if (result.status === 'READY') {
+        setQuestions(result.questions.map((question, index) => ({ ...question, id: `ai-question-${Date.now()}-${index}`, citations: question.citations ?? [] })))
+      }
+    } catch (error) {
+      setAiDraft({ status: 'FAILED', message: error instanceof Error ? error.message : 'Không thể tạo bản nháp AI.', questions: [] })
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   function validate(): string[] {
     const errors: string[] = []
     if (!title.trim()) errors.push('Tên hoạt động không được để trống.')
     if (lessonIds.length === 0) errors.push('Cần chọn ít nhất một bài học đã công bố.')
-    if (questions.length === 0) errors.push('Cần có ít nhất một câu hỏi.')
+    if (questions.length === 0) errors.push('Cần có ít nhất một câu hỏi trước khi công bố.')
 
     questions.forEach((question, index) => {
       if (!question.prompt.trim()) errors.push(`Câu ${index + 1}: nội dung không được để trống.`)
@@ -98,10 +132,11 @@ export function ExerciseActivityForm({ activity, exerciseType = activity?.exerci
       if (!Number.isFinite(question.maxPoints) || question.maxPoints <= 0) errors.push(`Câu ${index + 1}: điểm tối đa phải lớn hơn 0.`)
       if (exerciseType === 'QUIZ') {
         const options = question.options ?? []
-        if (options.length < 2 || options.some((option) => !option.trim())) errors.push(`Câu ${index + 1}: Quiz cần ít nhất hai lựa chọn không rỗng.`)
+        if (options.length !== 4 || options.some((option) => !option.trim())) errors.push(`Câu ${index + 1}: Quiz cần đúng 4 lựa chọn không rỗng.`)
+        if (new Set(options.map((option) => option.trim())).size !== options.length) errors.push(`Câu ${index + 1}: Quiz không được trùng lựa chọn.`)
         if (!question.answerKey || !options.includes(question.answerKey)) errors.push(`Câu ${index + 1}: đáp án đúng phải nằm trong lựa chọn.`)
-      } else if (!question.markingCriteria?.trim()) {
-        errors.push(`Câu ${index + 1}: tự luận cần tiêu chí chấm.`)
+      } else if (!question.answerKey?.trim() || !question.markingCriteria?.trim()) {
+        errors.push(`Câu ${index + 1}: tự luận cần đáp án tham khảo và tiêu chí chấm.`)
       }
     })
     return errors
@@ -170,6 +205,8 @@ export function ExerciseActivityForm({ activity, exerciseType = activity?.exerci
         {publishedLessons.map((lesson) => <label key={lesson.id}><input type="checkbox" checked={lessonIds.includes(lesson.id)} onChange={() => toggleLesson(lesson.id)} /> {lesson.title}</label>)}
       </fieldset>
 
+      {!activity && <AiDraftPanel instructions={instructions} questionCount={questionCount} isGenerating={isGenerating} result={aiDraft} onInstructionsChange={setInstructions} onQuestionCountChange={setQuestionCount} onGenerate={() => void generateDraft()} />}
+
       <div className="ta-api-question-heading"><div><h3>Câu hỏi</h3><p>Giáo viên kiểm tra và chỉnh sửa trước khi công bố.</p></div><button type="button" className="ta-secondary" onClick={addQuestion}>Thêm câu hỏi</button></div>
       <div className="ta-api-question-list">
         {questions.map((question, index) => (
@@ -183,14 +220,14 @@ export function ExerciseActivityForm({ activity, exerciseType = activity?.exerci
                 <div className="ta-api-options">{(question.options ?? []).map((option, optionIndex) => <label key={`${question.id}-option-${optionIndex}`}>Lựa chọn {optionIndex + 1}<input value={option} onChange={(event) => updateQuestion(question.id, { options: question.options?.map((item, itemIndex) => itemIndex === optionIndex ? event.target.value : item), answerKey: question.answerKey === option ? event.target.value : question.answerKey })} /></label>)}</div>
                 <label>Đáp án đúng<select value={question.answerKey ?? ''} onChange={(event) => updateQuestion(question.id, { answerKey: event.target.value })}><option value="">Chọn đáp án</option>{(question.options ?? []).map((option, optionIndex) => <option value={option} key={`${question.id}-answer-${optionIndex}`}>{option || `Lựa chọn ${optionIndex + 1}`}</option>)}</select></label>
               </>
-            ) : <label>Tiêu chí chấm<textarea value={question.markingCriteria ?? ''} onChange={(event) => updateQuestion(question.id, { markingCriteria: event.target.value })} rows={3} /></label>}
+            ) : <><label>Đáp án tham khảo<textarea value={question.answerKey ?? ''} onChange={(event) => updateQuestion(question.id, { answerKey: event.target.value })} rows={3} /></label><label>Tiêu chí chấm<textarea value={question.markingCriteria ?? ''} onChange={(event) => updateQuestion(question.id, { markingCriteria: event.target.value })} rows={3} /></label></>}
             <div className="ta-form-grid"><label>Điểm tối đa<input type="number" min="0.5" step="0.5" value={Number.isNaN(question.maxPoints) ? '' : question.maxPoints} onChange={(event) => updateQuestion(question.id, { maxPoints: event.target.valueAsNumber })} /></label><label>Giải thích<textarea value={question.explanation} onChange={(event) => updateQuestion(question.id, { explanation: event.target.value })} rows={2} /></label></div>
           </fieldset>
         ))}
       </div>
 
       {error && <p className="ta-error" role="alert">{error}</p>}
-      <div className="ta-confirm-actions"><button type="button" className="ta-secondary" onClick={onCancel} disabled={isSaving}>Hủy</button><button type="submit" className="ta-primary" disabled={isSaving || publishedLessons.length === 0}>{isSaving ? 'Đang lưu...' : activity ? 'Lưu thay đổi' : 'Tạo bản nháp'}</button></div>
+      <div className="ta-confirm-actions"><button type="button" className="ta-secondary" onClick={onCancel} disabled={isSaving || isGenerating}>Hủy</button><button type="submit" className="ta-primary" disabled={isSaving || isGenerating || publishedLessons.length === 0}>{isSaving ? 'Đang lưu...' : activity ? 'Lưu thay đổi' : 'Công bố hoạt động'}</button></div>
     </form>
   )
 }

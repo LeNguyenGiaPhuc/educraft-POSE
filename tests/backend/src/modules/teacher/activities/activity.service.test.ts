@@ -170,6 +170,98 @@ describe('ActivityService', () => {
     });
   });
 
+  describe('generateExerciseDraft', () => {
+    it('generates a draft from published lessons without creating an activity', async () => {
+      vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue({} as any);
+      vi.spyOn(prisma.lesson, 'findMany').mockResolvedValue([{ id: 'les-1', status: 'PUBLISHED' }] as any);
+      vi.spyOn(activityRepository, 'findEligibleSegments').mockResolvedValue([
+        {
+          id: 'seg-1',
+          content: 'Nội dung đã xử lý',
+          materialVersion: { material: { lesson_id: 'les-1', file_name: 'lesson.pdf' } },
+        } as any,
+      ]);
+      const generateDraft = vi.fn().mockResolvedValue({ status: 'READY', questions: [] });
+      setAiDraftProvider({ generateDraft });
+
+      const result = await activityService.generateExerciseDraft('tea-1', 'cs-1', {
+        exerciseType: 'QUIZ',
+        lessonIds: ['les-1'],
+        questionCount: 1,
+        difficulty: 'BASIC',
+        instructions: 'Tập trung mốc thời gian',
+      });
+
+      expect(result.status).toBe('READY');
+      expect(generateDraft).toHaveBeenCalledWith(expect.objectContaining({
+        exerciseType: 'QUIZ',
+        teacherInstructions: 'Tập trung mốc thời gian',
+        lessonIds: ['les-1'],
+      }));
+    });
+
+    it('rejects a lesson that is not published', async () => {
+      vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue({} as any);
+      vi.spyOn(prisma.lesson, 'findMany').mockResolvedValue([] as any);
+
+      await expect(activityService.generateExerciseDraft('tea-1', 'cs-1', {
+        exerciseType: 'QUIZ', lessonIds: ['les-1'], questionCount: 1, difficulty: 'BASIC', instructions: '',
+      })).rejects.toThrow(BadRequestError);
+    });
+  });
+
+  describe('publishExerciseActivity', () => {
+    it('passes approved questions to the atomic repository operation', async () => {
+      const publish = vi.spyOn(activityRepository, 'publishExerciseActivityAtomically').mockResolvedValue({ id: 'act-1' } as any);
+      const result = await activityService.publishExerciseActivity('tea-1', 'cs-1', {
+        title: 'Quiz lịch sử',
+        description: 'Ôn tập',
+        exerciseType: 'QUIZ',
+        difficulty: 'BASIC',
+        lessonIds: ['les-1'],
+        closesAt: null,
+        questions: [{
+          prompt: 'Câu hỏi', options: ['A', 'B', 'C', 'D'], answerKey: 'A', explanation: 'Giải thích', maxPoints: 1,
+          lessonId: 'les-1', citations: [{ segmentId: 'seg-1', excerpt: 'Nguồn' }],
+        }],
+      });
+
+      expect(result.id).toBe('act-1');
+      expect(publish).toHaveBeenCalledWith('tea-1', 'cs-1', expect.objectContaining({ exerciseType: 'QUIZ' }));
+    });
+  });
+
+  describe('updateExerciseContent', () => {
+    it('delegates metadata and questions to one repository operation', async () => {
+      const update = vi.spyOn(activityRepository, 'updateExerciseContentAtomically').mockResolvedValue({
+        id: 'act-1',
+        title: 'Updated activity',
+      } as any);
+
+      const input = {
+        title: 'Updated activity',
+        description: 'Updated description',
+        difficulty: 'ADVANCED' as const,
+        lessonIds: ['les-1'],
+        closesAt: null,
+        questions: [{
+          prompt: 'Question',
+          options: ['A', 'B', 'C', 'D'],
+          answerKey: 'A',
+          explanation: '',
+          maxPoints: 1,
+          lessonId: 'les-1',
+          citations: [],
+        }],
+      };
+
+      const result = await activityService.updateExerciseContent('tea-1', 'act-1', input);
+
+      expect(result.id).toBe('act-1');
+      expect(update).toHaveBeenCalledWith('tea-1', 'act-1', input);
+    });
+  });
+
   describe('putQuestions', () => {
     it('validates QUIZ question requires >= 2 options', async () => {
       vi.spyOn(activityRepository, 'findActivityById').mockResolvedValue({
@@ -316,7 +408,7 @@ describe('ActivityService', () => {
         questions: [
           {
             prompt: 'Câu hỏi chuẩn trắc nghiệm?',
-            options: ['A', 'B'],
+            options: ['A', 'B', 'C', 'D'],
             answerKey: 'A',
             explanation: 'Giải thích',
             maxPoints: 1,
