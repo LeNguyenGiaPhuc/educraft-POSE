@@ -1,33 +1,27 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { RoleLayout } from './components/RoleLayout'
-import { readDemoSession, saveDemoSession, type DemoUser, type Role } from './data/demo'
+import { saveDemoSession, type DemoUser, type Role } from './data/demo'
 import { navigation } from './data/navigation'
-import { authApi, type ApiUser } from './lib/api/auth'
-import { LoginPage } from './pages/LoginPage'
-import { OverviewPage } from './pages/OverviewPage'
+import { authApi } from './lib/api/auth'
+import { loginWithBackend, resolveInitialSession } from './lib/auth/app-session'
+import { AdminOverviewPage } from './features/admin/overview/AdminOverviewPage'
+import { TeacherOverviewPage } from './features/teacher/overview/TeacherOverviewPage'
 import { teacherRouteElements } from './features/teacher/routes'
 import { studentRouteElements } from './features/student/routes'
 import { StudentOverviewPage } from './features/student/OverviewPage'
+import { LoginPage } from './pages/LoginPage'
 import { SectionPage } from './pages/SectionPage'
 
 function App() {
-  const [user, setUser] = useState<DemoUser | null>(() => {
-    const previewUser = readDemoSession()
-    return previewUser?.role === 'student' ? previewUser : null
-  })
-  const [sessionReady, setSessionReady] = useState(() => readDemoSession()?.role === 'student')
+  const [user, setUser] = useState<DemoUser | null>(null)
+  const [sessionReady, setSessionReady] = useState(false)
 
   useEffect(() => {
-    if (sessionReady) return
-
     let cancelled = false
-    authApi.me()
-      .then((apiUser) => {
-        if (!cancelled) setUser(toDemoUser(apiUser))
-      })
-      .catch(() => {
-        if (!cancelled) setUser(null)
+    resolveInitialSession()
+      .then((nextUser) => {
+        if (!cancelled) setUser(nextUser)
       })
       .finally(() => {
         if (!cancelled) setSessionReady(true)
@@ -36,7 +30,7 @@ function App() {
     return () => {
       cancelled = true
     }
-  }, [sessionReady])
+  }, [])
 
   function signIn(nextUser: DemoUser) {
     saveDemoSession(nextUser)
@@ -44,8 +38,8 @@ function App() {
   }
 
   async function signInWithApi(username: string, password: string) {
-    const apiUser = await authApi.login(username, password)
-    setUser(toDemoUser(apiUser))
+    const nextUser = await loginWithBackend(username, password)
+    setUser(nextUser)
   }
 
   async function signOut() {
@@ -70,7 +64,7 @@ function App() {
             path={`/${role}`}
             element={user?.role === role ? <RoleLayout user={user} onSignOut={signOut} /> : <Navigate to={user ? `/${user.role}` : '/login'} replace />}
           >
-            <Route index element={role === 'student' ? <StudentOverviewPage /> : <OverviewPage role={role} />} />
+            <Route index element={role === 'student' ? <StudentOverviewPage /> : role === 'admin' ? <AdminOverviewPage /> : <TeacherOverviewPage />} />
             {role === 'teacher' ? teacherRouteElements : role === 'student' ? studentRouteElements : navigation[role].filter((item) => item.path !== '').map((item) => (
               <Route key={item.path} path={item.path} element={<SectionPage role={role} section={item} />} />
             ))}
@@ -80,24 +74,6 @@ function App() {
       </Routes>
     </BrowserRouter>
   )
-}
-
-function toDemoUser(apiUser: ApiUser): DemoUser {
-  const initials = apiUser.fullName
-    .trim()
-    .split(/\s+/)
-    .slice(-2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase()
-
-  return {
-    role: apiUser.role.toLowerCase() as Role,
-    email: apiUser.username,
-    name: apiUser.fullName,
-    initials: initials || 'EC',
-    context: apiUser.role === 'ADMIN' ? 'Quản lý hệ thống' : apiUser.role === 'TEACHER' ? 'Giáo viên' : 'Học sinh',
-  }
 }
 
 export default App

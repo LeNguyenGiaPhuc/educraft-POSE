@@ -2,7 +2,6 @@
 /* oxlint-disable react/only-export-components */
 import { type ReactNode } from 'react'
 import { Navigate, Route, useLocation, useParams } from 'react-router'
-import { assignedSubjects, getTeacherSubjectContext } from './demo/teacherDemoData'
 import { getWorkspaceTabFromSection, teacherSubjectPath, type TeacherWorkspaceTab } from './navigation'
 import { TeacherBackButton } from './components/TeacherBackButton'
 import { ActivitiesPage } from './activities/ActivitiesPage'
@@ -13,7 +12,9 @@ import { TeacherSubjectWorkspace } from './classes/TeacherSubjectWorkspace'
 import { TeacherLessonPage } from './lessons/TeacherLessonPage'
 import { SchedulePage } from './schedule/SchedulePage'
 import { StudentDetailPage } from './students/StudentDetailPage'
-import { teacherWorkspacePath } from '../../lib/api/teacher/workspace'
+import { teacherWorkspaceApi, teacherWorkspacePath } from '../../lib/api/teacher/workspace'
+import type { TeacherClassroomSubjectContext } from '../../lib/api/teacher/types'
+import { useEffect, useState } from 'react'
 
 export function TeacherContextRoute({ children, tab = 'lessons' }: { children: ReactNode; tab?: TeacherWorkspaceTab }) {
   const { classroomId, classroomSubjectId, lessonId, activityId, studentId } = useParams()
@@ -40,15 +41,42 @@ function LegacyTeacherRedirect({ section }: { section: string }) {
   const location = useLocation()
   const query = new URLSearchParams(location.search)
   const requested = query.get('classroomSubjectId')
-  const context = getTeacherSubjectContext(requested ?? assignedSubjects[0]?.id)
-  if (requested && !context) return <Navigate to="/teacher/classes" replace />
   if (section === 'schedule') return <Navigate to={`/teacher/calendar${location.search}`} replace />
+  if (!requested) return <Navigate to="/teacher/classes" replace />
+  return <LegacyTeacherContextRedirect requestedId={requested} section={section} query={query} />
+}
+
+function LegacyTeacherContextRedirect({ requestedId, section, query }: { requestedId: string; section: string; query: URLSearchParams }) {
+  const [context, setContext] = useState<TeacherClassroomSubjectContext | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    teacherWorkspaceApi.getClassroomSubject(requestedId)
+      .then((nextContext) => {
+        if (!cancelled) setContext(nextContext)
+      })
+      .catch(() => {
+        if (!cancelled) setContext(null)
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [requestedId])
+
+  if (isLoading) return <div className="page-content"><p>Đang mở không gian môn học...</p></div>
   if (!context) return <Navigate to="/teacher/classes" replace />
+
   const tab: TeacherWorkspaceTab = getWorkspaceTabFromSection(section)
-  query.set('tab', tab)
-  query.set('classroomSubjectId', context.subject.id)
-  const base = teacherSubjectPath(context.subject.classroomId, context.subject.id, tab).split('?')[0]
-  return <Navigate to={`${base}?${query}`} replace />
+  const nextQuery = new URLSearchParams(query)
+  nextQuery.set('tab', tab)
+  nextQuery.set('classroomSubjectId', context.classroomSubjectId)
+  const base = teacherSubjectPath(context.classroomId, context.classroomSubjectId, tab).split('?')[0]
+  return <Navigate to={`${base}?${nextQuery}`} replace />
 }
 
 export const teacherRouteElements = <>
