@@ -152,6 +152,23 @@ export const teacherLessonsApi = {
     return response.data
   },
 
+  async retryMaterialProcessing(materialId: string): Promise<{
+    materialId: string
+    versionId: string
+    versionNo: number
+    processingStatus: TeacherMaterialProcessingStatus
+  }> {
+    const response = await apiRequest<{
+      materialId: string
+      versionId: string
+      versionNo: number
+      processingStatus: TeacherMaterialProcessingStatus
+    }>(`/teacher/materials/${encodeURIComponent(materialId)}/process`, {
+      method: 'POST',
+    })
+    return response.data
+  },
+
   async downloadMaterial(materialId: string): Promise<ApiDownload> {
     return apiDownload(`/teacher/materials/${encodeURIComponent(materialId)}/download`)
   },

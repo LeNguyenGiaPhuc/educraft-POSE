@@ -253,4 +253,73 @@ describe('MaterialService', () => {
       );
     });
   });
+
+  describe('retryProcessing', () => {
+    it('reprocesses the latest failed version from private storage', async () => {
+      vi.spyOn(materialRepository, 'findMaterialWithLessonContext').mockResolvedValue({
+        id: 'mat-1',
+        file_name: 'lesson.pdf',
+        status: 'DRAFT',
+        lesson: { classroom_subject_id: 'cs-1' },
+        versions: [{
+          id: 'ver-1',
+          version_no: 1,
+          storage_key: 'lesson.pdf',
+          mime_type: 'application/pdf',
+          processing_status: 'FAILED',
+        }],
+      } as any);
+      vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue(mockPolicyCtx);
+      const fileBuffer = Buffer.from('%PDF-1.4 stored');
+      vi.spyOn(defaultStorageProvider, 'open').mockResolvedValue(fileBuffer);
+      vi.spyOn(defaultAiProcessingProvider, 'process').mockResolvedValue({
+        status: 'PROCESSED',
+        segments: [{
+          positionType: 'PAGE',
+          positionIndex: 1,
+          positionLabel: 'Page 1',
+          ordinal: 1,
+          content: 'Content',
+        }],
+      });
+      const updateProcessing = vi
+        .spyOn(materialRepository, 'updateVersionProcessing')
+        .mockResolvedValue({ processing_status: 'PROCESSED' } as any);
+
+      await expect(materialService.retryProcessing('mat-1', 'teacher-1')).resolves.toEqual({
+        materialId: 'mat-1',
+        versionId: 'ver-1',
+        versionNo: 1,
+        processingStatus: 'PROCESSED',
+      });
+
+      expect(defaultAiProcessingProvider.process).toHaveBeenCalledWith({
+        materialVersionId: 'ver-1',
+        fileName: 'lesson.pdf',
+        mimeType: 'application/pdf',
+        buffer: fileBuffer,
+      });
+      expect(updateProcessing).toHaveBeenCalledWith('ver-1', 'PROCESSED', expect.any(Array));
+    });
+
+    it('rejects retry for an already processed version', async () => {
+      vi.spyOn(materialRepository, 'findMaterialWithLessonContext').mockResolvedValue({
+        id: 'mat-1',
+        status: 'DRAFT',
+        lesson: { classroom_subject_id: 'cs-1' },
+        versions: [{
+          id: 'ver-1',
+          version_no: 1,
+          storage_key: 'lesson.pdf',
+          mime_type: 'application/pdf',
+          processing_status: 'PROCESSED',
+        }],
+      } as any);
+      vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue(mockPolicyCtx);
+
+      await expect(materialService.retryProcessing('mat-1', 'teacher-1')).rejects.toThrow(
+        'Chá»‰ cÃ³ thá»ƒ xá»­ lÃ½ láº¡i'
+      );
+    });
+  });
 });

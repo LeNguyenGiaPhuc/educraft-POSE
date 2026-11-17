@@ -146,6 +146,26 @@ export function TeacherLessonPage() {
     }
   }
 
+  async function retryMaterialProcessing(material: TeacherLessonMaterial) {
+    if (!lesson || readOnly || isMutating) return
+    const latest = latestVersion(material)
+    if (!latest || (latest.processingStatus !== 'FAILED' && latest.processingStatus !== 'PENDING')) return
+
+    setIsMutating(true)
+    setError('')
+    try {
+      const result = await teacherLessonsApi.retryMaterialProcessing(material.id)
+      setMessage(result.processingStatus === 'PROCESSED'
+        ? 'Đã xử lý học liệu thành công.'
+        : 'Học liệu chưa xử lý được. Bạn có thể thử lại sau.')
+      await refreshLesson()
+    } catch (requestError) {
+      setError(errorMessage(requestError))
+    } finally {
+      setIsMutating(false)
+    }
+  }
+
   async function downloadMaterial(material: TeacherLessonMaterial) {
     setError('')
     try {
@@ -171,7 +191,7 @@ export function TeacherLessonPage() {
       <Link className="tl-back" to={backPath}><ArrowLeft size={16} /> Quay lại workspace</Link>
       <div className="page-heading"><span className="section-kicker">{lesson.subject.name} · {lesson.classroom.name}</span><h1>{lesson.title}</h1><p>{lesson.classroom.status === 'ARCHIVED' ? 'Lớp đã lưu trữ · chỉ xem dữ liệu lịch sử.' : 'Quản lý nội dung bài học và học liệu.'}</p></div>
       {readOnly && <div className="sample-strip"><Archive size={16} /> Lớp đã lưu trữ. Bạn có thể xem phiên bản và tải học liệu, nhưng không thể thay đổi dữ liệu.</div>}
-      {message && <div className="tl-success-banner" role="status"><Check size={17} /> {message}<button type="button" className="tl-text-button" onClick={() => setMessage('')}><X size={14} /></button></div>}
+      {message && <div className="tl-success-banner" role="status"><Check size={17} /> {message}<button type="button" className="tl-text-button" aria-label="Đóng thông báo" onClick={() => setMessage('')}><X size={14} /></button></div>}
       {error && <div className="tl-range-error" role="alert"><AlertCircle size={15} /> {error}</div>}
 
       <section className="panel tl-editor">
@@ -186,9 +206,9 @@ export function TeacherLessonPage() {
 
         <h3>Học liệu</h3>
         {lesson.materials.length === 0 ? <p className="tl-help">Chưa có học liệu. Bài học chỉ được công bố sau khi có học liệu đã xử lý.</p> : (
-          <ul className="tl-material-list">{lesson.materials.map((material) => { const latest = latestVersion(material); return <li key={material.id}><FileText size={16} /><span><strong>{material.fileName}</strong><small>{material.versions.length} phiên bản · mới nhất v{latest?.versionNo ?? 0}</small></span>{latest && <strong className={getMaterialProcessingClass(latest.processingStatus)}>{processingLabels[latest.processingStatus]}</strong>}<button type="button" className="tl-text-button" onClick={() => void downloadMaterial(material)}><Download size={14} /> Tải xuống</button>{!readOnly && <><label className="tl-secondary-button tl-file-button"><Upload size={14} /> Tải phiên bản<input type="file" accept={acceptedMaterialTypes} onChange={(event) => void uploadMaterial(event, material.id)} disabled={isMutating} /></label><button type="button" className="tl-text-button" onClick={() => void archiveMaterial(material.id)} disabled={isMutating}>Lưu trữ</button></>}</li> })}</ul>
+          <ul className="tl-material-list">{lesson.materials.map((material) => { const latest = latestVersion(material); const canRetry = latest && (latest.processingStatus === 'FAILED' || latest.processingStatus === 'PENDING'); return <li key={material.id}><FileText size={16} /><span><strong>{material.fileName}</strong><small>{material.versions.length} phiên bản · mới nhất v{latest?.versionNo ?? 0}</small></span>{latest && <strong className={getMaterialProcessingClass(latest.processingStatus)}>{processingLabels[latest.processingStatus]}</strong>}<button type="button" className="tl-text-button" onClick={() => void downloadMaterial(material)}><Download size={14} /> Tải xuống</button>{!readOnly && <>{canRetry && <button type="button" className="tl-text-button" onClick={() => void retryMaterialProcessing(material)} disabled={isMutating}><RotateCcw size={14} /> Xử lý lại</button>}<label className="tl-secondary-button tl-file-button"><Upload size={14} /> Tải phiên bản<input aria-label="Tải phiên bản học liệu" type="file" accept={acceptedMaterialTypes} onChange={(event) => void uploadMaterial(event, material.id)} disabled={isMutating} /></label><button type="button" className="tl-text-button" onClick={() => void archiveMaterial(material.id)} disabled={isMutating}>Lưu trữ</button></>}</li> })}</ul>
         )}
-        {!readOnly && <label className="tl-secondary-button tl-file-button"><Upload size={14} /> Thêm học liệu<input type="file" accept={acceptedMaterialTypes} onChange={(event) => void uploadMaterial(event)} disabled={isMutating} /></label>}
+        {!readOnly && <label className="tl-secondary-button tl-file-button"><Upload size={14} /> Thêm học liệu<input aria-label="Thêm học liệu" type="file" accept={acceptedMaterialTypes} onChange={(event) => void uploadMaterial(event)} disabled={isMutating} /></label>}
 
         <div className="tl-publish-box"><strong>Điều kiện công bố</strong><p>{publishReason || 'Bài học đủ điều kiện công bố.'}</p>{!readOnly && lesson.status === 'DRAFT' && <button type="button" className="tl-main-button" onClick={() => void publishLesson()} disabled={Boolean(publishReason) || isMutating}>Công bố bài học</button>}{lesson.status === 'PUBLISHED' && <Link className="tl-secondary-button" to={`/teacher/calendar?create=1&classroomSubjectId=${encodeURIComponent(lesson.classroomSubjectId)}&lessonId=${encodeURIComponent(lesson.id)}&title=${encodeURIComponent(lesson.title)}`}><Calendar size={14} /> Thêm vào lịch</Link>}</div>
       </section>

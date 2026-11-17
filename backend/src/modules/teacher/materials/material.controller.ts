@@ -85,6 +85,20 @@ export const materialController = {
     }
   },
 
+  async retryProcessing(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError();
+      }
+
+      const { id: materialId } = materialIdParamSchema.parse(req.params);
+      const result = await materialService.retryProcessing(materialId, req.user.id);
+      sendSuccess(res, result);
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async download(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       if (!req.user) {

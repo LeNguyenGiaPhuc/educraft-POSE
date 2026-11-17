@@ -31,4 +31,29 @@ describe('teacherLessonsApi', () => {
     expect((uploadOptions.body as FormData).get('file')).toBeInstanceOf(File)
     expect(new Headers(uploadOptions.headers).has('Content-Type')).toBe(false)
   })
+
+  it('retries processing through the material endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: {
+        materialId: 'material-id',
+        versionId: 'version-id',
+        versionNo: 1,
+        processingStatus: 'PROCESSED',
+      },
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(teacherLessonsApi.retryMaterialProcessing('material-id')).resolves.toEqual({
+      materialId: 'material-id',
+      versionId: 'version-id',
+      versionNo: 1,
+      processingStatus: 'PROCESSED',
+    })
+
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/teacher/materials/material-id/process')
+    expect(fetchMock.mock.calls[0][1]).toEqual(expect.objectContaining({
+      method: 'POST',
+      credentials: 'include',
+    }))
+  })
 })

@@ -158,6 +158,11 @@ export const materialRepository = {
         data: { processing_status: status },
       });
 
+      // A retry must not leave stale segments from an earlier attempt.
+      await tx.materialSegment.deleteMany({
+        where: { material_version_id: versionId },
+      });
+
       if (segments && segments.length > 0) {
         await tx.materialSegment.createMany({
           data: segments.map((s) => ({

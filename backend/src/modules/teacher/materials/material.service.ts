@@ -19,6 +19,7 @@ async function processMaterialVersion(params: {
   fileName: string;
   mimeType: string;
   buffer: Buffer;
+  persistPending?: boolean;
 }): Promise<ProcessedMaterialResult['status']> {
   let result: ProcessedMaterialResult;
 
@@ -35,6 +36,9 @@ async function processMaterialVersion(params: {
   }
 
   if (result.status === 'PENDING') {
+    if (params.persistPending) {
+      await materialRepository.updateVersionProcessing(params.versionId, 'PENDING');
+    }
     return 'PENDING';
   }
 
@@ -180,6 +184,52 @@ export const materialService = {
       uploadedAt: version.uploaded_at
         ? version.uploaded_at.toISOString()
         : new Date().toISOString(),
+    };
+  },
+
+  async retryProcessing(materialId: string, teacherId: string) {
+    const material = await materialRepository.findMaterialWithLessonContext(materialId);
+    if (!material) {
+      throw new NotFoundError('KhÃ´ng tÃ¬m tháº¥y há»c liá»‡u');
+    }
+
+    await requireAssignedSubject(teacherId, material.lesson.classroom_subject_id, {
+      allowArchived: false,
+    });
+
+    if (material.status === 'ARCHIVED') {
+      throw new BadRequestError('KhÃ´ng thá»ƒ xá»­ lÃ½ láº¡i há»c liá»‡u Ä‘Ã£ lÆ°u trá»¯');
+    }
+
+    const latest = material.versions[0];
+    if (!latest) {
+      throw new NotFoundError('KhÃ´ng tÃ¬m tháº¥y phiÃªn báº£n há»c liá»‡u');
+    }
+
+    if (latest.processing_status !== 'FAILED' && latest.processing_status !== 'PENDING') {
+      throw new BadRequestError('Chá»‰ cÃ³ thá»ƒ xá»­ lÃ½ láº¡i há»c liá»‡u Ä‘ang chá» hoáº·c bá»‹ lá»—i');
+    }
+
+    let buffer: Buffer;
+    try {
+      buffer = await defaultStorageProvider.open(latest.storage_key);
+    } catch {
+      throw new NotFoundError('KhÃ´ng tÃ¬m tháº¥y tá»‡p há»c liá»‡u trong kho lÆ°u trá»¯');
+    }
+
+    const processingStatus = await processMaterialVersion({
+      versionId: latest.id,
+      fileName: material.file_name,
+      mimeType: latest.mime_type,
+      buffer,
+      persistPending: true,
+    });
+
+    return {
+      materialId: material.id,
+      versionId: latest.id,
+      versionNo: latest.version_no,
+      processingStatus,
     };
   },
 

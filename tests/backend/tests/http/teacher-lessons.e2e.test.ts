@@ -202,6 +202,22 @@ describe('Teacher Lessons & Materials API (E2E)', () => {
       expect(res.body.data.versionNo).toBe(2);
     });
 
+    it('POST /materials/:id/process retries material processing', async () => {
+      vi.spyOn(materialService, 'retryProcessing').mockResolvedValue({
+        materialId: validMaterialId,
+        versionId: 'ver-1',
+        versionNo: 1,
+        processingStatus: 'PROCESSED',
+      });
+
+      const res = await request(app)
+        .post(`/api/v1/teacher/materials/${validMaterialId}/process`)
+        .set('Cookie', ['educraft_session=mock_cookie']);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.processingStatus).toBe('PROCESSED');
+    });
+
     it('DELETE /materials/:id archives material with 200', async () => {
       vi.spyOn(materialService, 'archiveMaterial').mockResolvedValue({
         id: validMaterialId,
