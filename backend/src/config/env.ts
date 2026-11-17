@@ -21,6 +21,7 @@ const envSchema = z.object({
     }, 'FRONTEND_ORIGINS must contain valid HTTP(S) origins'),
   SESSION_COOKIE_NAME: z.string().trim().min(1).regex(/^[A-Za-z0-9_-]+$/).default('educraft_session'),
   SESSION_MAX_AGE_DAYS: z.coerce.number().int().min(1).max(30).default(7),
+  ROSTER_TOKEN_SECRET: z.string().trim().min(32, 'ROSTER_TOKEN_SECRET must contain at least 32 characters'),
   AI_PROVIDER: z.enum(['disabled', 'gemini']).default('disabled'),
   GEMINI_API_KEY: z.string().trim().optional(),
   GEMINI_MODEL: z.string().trim().min(1).default('gemini-2.5-flash'),
@@ -29,6 +30,7 @@ const envSchema = z.object({
   AI_MAX_REFERENCE_IMAGES: z.coerce.number().int().min(1).max(10).default(4),
   AI_MAX_SUBMISSION_IMAGES: z.coerce.number().int().min(1).max(20).default(10),
   AI_MAX_TOTAL_BYTES: z.coerce.number().int().min(1).default(15 * 1024 * 1024),
+  AI_MAX_TEXT_CONTEXT_BYTES: z.coerce.number().int().min(10_000).max(2_000_000).default(200_000),
 });
 
 export function parseEnv(input: NodeJS.ProcessEnv | Record<string, string | undefined>) {
@@ -38,6 +40,7 @@ export function parseEnv(input: NodeJS.ProcessEnv | Record<string, string | unde
     : {
         DATABASE_URL: 'postgresql://educraft:local_dev_only@localhost:5432/educraft?schema=public',
         FRONTEND_ORIGINS: 'http://localhost:5173,http://127.0.0.1:5173',
+        ROSTER_TOKEN_SECRET: 'educraft-local-development-only-roster-token-secret-please-change',
       };
   const parsed = envSchema.safeParse({ ...defaults, ...input });
 

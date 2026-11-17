@@ -8,6 +8,7 @@ const validProductionEnv = {
   FRONTEND_ORIGINS: 'https://educraft.example.com',
   SESSION_COOKIE_NAME: 'educraft_session',
   SESSION_MAX_AGE_DAYS: '7',
+  ROSTER_TOKEN_SECRET: 'production-roster-token-secret-1234567890',
 };
 
 describe('parseEnv', () => {
@@ -32,6 +33,22 @@ describe('parseEnv', () => {
     expect(parsed.isProduction).toBe(true);
     expect(parsed.frontendOriginsList).toEqual(['https://educraft.example.com']);
     expect(parsed.sessionMaxAgeMs).toBe(7 * 24 * 60 * 60 * 1000);
+  });
+
+  it('rejects production configuration without a roster token secret', () => {
+    const { ROSTER_TOKEN_SECRET: _removed, ...input } = validProductionEnv;
+    expect(() => parseEnv(input)).toThrow('Invalid environment configuration');
+  });
+
+  it('rejects a roster token secret shorter than 32 characters', () => {
+    expect(() => parseEnv({ ...validProductionEnv, ROSTER_TOKEN_SECRET: 'too-short' }))
+      .toThrow('Invalid environment configuration');
+  });
+
+  it('uses a local-only roster token secret default outside production', () => {
+    const parsed = parseEnv({ NODE_ENV: 'development' });
+    expect(parsed.ROSTER_TOKEN_SECRET).toContain('local-development-only');
+    expect(parsed.ROSTER_TOKEN_SECRET).not.toBe(parsed.DATABASE_URL);
   });
 
   it('requires a Gemini API key when Gemini is enabled', () => {
@@ -70,5 +87,12 @@ describe('parseEnv', () => {
     expect(parsed.AI_MAX_REFERENCE_IMAGES).toBe(2);
     expect(parsed.AI_MAX_SUBMISSION_IMAGES).toBe(6);
     expect(parsed.AI_MAX_TOTAL_BYTES).toBe(4096);
+  });
+
+  it('uses and validates the activity context byte limit', () => {
+    expect(parseEnv(validProductionEnv).AI_MAX_TEXT_CONTEXT_BYTES).toBe(200000);
+    expect(parseEnv({ ...validProductionEnv, AI_MAX_TEXT_CONTEXT_BYTES: '250000' }).AI_MAX_TEXT_CONTEXT_BYTES).toBe(250000);
+    expect(() => parseEnv({ ...validProductionEnv, AI_MAX_TEXT_CONTEXT_BYTES: '9999' })).toThrow('Invalid environment configuration');
+    expect(() => parseEnv({ ...validProductionEnv, AI_MAX_TEXT_CONTEXT_BYTES: '2000001' })).toThrow('Invalid environment configuration');
   });
 });
