@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Archive, CalendarPlus, Eye, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { ApiError } from '../../../lib/api/client'
 import {
@@ -10,6 +10,7 @@ import {
 } from '../../../lib/api/teacher/notebookChecks'
 import { NotebookCheckForm } from './NotebookCheckForm'
 import { NotebookSubmissionReviewPanel } from './NotebookSubmissionReviewPanel'
+import { getNotebookSelection } from './notebookReviewState'
 
 type Props = {
   classroomSubjectId: string
@@ -190,7 +191,8 @@ function NotebookCheckDetail({ detail, readOnly, isSaving, notice, error, onBack
   onRefresh: (detail: TeacherNotebookCheckDetail) => void
 }) {
   const [periods, setPeriods] = useState<TeacherNotebookPeriod[]>(detail.periods)
-  const [selectedPeriodId, setSelectedPeriodId] = useState(detail.periods[0]?.id ?? '')
+  const [selectedPeriodId, setSelectedPeriodId] = useState(() => getNotebookSelection(detail.periods, '').periodId)
+  const selectedPeriodIdRef = useRef(selectedPeriodId)
   const [submissions, setSubmissions] = useState<TeacherNotebookSubmissionSummary[]>([])
   const [selectedSubmissionId, setSelectedSubmissionId] = useState('')
   const [dueAt, setDueAt] = useState('')
@@ -199,7 +201,12 @@ function NotebookCheckDetail({ detail, readOnly, isSaving, notice, error, onBack
 
   useEffect(() => {
     setPeriods(detail.periods)
-    setSelectedPeriodId((current) => detail.periods.some((period) => period.id === current) ? current : detail.periods[0]?.id ?? '')
+    const nextSelection = getNotebookSelection(detail.periods, selectedPeriodIdRef.current)
+    selectedPeriodIdRef.current = nextSelection.periodId
+    setSelectedPeriodId(nextSelection.periodId)
+    setSelectedSubmissionId(nextSelection.submissionId)
+    setSubmissions([])
+    setPeriodError('')
   }, [detail])
 
   useEffect(() => {
@@ -207,8 +214,20 @@ function NotebookCheckDetail({ detail, readOnly, isSaving, notice, error, onBack
       setSubmissions([])
       return
     }
-    teacherNotebookChecksApi.listSubmissions(selectedPeriodId).then(setSubmissions).catch((loadError) => setPeriodError(errorMessage(loadError)))
-  }, [selectedPeriodId])
+    let cancelled = false
+    setSubmissions([])
+    setPeriodError('')
+    teacherNotebookChecksApi.listSubmissions(selectedPeriodId)
+      .then((nextSubmissions) => {
+        if (!cancelled) setSubmissions(nextSubmissions)
+      })
+      .catch((loadError) => {
+        if (!cancelled) setPeriodError(errorMessage(loadError))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [detail, selectedPeriodId])
 
   async function createPeriod() {
     if (!dueAt) {
@@ -218,7 +237,10 @@ function NotebookCheckDetail({ detail, readOnly, isSaving, notice, error, onBack
     try {
       const period = await teacherNotebookChecksApi.createPeriod(detail.id, toIso(dueAt))
       setPeriods((current) => [...current, period])
+      selectedPeriodIdRef.current = period.id
       setSelectedPeriodId(period.id)
+      setSelectedSubmissionId('')
+      setSubmissions([])
       setDueAt('')
       setPeriodError('')
     } catch (createError) {
@@ -268,7 +290,7 @@ function NotebookCheckDetail({ detail, readOnly, isSaving, notice, error, onBack
         <section className="tn-section"><h3>Ảnh vở mẫu</h3><p className="tn-help">{detail.referenceFiles.length} file đã tải lên private storage.</p>{fileError && <p className="ta-error" role="alert">{fileError}</p>}<ul className="tn-file-list">{detail.referenceFiles.map((file) => <li key={file.id}><span>Ảnh {file.sortOrder} · {file.mimeType} · {(file.byteSize / 1024 / 1024).toFixed(2)}MB</span><span className="tn-file-actions"><button type="button" className="ta-secondary" onClick={() => void openReferenceFile(file.id)}>Mở ảnh</button>{!readOnly && !detail.criteriaLockedAt && <button type="button" className="ta-delete-btn" onClick={() => void deleteReferenceFile(file.id)}>Xóa</button>}</span></li>)}</ul></section>
       </div>
 
-      <section className="tn-section"><div className="tn-section-heading"><div><h3>Đợt nộp</h3><p className="tn-help">Mỗi hoạt động chỉ có một đợt đang mở.</p></div>{!readOnly && detail.status === 'PUBLISHED' && <div className="tn-period-create"><input type="datetime-local" value={dueAt} onChange={(event) => setDueAt(event.target.value)} /><button type="button" className="ta-secondary" onClick={() => void createPeriod()}><CalendarPlus size={14} /> Tạo đợt</button></div>}</div>{periodError && <p className="ta-error" role="alert">{periodError}</p>}{periods.length === 0 ? <p className="tn-empty">Chưa có đợt nộp.</p> : <div className="tn-period-list">{periods.map((period) => <div className={`tn-period-row ${selectedPeriodId === period.id ? 'is-selected' : ''}`} key={period.id}><button type="button" onClick={() => setSelectedPeriodId(period.id)}><strong>Đợt {period.periodNo}</strong><span>Hạn {new Date(period.dueAt).toLocaleString('vi-VN')} · {period.submissionCount} bài nộp</span></button>{!readOnly && !period.closedAt && <button type="button" className="ta-secondary" onClick={() => void closePeriod(period)}>Đóng đợt</button>}</div>)}</div>}</section>
+      <section className="tn-section"><div className="tn-section-heading"><div><h3>Đợt nộp</h3><p className="tn-help">Mỗi hoạt động chỉ có một đợt đang mở.</p></div>{!readOnly && detail.status === 'PUBLISHED' && <div className="tn-period-create"><input aria-label="Hạn đóng đợt nộp" type="datetime-local" value={dueAt} onChange={(event) => setDueAt(event.target.value)} /><button type="button" className="ta-secondary" onClick={() => void createPeriod()}><CalendarPlus size={14} /> Tạo đợt</button></div>}</div>{periodError && <p className="ta-error" role="alert">{periodError}</p>}{periods.length === 0 ? <p className="tn-empty">Chưa có đợt nộp.</p> : <div className="tn-period-list">{periods.map((period) => <div className={`tn-period-row ${selectedPeriodId === period.id ? 'is-selected' : ''}`} key={period.id}><button type="button" onClick={() => { selectedPeriodIdRef.current = period.id; setSelectedPeriodId(period.id); setSelectedSubmissionId(''); setSubmissions([]); setPeriodError('') }}><strong>Đợt {period.periodNo}</strong><span>Hạn {new Date(period.dueAt).toLocaleString('vi-VN')} · {period.submissionCount} bài nộp</span></button>{!readOnly && !period.closedAt && <button type="button" className="ta-secondary" onClick={() => void closePeriod(period)}>Đóng đợt</button>}</div>)}</div>}</section>
 
       {selectedPeriodId && <section className="tn-section"><h3>Danh sách bài nộp</h3>{submissions.length === 0 ? <p className="tn-empty">Chưa có bài nộp trong đợt này.</p> : <div className="tn-submission-list">{submissions.map((submission) => <button type="button" key={submission.id} className={`tn-submission-row ${selectedSubmissionId === submission.id ? 'is-selected' : ''}`} onClick={() => setSelectedSubmissionId(submission.id)}><span><strong>{submission.studentName}</strong><small>{submission.files.length} ảnh · {submission.status} · {submission.processingStatus}</small></span><Eye size={15} /></button>)}</div>}</section>}
       {selectedSubmissionId && <NotebookSubmissionReviewPanel submissionId={selectedSubmissionId} readOnly={readOnly} onFinalized={() => { void teacherNotebookChecksApi.getDetail(detail.id).then(onRefresh) }} />}

@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createGeminiNotebookAiProvider } from '../../../../../../backend/src/modules/teacher/notebook-checks/gemini-notebook-ai.provider.js';
+import { NOTEBOOK_EVALUATION_SYSTEM_PROMPT } from '../../../../../../backend/src/modules/teacher/notebook-checks/notebook-evaluation-system-prompt.js';
+import { NOTEBOOK_OCR_SYSTEM_PROMPT } from '../../../../../../backend/src/modules/teacher/notebook-checks/notebook-ocr-system-prompt.js';
 
 const baseOptions = {
   apiKey: 'test-key',
@@ -61,8 +63,22 @@ describe('Gemini notebook AI provider', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const firstBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    const secondBody = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
+    expect(firstBody.systemInstruction.parts[0].text).toBe(NOTEBOOK_OCR_SYSTEM_PROMPT);
+    expect(secondBody.systemInstruction.parts[0].text).toBe(NOTEBOOK_EVALUATION_SYSTEM_PROMPT);
+    expect(firstBody.systemInstruction.parts[0].text).not.toContain('criterion-id');
+    expect(secondBody.systemInstruction.parts[0].text).not.toContain('Ghi đủ ý');
+    expect(firstBody.contents[0].parts[0].text).toContain('1 ảnh vở mẫu');
+    expect(firstBody.contents[0].parts[0].text).toContain('1 ảnh bài nộp');
+    expect(secondBody.contents[0].parts[0].text).toContain('criterion-id');
+    expect(secondBody.contents[0].parts[0].text).toContain('Ghi đủ ý');
     const imageParts = firstBody.contents[0].parts.filter((part: Record<string, unknown>) => part.inline_data);
     expect(imageParts).toHaveLength(2);
+    expect(firstBody.generationConfig.responseSchema.type).toBe('OBJECT');
+    expect(firstBody.generationConfig.responseSchema.properties.reference_text.type).toBe('STRING');
+    expect(secondBody.generationConfig.responseSchema.type).toBe('OBJECT');
+    expect(secondBody.generationConfig.responseSchema.properties.suggestions.type).toBe('ARRAY');
+    expect(secondBody.generationConfig.responseSchema.properties.suggestions.items.properties.confidence.type).toBe('NUMBER');
     expect(fetchMock.mock.calls[0][0]).toContain('/models/gemini-test:generateContent?key=test-key');
   });
 
