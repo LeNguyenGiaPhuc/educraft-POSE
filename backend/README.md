@@ -1,5 +1,16 @@
 # EduCraft database
 
+## AI tạo hoạt động
+
+Các chức năng AI dùng Gemini khi `AI_PROVIDER=gemini` và có `GEMINI_API_KEY`. Mỗi chức năng có system prompt riêng trong module tương ứng; dữ liệu bài học, yêu cầu giáo viên và tiêu chí chấm luôn được gửi ở user content.
+
+- `AI_TIMEOUT_MS`: thời gian chờ mỗi lần gọi Gemini.
+- `AI_MAX_RETRIES`: số lần thử lại tối đa cho lỗi 429/5xx.
+- `AI_MAX_TEXT_CONTEXT_BYTES`: giới hạn tổng nội dung học liệu cho Quiz/Tự luận, mặc định `200000`.
+- `AI_MAX_TOTAL_BYTES`: giới hạn tổng kích thước ảnh cho Notebook Check.
+
+Luồng Quiz/Tự luận mới sinh bản nháp theo `classroomSubjectId`, không tạo Activity rỗng. Giáo viên xem và sửa câu hỏi trong form, sau đó gọi endpoint publish nguyên tử để tạo Activity, citation và notification trong cùng một transaction. Khi AI bị tắt hoặc lỗi, giao diện vẫn cho phép nhập thủ công; backend vẫn kiểm tra nguồn, citation và hình dạng câu hỏi trước khi công bố.
+
 Schema PostgreSQL của TLCN nằm ở `prisma/schema.prisma`. Migration khởi tạo nằm ở `prisma/migrations/20261109_init/migration.sql`. Đây là database mới; không nhập schema từ project môn học cũ.
 
 ## Chạy trên máy cá nhân
