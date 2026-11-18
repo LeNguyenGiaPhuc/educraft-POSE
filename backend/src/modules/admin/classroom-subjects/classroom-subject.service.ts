@@ -28,11 +28,14 @@ export const classroomSubjectService = {
   },
 
   async assignTeacher(classroomId: string, subjectId: string, input: AssignTeacherInput) {
-    const updated = await classroomSubjectRepository.assignTeacherAtomically(
-      classroomId,
-      subjectId,
-      input.teacherId
-    );
+    const updated = input.expectedTeacherId === undefined
+      ? await classroomSubjectRepository.assignTeacherAtomically(classroomId, subjectId, input.teacherId)
+      : await classroomSubjectRepository.assignTeacherAtomically(
+          classroomId,
+          subjectId,
+          input.teacherId,
+          input.expectedTeacherId
+        );
 
     return {
       id: updated.id,

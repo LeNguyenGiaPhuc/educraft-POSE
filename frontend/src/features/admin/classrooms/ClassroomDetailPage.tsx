@@ -323,7 +323,7 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
     if (!assigningSubject) return
     setIsMutating(true)
     try {
-      await adminApi.assignTeacher(classroom.id, assigningSubject.subject.id, selectedTeacherId)
+      await adminApi.assignTeacher(classroom.id, assigningSubject.subject.id, selectedTeacherId, assigningSubject.cs.teacherId)
       setFeedback({ type: 'success', message: `Đã cập nhật phân công môn ${assigningSubject.subject.name}.` })
       setAssigningSubject(null)
       await refresh()

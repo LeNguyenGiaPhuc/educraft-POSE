@@ -16,6 +16,7 @@ import {
 } from './studentImport'
 import { ClassroomDetailPage } from './ClassroomDetailPage'
 import { ClassroomCreateDialog } from './ClassroomCreateDialog'
+import { ClassroomPreviewDialog } from './ClassroomPreviewDialog'
 import { ClassroomFilters } from './ClassroomFilters'
 import { ClassroomsTable } from './ClassroomsTable'
 import { ApiError } from '../../../lib/api/client'
@@ -23,6 +24,13 @@ import { adminApi, type AdminClassroomSummary } from '../../../lib/api/admin'
 import './classrooms.css'
 
 type ClassroomStatus = AdminClassroomSummary['status']
+type ClassroomCreatePreview = {
+  draft: ClassroomDraft
+  includeRoster: boolean
+  excelFileName: string
+  excelPassword: string
+  excelRows: StudentImportRow[]
+}
 
 export function ClassroomsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -49,6 +57,7 @@ export function ClassroomsPage() {
   const [excelIssues, setExcelIssues] = useState<StudentImportIssue[]>([])
   const [excelError, setExcelError] = useState('')
   const [isReadingFile, setIsReadingFile] = useState(false)
+  const [classroomPreview, setClassroomPreview] = useState<ClassroomCreatePreview | null>(null)
 
   // Success Feedback
   const [successInfo, setSuccessInfo] = useState<{
@@ -106,6 +115,7 @@ export function ClassroomsPage() {
 
   // Handlers
   function openCreateModal() {
+    setClassroomPreview(null)
     setDraft({ ...emptyClassroomDraft, gradeLevel: 10, academicYear: '2026–2027' })
     setFormErrors([])
     setEnableExcel(false)
@@ -118,6 +128,7 @@ export function ClassroomsPage() {
   }
 
   function closeCreateModal() {
+    setClassroomPreview(null)
     setIsCreateOpen(false)
     setFormErrors([])
     setExcelRows([])
@@ -176,16 +187,43 @@ export function ClassroomsPage() {
       return
     }
 
-    // 2. Excel import is completed from the created classroom detail page.
+    // 2. Validate the optional roster before showing the final confirmation.
     if (enableExcel) {
-      setFormErrors(['Hãy tạo lớp trước, sau đó mở chi tiết lớp để nhập Excel và xem kết quả kiểm tra từ backend.'])
-      return
+      const rosterErrors: string[] = []
+      if (!excelFileName) rosterErrors.push('Hãy chọn file Excel danh sách học sinh.')
+      if (excelError) rosterErrors.push(excelError)
+      if (excelIssues.length > 0) rosterErrors.push('File Excel còn dòng chưa hợp lệ.')
+      if (excelRows.length === 0) rosterErrors.push('File Excel phải có ít nhất một học sinh.')
+      if (excelPassword.trim().length < 8) rosterErrors.push('Mật khẩu khởi tạo phải có ít nhất 8 ký tự.')
+      if (rosterErrors.length > 0) {
+        setFormErrors(rosterErrors)
+        return
+      }
     }
 
-    // 3. Create classroom through the backend
+    setClassroomPreview({
+      draft: { ...draft },
+      includeRoster: enableExcel,
+      excelFileName,
+      excelPassword,
+      excelRows: [...excelRows],
+    })
+    setIsCreateOpen(false)
+  }
+
+  async function confirmCreateClassroom() {
     setIsSaving(true)
     try {
-      const created = await adminApi.createClassroom(draft)
+      if (!classroomPreview) return
+      const created = await adminApi.createClassroom({
+        ...classroomPreview.draft,
+        ...(classroomPreview.includeRoster
+          ? {
+              initialStudentPassword: classroomPreview.excelPassword.trim(),
+              students: classroomPreview.excelRows,
+            }
+          : {}),
+      })
       const subjectsCreated = created.subjectCount
       await adminApi.listClassrooms({ limit: 100 }).then((response) => setClassList(response.items))
       setSuccessInfo({
@@ -229,7 +267,7 @@ export function ClassroomsPage() {
         </p>
       </div>
 
-      {/* Demo Notice */}
+      {/* System notice */}
       <div className="adm-notice">
         <School size={17} />
         <span>
@@ -348,9 +386,29 @@ export function ClassroomsPage() {
           onSubmit={handleSubmitCreate}
           onDraftChange={setDraft}
           onPasswordChange={setExcelPassword}
+          onEnableExcelChange={setEnableExcel}
           onFileUpload={handleFileUpload}
           onRemoveFile={handleRemoveFile}
           onDownloadTemplate={handleDownloadTemplate}
+        />
+      )}
+
+      {classroomPreview && (
+        <ClassroomPreviewDialog
+          draft={classroomPreview.draft}
+          excelFileName={classroomPreview.includeRoster ? classroomPreview.excelFileName : ''}
+          studentCount={classroomPreview.includeRoster ? classroomPreview.excelRows.length : 0}
+          errors={formErrors}
+          isSaving={isSaving}
+          onBack={() => {
+            setClassroomPreview(null)
+            setEnableExcel(classroomPreview.includeRoster)
+            setExcelFileName(classroomPreview.excelFileName)
+            setExcelPassword(classroomPreview.excelPassword)
+            setExcelRows(classroomPreview.excelRows)
+            setIsCreateOpen(true)
+          }}
+          onConfirm={confirmCreateClassroom}
         />
       )}
     </div>

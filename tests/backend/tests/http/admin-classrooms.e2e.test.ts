@@ -118,6 +118,35 @@ describe('Admin Classrooms API (E2E)', () => {
       expect(res.body.data.name).toBe('11B2');
     });
 
+    it('POST /api/v1/admin/classrooms accepts an atomic roster payload', async () => {
+      const createSpy = vi.spyOn(classroomService, 'createClassroom').mockResolvedValue({
+        id: 'c3333333-3333-4333-8333-333333333333',
+        name: '11B3',
+        gradeLevel: 11,
+        academicYear: '2026-2027',
+        status: 'ACTIVE',
+        createdAt: '2026-09-01T00:00:00.000Z',
+        updatedAt: '2026-09-01T00:00:00.000Z',
+      });
+
+      const res = await request(app)
+        .post('/api/v1/admin/classrooms')
+        .set('Cookie', ['educraft_session=mock_cookie'])
+        .send({
+          name: '11B3',
+          gradeLevel: 11,
+          academicYear: '2026-2027',
+          initialStudentPassword: 'TempPassword123!',
+          students: [{ line: 2, fullName: 'Nguyễn Văn An', username: 'nguyen.an', contact: '0901' }],
+        });
+
+      expect(res.status).toBe(201);
+      expect(createSpy).toHaveBeenCalledWith(expect.objectContaining({
+        initialStudentPassword: 'TempPassword123!',
+        students: [{ line: 2, fullName: 'Nguyễn Văn An', username: 'nguyen.an', contact: '0901' }],
+      }));
+    });
+
     it('POST /api/v1/admin/classrooms returns 409 when conflict occurs', async () => {
       vi.spyOn(classroomService, 'createClassroom').mockRejectedValue(
         new ConflictError('Lớp học "11B2" trong năm học 2026-2027 đã tồn tại')

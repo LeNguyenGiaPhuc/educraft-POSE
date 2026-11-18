@@ -246,7 +246,13 @@ export const adminApi = {
     return response.data
   },
 
-  async createClassroom(input: { name: string; gradeLevel: number; academicYear: string }): Promise<AdminClassroomSummary> {
+  async createClassroom(input: {
+    name: string
+    gradeLevel: number
+    academicYear: string
+    initialStudentPassword?: string
+    students?: AdminRosterRow[]
+  }): Promise<AdminClassroomSummary> {
     const response = await apiRequest<AdminClassroomSummary>('/admin/classrooms', {
       method: 'POST',
       body: input,
@@ -307,10 +313,10 @@ export const adminApi = {
     return response.data
   },
 
-  async assignTeacher(classroomId: string, subjectId: string, teacherId: string | null): Promise<void> {
+  async assignTeacher(classroomId: string, subjectId: string, teacherId: string | null, expectedTeacherId?: string | null): Promise<void> {
     await apiRequest(`/admin/classrooms/${classroomId}/subjects/${subjectId}/assign`, {
       method: 'PATCH',
-      body: { teacherId },
+      body: { teacherId, ...(expectedTeacherId !== undefined ? { expectedTeacherId } : {}) },
     })
   },
 

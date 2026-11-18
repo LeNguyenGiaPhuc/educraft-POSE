@@ -3,6 +3,7 @@ import { CheckCircle2, CircleHelp, Plus, ShieldCheck, Users } from 'lucide-react
 import { accountDraftFrom, emptyAccountDraft, validateAccountDraft, type AccountDraft } from './accountForm'
 import { PasswordResetDialog } from './PasswordResetDialog'
 import { AccountFormDialog } from './AccountFormDialog'
+import { AccountPreviewDialog } from './AccountPreviewDialog'
 import { AccountFilters } from './AccountFilters'
 import { AccountsTable } from './AccountsTable'
 import { adminApi, type AdminAccount, type AdminSubject } from '../../../lib/api/admin'
@@ -29,6 +30,7 @@ export function AccountsPage() {
   const [message, setMessage] = useState('')
   const [passwordResetAccount, setPasswordResetAccount] = useState<AdminAccount | null>(null)
   const [isResettingPassword, setIsResettingPassword] = useState(false)
+  const [accountPreview, setAccountPreview] = useState<{ draft: AccountDraft; password: string } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -86,6 +88,7 @@ export function AccountsPage() {
   const selected = visible.find((account) => account.id === selectedId) ?? visible[0] ?? null
 
   function startCreate() {
+    setAccountPreview(null)
     setDraft(emptyAccountDraft)
     setPassword('')
     setErrors([])
@@ -99,6 +102,7 @@ export function AccountsPage() {
     setModalMode('edit')
   }
   function closeModal() {
+    setAccountPreview(null)
     setModalMode(null)
     setPassword('')
     setErrors([])
@@ -116,28 +120,17 @@ export function AccountsPage() {
     }
 
     setErrors([])
+
+    if (modalMode === 'create') {
+      setAccountPreview({ draft: { ...draft }, password })
+      setModalMode(null)
+      return
+    }
+
     setIsSaving(true)
 
     try {
-      if (modalMode === 'create') {
-        const created = await adminApi.createAccount({
-          role: draft.role,
-          username: draft.username.trim(),
-          fullName: draft.fullName.trim(),
-          contact: draft.contact.trim() || null,
-          password,
-          ...(draft.role === 'TEACHER'
-            ? {
-                qualification: draft.qualification.trim(),
-                specializedSubjectId: draft.specializedSubjectId,
-              }
-            : {}),
-        })
-        setAccountList((current) => [created, ...current])
-        setSelectedId(created.id)
-        setModalMode(null)
-        setMessage(`Đã tạo tài khoản “${created.fullName}” (@${created.username}) thành công.`)
-      } else if (modalMode === 'edit' && selectedId) {
+      if (modalMode === 'edit' && selectedId) {
         const updated = await adminApi.updateAccount(selectedId, {
           fullName: draft.fullName.trim(),
           contact: draft.contact.trim() || null,
@@ -153,6 +146,38 @@ export function AccountsPage() {
         setMessage(`Đã cập nhật thông tin tài khoản “${updated.fullName}” thành công.`)
       }
     } catch (error) {
+      setErrors([error instanceof ApiError ? error.message : 'Không thể lưu tài khoản. Hãy thử lại.'])
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  async function confirmCreateAccount() {
+    if (!accountPreview) return
+
+    setIsSaving(true)
+    try {
+      const { draft: nextDraft, password: nextPassword } = accountPreview
+      const created = await adminApi.createAccount({
+        role: nextDraft.role,
+        username: nextDraft.username.trim(),
+        fullName: nextDraft.fullName.trim(),
+        contact: nextDraft.contact.trim() || null,
+        password: nextPassword,
+        ...(nextDraft.role === 'TEACHER'
+          ? {
+              qualification: nextDraft.qualification.trim(),
+              specializedSubjectId: nextDraft.specializedSubjectId,
+            }
+          : {}),
+      })
+      setAccountList((current) => [created, ...current])
+      setSelectedId(created.id)
+      setAccountPreview(null)
+      setMessage(`Đã tạo tài khoản “${created.fullName}” (@${created.username}) thành công.`)
+    } catch (error) {
+      setAccountPreview(null)
+      setModalMode('create')
       setErrors([error instanceof ApiError ? error.message : 'Không thể lưu tài khoản. Hãy thử lại.'])
     } finally {
       setIsSaving(false)
@@ -302,6 +327,17 @@ export function AccountsPage() {
           onDraftChange={setDraft}
           onPasswordChange={setPassword}
           onClearErrors={() => setErrors([])}
+        />
+      )}
+
+      {accountPreview && (
+        <AccountPreviewDialog
+          draft={accountPreview.draft}
+          password={accountPreview.password}
+          subjectName={subjectList.find((subject) => subject.id === accountPreview.draft.specializedSubjectId)?.name}
+          isSaving={isSaving}
+          onBack={() => { setAccountPreview(null); setModalMode('create') }}
+          onConfirm={confirmCreateAccount}
         />
       )}
 

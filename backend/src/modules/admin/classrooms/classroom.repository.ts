@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../../../lib/prisma.js';
-import { BadRequestError, NotFoundError } from '../../../shared/errors/app-error.js';
+import { BadRequestError, ConflictError, NotFoundError } from '../../../shared/errors/app-error.js';
+import { passwordService } from '../../auth/password.service.js';
 import type { PaginationParams } from '../../../shared/pagination/pagination.dto.js';
 import type { CreateClassroomInput, UpdateClassroomInput } from './classroom.schemas.js';
 
@@ -166,7 +167,31 @@ export const classroomRepository = {
   },
 
   async createClassroomWithSubjects(data: CreateClassroomInput) {
+    const students = data.students ?? [];
+    const passwordHash = students.length > 0
+      ? await passwordService.hashPassword(data.initialStudentPassword as string)
+      : null;
+
     return prisma.$transaction(async (tx) => {
+      if (students.length > 0) {
+        const usernames = students.map((student) => student.username.trim().toLowerCase());
+        const existingUsers = await tx.user.findMany({
+          where: {
+            username: {
+              in: usernames,
+              mode: 'insensitive',
+            },
+          },
+          select: { username: true },
+        });
+
+        if (existingUsers.length > 0) {
+          throw new ConflictError(
+            `Tên đăng nhập "${existingUsers[0].username}" đã tồn tại. Vui lòng kiểm tra lại.`
+          );
+        }
+      }
+
       // 1. Create classroom
       const classroom = await tx.classroom.create({
         data: {
@@ -191,6 +216,28 @@ export const classroomRepository = {
             subject_id: subject.id,
             teacher_id: null,
           })),
+        });
+      }
+
+      for (const student of students) {
+        const user = await tx.user.create({
+          data: {
+            username: student.username.trim(),
+            password_hash: passwordHash as string,
+            full_name: student.fullName.trim(),
+            contact: student.contact.trim() || null,
+            role: 'STUDENT',
+            status: 'ACTIVE',
+            must_change_password: false,
+          },
+        });
+
+        await tx.classroomEnrollment.create({
+          data: {
+            student_id: user.id,
+            classroom_id: classroom.id,
+            left_at: null,
+          },
         });
       }
 

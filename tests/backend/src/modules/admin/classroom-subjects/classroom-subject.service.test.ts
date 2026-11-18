@@ -94,6 +94,28 @@ describe('ClassroomSubjectService', () => {
       );
     });
 
+    it('passes the expected teacher to the repository for stale-write protection', async () => {
+      vi.spyOn(classroomSubjectRepository, 'assignTeacherAtomically').mockResolvedValue({
+        id: 'cs-1',
+        classroom_id: 'cls-1',
+        subject_id: 'sub-history',
+        teacher_id: 'tea-2',
+        teacher: { id: 'tea-2', full_name: 'Nguyễn Minh Anh', username: 'minhanh' },
+      } as any);
+
+      await classroomSubjectService.assignTeacher('cls-1', 'sub-history', {
+        teacherId: 'tea-2',
+        expectedTeacherId: 'tea-1',
+      });
+
+      expect(classroomSubjectRepository.assignTeacherAtomically).toHaveBeenCalledWith(
+        'cls-1',
+        'sub-history',
+        'tea-2',
+        'tea-1'
+      );
+    });
+
     it('rejects assignment if classroom is ARCHIVED', async () => {
       vi.spyOn(classroomSubjectRepository, 'assignTeacherAtomically').mockRejectedValue(
         new BadRequestError('Không thể phân công giáo viên cho lớp học đã lưu trữ')
