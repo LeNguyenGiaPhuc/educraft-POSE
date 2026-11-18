@@ -10,6 +10,7 @@ type Props = {
   excelPassword: string
   excelRows: StudentImportRow[]
   excelIssues: StudentImportIssue[]
+  excelNormalizationNotices?: StudentImportIssue[]
   excelError: string
   isReadingFile: boolean
   formErrors: string[]
@@ -24,8 +25,9 @@ type Props = {
   onDownloadTemplate: () => void
 }
 
-export function ClassroomCreateDialog({ draft, enableExcel, excelFileName, excelPassword, excelRows, excelIssues, excelError, isReadingFile, formErrors, isSaving, onClose, onSubmit, onDraftChange, onPasswordChange, onEnableExcelChange, onFileUpload, onRemoveFile, onDownloadTemplate }: Props) {
-  const excelSummary = excelRows.length === 0 ? null : { total: excelRows.length, errorsCount: excelIssues.length, validCount: excelRows.length - excelIssues.length }
+export function ClassroomCreateDialog({ draft, enableExcel, excelFileName, excelPassword, excelRows, excelIssues, excelNormalizationNotices = [], excelError, isReadingFile, formErrors, isSaving, onClose, onSubmit, onDraftChange, onPasswordChange, onEnableExcelChange, onFileUpload, onRemoveFile, onDownloadTemplate }: Props) {
+  const errorLines = new Set(excelIssues.filter((issue) => issue.line > 0).map((issue) => issue.line))
+  const excelSummary = excelRows.length === 0 ? null : { total: excelRows.length, errorsCount: errorLines.size, validCount: Math.max(0, excelRows.length - errorLines.size) }
 
   return (
     <div className="cls-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="create-class-title">
@@ -43,6 +45,7 @@ export function ClassroomCreateDialog({ draft, enableExcel, excelFileName, excel
               <div className="cls-excel-header"><label htmlFor="excel-toggle" className="cls-excel-title" style={{ cursor: 'pointer', userSelect: 'none' }}><input type="checkbox" id="excel-toggle" checked={enableExcel} onChange={(event) => onEnableExcelChange(event.target.checked)} style={{ accentColor: '#286449', width: 16, height: 16 }} /><span>Nhập danh sách học sinh bằng Excel cùng lúc</span></label><button type="button" className="cls-btn-template" onClick={onDownloadTemplate} title="Tải file mẫu Excel (.xlsx)"><Download size={13} /> Tải file mẫu Excel</button></div>
               <p className="cls-excel-help">File Excel (.xlsx) gồm 3 cột theo thứ tự: <strong>Họ và tên</strong>, <strong>Tên đăng nhập</strong>, <strong>Thông tin liên hệ</strong>. Hệ thống sẽ kiểm tra từng dòng theo nguyên tắc toàn vẹn (tất cả hợp lệ mới tạo lớp, tài khoản và phân lớp trong một giao dịch).</p>
               {enableExcel && <>
+                {excelNormalizationNotices.length > 0 && <div className="adm-inline-note" style={{ margin: 0 }}><CheckCircle2 size={15} style={{ verticalAlign: 'middle', marginRight: 6 }} />Hệ thống đã chuẩn hóa {excelNormalizationNotices.length} giá trị trước khi tạo tài khoản. Bạn có thể xem lại ở bước xác nhận.</div>}
                 <div className="cls-field" style={{ margin: '8px 0 12px' }}><label htmlFor="create-excel-password">Mật khẩu khởi tạo chung cho học sinh *</label><input id="create-excel-password" type="password" autoComplete="new-password" required placeholder="Nhập mật khẩu ban đầu cấp cho toàn bộ học sinh trong file" value={excelPassword} onChange={(event) => onPasswordChange(event.target.value)} /><span style={{ fontSize: '12px', color: '#6b7280', marginTop: 3 }}>Mật khẩu này được băm ở backend và dùng chung cho tài khoản học sinh mới.</span></div>
                 {!excelFileName ? <div className="cls-excel-actions"><label className="cls-file-dropzone"><FileUp size={15} /> {isReadingFile ? 'Đang đọc file...' : 'Chọn file danh sách (.xlsx)'}<input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={onFileUpload} disabled={isReadingFile} /></label></div> : <div className="cls-file-chosen"><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><FileSpreadsheet size={16} /><strong>{excelFileName}</strong></div><button type="button" className="cls-btn-remove-file" onClick={onRemoveFile}>Xóa file</button></div>}
                 {excelError && <div className="cls-error-container"><div className="cls-error-title"><AlertCircle size={15} /> Lỗi đọc file</div><p style={{ margin: 0, fontSize: '12px', color: '#b72727' }}>{excelError}</p></div>}
@@ -53,7 +56,7 @@ export function ClassroomCreateDialog({ draft, enableExcel, excelFileName, excel
             </div>
             {formErrors.length > 0 && <div className="adm-errors" role="alert" style={{ margin: 0 }}><strong>Vui lòng kiểm tra lại:</strong><ul>{formErrors.map((error) => <li key={error}>{error}</li>)}</ul></div>}
           </div>
-          <div className="cls-modal-foot"><button type="button" className="cls-btn-cancel" onClick={onClose}>Hủy</button><button type="submit" className="cls-btn-submit" disabled={isSaving} title={isSaving ? 'Đang tạo lớp học' : undefined}>{isSaving ? 'Đang lưu...' : 'Xác nhận tạo lớp'}</button></div>
+          <div className="cls-modal-foot"><button type="button" className="cls-btn-cancel" onClick={onClose} disabled={isReadingFile || isSaving}>Hủy</button><button type="submit" className="cls-btn-submit" disabled={isSaving || isReadingFile} title={isReadingFile ? 'Đang kiểm tra file Excel với máy chủ' : isSaving ? 'Đang tạo lớp học' : undefined}>{isReadingFile ? 'Đang kiểm tra Excel...' : isSaving ? 'Đang lưu...' : 'Xác nhận tạo lớp'}</button></div>
         </form>
       </div>
     </div>

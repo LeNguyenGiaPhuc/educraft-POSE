@@ -20,6 +20,7 @@ import { ClassroomPreviewDialog } from './ClassroomPreviewDialog'
 import { ClassroomFilters } from './ClassroomFilters'
 import { ClassroomsTable } from './ClassroomsTable'
 import { ApiError } from '../../../lib/api/client'
+import { validatePassword } from '../../../lib/accountIdentity'
 import { adminApi, type AdminClassroomSummary } from '../../../lib/api/admin'
 import './classrooms.css'
 
@@ -30,6 +31,8 @@ type ClassroomCreatePreview = {
   excelFileName: string
   excelPassword: string
   excelRows: StudentImportRow[]
+  validationToken: string | null
+  normalizationNotices: StudentImportIssue[]
 }
 
 export function ClassroomsPage() {
@@ -55,6 +58,8 @@ export function ClassroomsPage() {
   const [excelPassword, setExcelPassword] = useState('')
   const [excelRows, setExcelRows] = useState<StudentImportRow[]>([])
   const [excelIssues, setExcelIssues] = useState<StudentImportIssue[]>([])
+  const [excelNormalizationNotices, setExcelNormalizationNotices] = useState<StudentImportIssue[]>([])
+  const [excelValidationToken, setExcelValidationToken] = useState<string | null>(null)
   const [excelError, setExcelError] = useState('')
   const [isReadingFile, setIsReadingFile] = useState(false)
   const [classroomPreview, setClassroomPreview] = useState<ClassroomCreatePreview | null>(null)
@@ -123,6 +128,8 @@ export function ClassroomsPage() {
     setExcelPassword('')
     setExcelRows([])
     setExcelIssues([])
+    setExcelNormalizationNotices([])
+    setExcelValidationToken(null)
     setExcelError('')
     setIsCreateOpen(true)
   }
@@ -133,6 +140,8 @@ export function ClassroomsPage() {
     setFormErrors([])
     setExcelRows([])
     setExcelIssues([])
+    setExcelNormalizationNotices([])
+    setExcelValidationToken(null)
     setExcelFileName('')
     setExcelPassword('')
     setExcelError('')
@@ -149,21 +158,33 @@ export function ClassroomsPage() {
 
     setExcelPassword('')
     setExcelFileName(file.name)
+    setExcelValidationToken(null)
+    setExcelNormalizationNotices([])
+    setFormErrors([])
     setIsReadingFile(true)
     try {
-      const { rows, issues } = await readStudentWorkbook(file)
+      const { rows, issues, normalizationNotices } = await readStudentWorkbook(file)
       if (issues.length > 0) {
         setExcelError(issues[0].message)
-        setExcelRows([])
-        setExcelIssues(issues)
-      } else {
         setExcelRows(rows)
-        setExcelIssues([])
+        setExcelIssues(issues)
+        setExcelNormalizationNotices(normalizationNotices ?? [])
+      } else {
+        const preview = await adminApi.previewNewClassroomRoster(file)
+        setExcelRows(preview.rows)
+        setExcelIssues(preview.issues)
+        setExcelNormalizationNotices(preview.normalizationNotices)
+        setExcelValidationToken(preview.validationToken)
+        if (!preview.isValid) {
+          setExcelError('File chưa hợp lệ theo dữ liệu hiện tại. Vui lòng sửa các dòng báo lỗi rồi tải lại.')
+        }
       }
-    } catch {
-      setExcelError('Không thể đọc file. Vui lòng chọn file .xlsx đúng định dạng.')
+    } catch (error) {
+      setExcelError(error instanceof ApiError ? error.message : 'Không thể đọc file. Vui lòng chọn file .xlsx đúng định dạng.')
       setExcelRows([])
       setExcelIssues([])
+      setExcelNormalizationNotices([])
+      setExcelValidationToken(null)
     } finally {
       setIsReadingFile(false)
     }
@@ -174,6 +195,8 @@ export function ClassroomsPage() {
     setExcelPassword('')
     setExcelRows([])
     setExcelIssues([])
+    setExcelNormalizationNotices([])
+    setExcelValidationToken(null)
     setExcelError('')
   }
 
@@ -194,19 +217,24 @@ export function ClassroomsPage() {
       if (excelError) rosterErrors.push(excelError)
       if (excelIssues.length > 0) rosterErrors.push('File Excel còn dòng chưa hợp lệ.')
       if (excelRows.length === 0) rosterErrors.push('File Excel phải có ít nhất một học sinh.')
-      if (excelPassword.trim().length < 8) rosterErrors.push('Mật khẩu khởi tạo phải có ít nhất 8 ký tự.')
+      if (!excelValidationToken) rosterErrors.push('File Excel chưa được máy chủ xác nhận. Vui lòng tải lại file.')
+      const excelPasswordError = validatePassword(excelPassword)
+      if (excelPasswordError || !excelPassword.trim()) rosterErrors.push(excelPasswordError ?? 'Mật khẩu khởi tạo không được để trống.')
       if (rosterErrors.length > 0) {
         setFormErrors(rosterErrors)
         return
       }
     }
 
+    setFormErrors([])
     setClassroomPreview({
       draft: { ...draft },
       includeRoster: enableExcel,
       excelFileName,
       excelPassword,
       excelRows: [...excelRows],
+      validationToken: excelValidationToken,
+      normalizationNotices: [...excelNormalizationNotices],
     })
     setIsCreateOpen(false)
   }
@@ -215,21 +243,38 @@ export function ClassroomsPage() {
     setIsSaving(true)
     try {
       if (!classroomPreview) return
-      const created = await adminApi.createClassroom({
-        ...classroomPreview.draft,
-        ...(classroomPreview.includeRoster
-          ? {
-              initialStudentPassword: classroomPreview.excelPassword.trim(),
-              students: classroomPreview.excelRows,
-            }
-          : {}),
-      })
-      const subjectsCreated = created.subjectCount
-      await adminApi.listClassrooms({ limit: 100 }).then((response) => setClassList(response.items))
+      let createdName = classroomPreview.draft.name
+      let subjectsCreated = 0
+      let studentsAdded = 0
+
+      if (classroomPreview.includeRoster) {
+        if (!classroomPreview.validationToken) {
+          setFormErrors(['File Excel chưa được máy chủ xác nhận. Vui lòng quay lại và tải lại file.'])
+          return
+        }
+        const result = await adminApi.commitNewClassroomRoster({
+          validationToken: classroomPreview.validationToken,
+          ...classroomPreview.draft,
+          initialStudentPassword: classroomPreview.excelPassword.trim(),
+          rows: classroomPreview.excelRows,
+        })
+        studentsAdded = result.importedCount
+        const refreshed = await adminApi.listClassrooms({ limit: 100 })
+        setClassList(refreshed.items)
+        const created = refreshed.items.find((classroom) => classroom.id === result.classroomId)
+        createdName = created?.name ?? classroomPreview.draft.name
+        subjectsCreated = created?.subjectCount ?? 0
+      } else {
+        const created = await adminApi.createClassroom(classroomPreview.draft)
+        createdName = created.name
+        subjectsCreated = created.subjectCount
+        const refreshed = await adminApi.listClassrooms({ limit: 100 })
+        setClassList(refreshed.items)
+      }
       setSuccessInfo({
-        classroomName: created.name,
+        classroomName: createdName,
         subjectsCreated,
-        studentsAdded: 0,
+        studentsAdded,
       })
 
       closeCreateModal()
@@ -378,6 +423,7 @@ export function ClassroomsPage() {
           excelPassword={excelPassword}
           excelRows={excelRows}
           excelIssues={excelIssues}
+          excelNormalizationNotices={excelNormalizationNotices}
           excelError={excelError}
           isReadingFile={isReadingFile}
           formErrors={formErrors}
@@ -398,6 +444,8 @@ export function ClassroomsPage() {
           draft={classroomPreview.draft}
           excelFileName={classroomPreview.includeRoster ? classroomPreview.excelFileName : ''}
           studentCount={classroomPreview.includeRoster ? classroomPreview.excelRows.length : 0}
+          studentRows={classroomPreview.includeRoster ? classroomPreview.excelRows : []}
+          normalizationNotices={classroomPreview.normalizationNotices}
           errors={formErrors}
           isSaving={isSaving}
           onBack={() => {
@@ -406,6 +454,8 @@ export function ClassroomsPage() {
             setExcelFileName(classroomPreview.excelFileName)
             setExcelPassword(classroomPreview.excelPassword)
             setExcelRows(classroomPreview.excelRows)
+            setExcelValidationToken(classroomPreview.validationToken)
+            setExcelNormalizationNotices(classroomPreview.normalizationNotices)
             setIsCreateOpen(true)
           }}
           onConfirm={confirmCreateClassroom}

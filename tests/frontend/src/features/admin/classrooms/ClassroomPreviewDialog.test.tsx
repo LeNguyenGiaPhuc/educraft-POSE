@@ -9,6 +9,8 @@ describe('ClassroomPreviewDialog', () => {
         draft={{ name: '11A3', gradeLevel: 11, academicYear: '2026–2027' }}
         excelFileName="students.xlsx"
         studentCount={12}
+        studentRows={[{ line: 2, fullName: 'Nguyễn Văn An', username: 'nguyen.van.an', contact: '0901234567', original: { fullName: '  Nguyễn   Văn An ', username: ' Nguyen.Van.An ', contact: '0901 234 567' } }]}
+        normalizationNotices={[{ line: 2, field: 'fullName', code: 'NORMALIZED', message: 'Đã chuẩn hóa họ và tên.' }]}
         isSaving={false}
         onBack={() => undefined}
         onConfirm={async () => undefined}
@@ -20,5 +22,7 @@ describe('ClassroomPreviewDialog', () => {
     expect(markup).toContain('2026–2027')
     expect(markup).toContain('students.xlsx')
     expect(markup).toContain('12 học sinh')
+    expect(markup).toContain('nguyen.van.an')
+    expect(markup).toContain('Đã chuẩn hóa 1 giá trị')
   })
 })

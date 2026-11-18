@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react'
 import { ApiError } from '../../../lib/api/client'
+import { validatePassword } from '../../../lib/accountIdentity'
 import { adminApi, type AdminClassroomDetail } from '../../../lib/api/admin'
 import {
   downloadStudentTemplateXlsx,
@@ -44,6 +45,7 @@ export function StudentExcelImportModal({
   const [fileSize, setFileSize] = useState<number | null>(null)
   const [importRows, setImportRows] = useState<StudentImportRow[]>([])
   const [issues, setIssues] = useState<ImportIssue[]>([])
+  const [normalizationNotices, setNormalizationNotices] = useState<ImportIssue[]>([])
   const [parseError, setParseError] = useState('')
   const [tempPassword, setTempPassword] = useState('')
   const [validationToken, setValidationToken] = useState<string | null>(null)
@@ -53,10 +55,12 @@ export function StudentExcelImportModal({
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const hasErrors = issues.length > 0
+  const passwordError = tempPassword ? validatePassword(tempPassword) : null
   const isAllValid =
     !hasErrors &&
     importRows.length > 0 &&
     Boolean(tempPassword.trim()) &&
+    !passwordError &&
     Boolean(validationToken)
 
   // Issues by line map for quick table lookup
@@ -86,10 +90,12 @@ export function StudentExcelImportModal({
     setFileSize(file.size)
     setParseError('')
     setValidationToken(null)
+    setNormalizationNotices([])
 
     const result = await readStudentWorkbook(file)
     setImportRows(result.rows)
     setIssues(result.issues)
+    setNormalizationNotices(result.normalizationNotices ?? [])
 
     if (result.issues.length > 0 || result.rows.length === 0) {
       setParseError(result.issues.map((i) => i.message).join(' '))
@@ -101,6 +107,7 @@ export function StudentExcelImportModal({
       const preview = await adminApi.previewRoster(classroom.id, file)
       setImportRows(preview.rows)
       setIssues(preview.issues)
+      setNormalizationNotices(preview.normalizationNotices)
       setValidationToken(preview.validationToken)
       if (!preview.isValid) {
         setParseError('File chưa hợp lệ theo dữ liệu hiện tại. Vui lòng sửa các dòng báo lỗi rồi tải lại.')
@@ -110,6 +117,7 @@ export function StudentExcelImportModal({
       setParseError(message)
       setIssues(result.rows.map((row) => ({ line: row.line, message })))
       setValidationToken(null)
+      setNormalizationNotices([])
     } finally {
       setIsPreviewing(false)
     }
@@ -144,6 +152,7 @@ export function StudentExcelImportModal({
     setFileSize(null)
     setImportRows([])
     setIssues([])
+    setNormalizationNotices([])
     setParseError('')
     setTempPassword('')
     setValidationToken(null)
@@ -302,6 +311,7 @@ export function StudentExcelImportModal({
               <small style={{ color: '#688272', fontSize: '12px', marginTop: 4, display: 'block' }}>
                 Mật khẩu khởi tạo phải có ít nhất 8 ký tự.
               </small>
+              {passwordError && <small style={{ color: '#b72727', fontSize: '12px', marginTop: 4, display: 'block' }}>{passwordError}</small>}
             </div>
           )}
 
@@ -312,6 +322,13 @@ export function StudentExcelImportModal({
                 <AlertCircle size={15} /> Lỗi cấu trúc file Excel
               </div>
               <p style={{ margin: 0, fontSize: '12px', color: '#b72727' }}>{parseError}</p>
+            </div>
+          )}
+
+          {normalizationNotices.length > 0 && issues.length === 0 && (
+            <div className="adm-inline-note" style={{ marginTop: 12 }} role="status">
+              <CheckCircle2 size={15} />
+              <span>Hệ thống đã chuẩn hóa {normalizationNotices.length} giá trị trước khi nhập.</span>
             </div>
           )}
 
@@ -429,12 +446,15 @@ export function StudentExcelImportModal({
                           </td>
                           <td>
                             <strong>{row.fullName || '—'}</strong>
+                            {row.original?.fullName && <small style={{ display: 'block', color: '#6b7280' }}>Gốc: {row.original.fullName}</small>}
                           </td>
                           <td>
                             <code className="cls-username-pill">{row.username || '—'}</code>
+                            {row.original?.username && <small style={{ display: 'block', color: '#6b7280' }}>Gốc: {row.original.username}</small>}
                           </td>
                           <td>
                             <span className="cls-contact-text">{row.contact || '—'}</span>
+                            {row.original?.contact && <small style={{ display: 'block', color: '#6b7280' }}>Gốc: {row.original.contact}</small>}
                           </td>
                           <td style={{ textAlign: 'center' }}>
                             {isError ? (

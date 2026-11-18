@@ -99,16 +99,28 @@ export type AdminRosterRow = {
   fullName: string
   username: string
   contact: string
+  original?: {
+    fullName: string
+    username: string
+    contact: string
+  }
 }
 
 export type AdminRosterIssue = {
   line: number
+  field: 'file' | 'fullName' | 'username' | 'contact'
+  code: string
   message: string
+}
+
+export type AdminRosterNormalizationNotice = AdminRosterIssue & {
+  code: 'NORMALIZED'
 }
 
 export type AdminRosterPreview = {
   rows: AdminRosterRow[]
   issues: AdminRosterIssue[]
+  normalizationNotices: AdminRosterNormalizationNotice[]
   isValid: boolean
   validationToken: string | null
   totalRows: number
@@ -330,8 +342,33 @@ export const adminApi = {
     return response.data
   },
 
+  async previewNewClassroomRoster(file: File): Promise<AdminRosterPreview> {
+    const body = new FormData()
+    body.append('file', file)
+    const response = await apiRequest<AdminRosterPreview>('/admin/classrooms/roster/preview', {
+      method: 'POST',
+      body,
+    })
+    return response.data
+  },
+
   async commitRoster(classroomId: string, input: { validationToken: string; defaultPassword: string; rows: AdminRosterRow[] }): Promise<{ importedCount: number }> {
     const response = await apiRequest<{ importedCount: number }>(`/admin/classrooms/${classroomId}/roster/commit`, {
+      method: 'POST',
+      body: input,
+    })
+    return response.data
+  },
+
+  async commitNewClassroomRoster(input: {
+    validationToken: string
+    name: string
+    gradeLevel: number
+    academicYear: string
+    initialStudentPassword: string
+    rows: AdminRosterRow[]
+  }): Promise<{ classroomId: string; importedCount: number }> {
+    const response = await apiRequest<{ classroomId: string; importedCount: number }>('/admin/classrooms/roster/commit', {
       method: 'POST',
       body: input,
     })

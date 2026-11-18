@@ -62,9 +62,9 @@ test('studentImport: detects missing fields', () => {
 
 test('studentImport: detects duplicate usernames in file', () => {
   const rows = [
-    { line: 2, fullName: 'Nguyễn A1', username: 'duplicate.user', contact: '0911' },
-    { line: 3, fullName: 'Nguyễn A2', username: 'DUPLICATE.USER', contact: '0922' },
-    { line: 4, fullName: 'Trần B', username: 'unique.user', contact: '0933' },
+    { line: 2, fullName: 'Nguyễn An', username: 'duplicate.user', contact: '0911111111' },
+    { line: 3, fullName: 'Nguyễn Anh', username: 'DUPLICATE.USER', contact: '0922222222' },
+    { line: 4, fullName: 'Trần B', username: 'unique.user', contact: '0933333333' },
   ]
   const issues = validateStudentImport(rows, new Set())
   assert.equal(issues.length, 2)
