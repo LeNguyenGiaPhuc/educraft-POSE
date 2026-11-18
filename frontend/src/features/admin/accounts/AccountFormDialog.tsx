@@ -1,7 +1,7 @@
 import { Check, X } from 'lucide-react'
 import type { FormEvent } from 'react'
 import type { AdminAccount, AdminSubject } from '../../../lib/api/admin'
-import type { AccountDraft } from './accountForm'
+import { normalizeAccountDraft, type AccountDraft } from './accountForm'
 
 type ModalMode = 'create' | 'edit'
 
@@ -34,9 +34,9 @@ export function AccountFormDialog({ mode, accountName, draft, password, subjects
           <div className="adm-modal-body">
             <div className="adm-form-grid">
               <label>Vai trò<select value={draft.role} disabled={mode === 'edit'} onChange={(event) => onDraftChange({ ...draft, role: event.target.value as AccountRole })}><option value="STUDENT">Học sinh</option><option value="TEACHER">Giáo viên</option></select></label>
-              <label>Họ và tên<input required value={draft.fullName} onChange={(event) => onDraftChange({ ...draft, fullName: event.target.value })} placeholder="Ví dụ: Nguyễn Minh Anh" /></label>
-              <label>Tên đăng nhập<input required value={draft.username} disabled={mode === 'edit'} onChange={(event) => onDraftChange({ ...draft, username: event.target.value })} placeholder="Ví dụ: nguyen.minh.anh" /></label>
-              <label>Thông tin liên hệ<input value={draft.contact} onChange={(event) => onDraftChange({ ...draft, contact: event.target.value })} placeholder="Email hoặc số liên hệ" /></label>
+              <label>Họ và tên<input required value={draft.fullName} onChange={(event) => onDraftChange({ ...draft, fullName: event.target.value })} onBlur={() => onDraftChange(normalizeAccountDraft(draft))} placeholder="Ví dụ: Nguyễn Minh Anh" /></label>
+              <label>Tên đăng nhập<input required value={draft.username} disabled={mode === 'edit'} onChange={(event) => onDraftChange({ ...draft, username: event.target.value })} onBlur={() => onDraftChange(normalizeAccountDraft(draft))} placeholder="Ví dụ: nguyen.minh.anh" /></label>
+              <label>Thông tin liên hệ<input required value={draft.contact} onChange={(event) => onDraftChange({ ...draft, contact: event.target.value })} onBlur={() => onDraftChange(normalizeAccountDraft(draft))} placeholder="Email hoặc số liên hệ" /></label>
               {mode === 'create' && <label>Mật khẩu khởi tạo<input type="password" autoComplete="new-password" value={password} onChange={(event) => onPasswordChange(event.target.value)} placeholder="Nhập mật khẩu cho tài khoản" /></label>}
               {draft.role === 'TEACHER' && <>
                 <label>Bằng cấp<input value={draft.qualification} onChange={(event) => onDraftChange({ ...draft, qualification: event.target.value })} placeholder="Ví dụ: Cử nhân Sư phạm" /></label>

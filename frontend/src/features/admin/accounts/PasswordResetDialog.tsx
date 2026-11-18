@@ -104,7 +104,7 @@ export function PasswordResetDialog({ account, isSaving, onClose, onSave }: Prop
                 />
               </label>
             </div>
-            <p className="adm-inline-note">Mật khẩu phải dài từ 6 đến 128 ký tự.</p>
+            <p className="adm-inline-note">Mật khẩu phải dài từ 8 đến 128 ký tự.</p>
             {errors.length > 0 && (
               <div className="adm-errors" role="alert">
                 <strong>Không thể đặt lại mật khẩu:</strong>

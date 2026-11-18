@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { CheckCircle2, CircleHelp, Plus, ShieldCheck, Users } from 'lucide-react'
-import { accountDraftFrom, emptyAccountDraft, validateAccountDraft, type AccountDraft } from './accountForm'
+import { accountDraftFrom, emptyAccountDraft, normalizeAccountDraft, validateAccountDraft, type AccountDraft } from './accountForm'
+import { validatePassword } from '../../../lib/accountIdentity'
 import { PasswordResetDialog } from './PasswordResetDialog'
 import { AccountFormDialog } from './AccountFormDialog'
 import { AccountPreviewDialog } from './AccountPreviewDialog'
@@ -110,9 +111,20 @@ export function AccountsPage() {
 
   async function handleSubmitAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const next = validateAccountDraft(draft, accountList, modalMode === 'edit' ? selectedId ?? undefined : undefined)
-    if (modalMode === 'create' && !password.trim()) {
-      next.push('Mật khẩu không được để trống.')
+    const normalizedDraft = normalizeAccountDraft(draft)
+    const next = validateAccountDraft(
+      normalizedDraft,
+      accountList,
+      modalMode === 'edit' ? selectedId ?? undefined : undefined,
+      { requireContact: modalMode === 'create' },
+    )
+    if (modalMode === 'create') {
+      if (!password.trim()) {
+        next.push('Mật khẩu không được để trống.')
+      } else {
+        const passwordError = validatePassword(password)
+        if (passwordError) next.push(passwordError)
+      }
     }
     if (next.length > 0) {
       setErrors(next)
@@ -122,7 +134,7 @@ export function AccountsPage() {
     setErrors([])
 
     if (modalMode === 'create') {
-      setAccountPreview({ draft: { ...draft }, password })
+      setAccountPreview({ draft: normalizedDraft, password })
       setModalMode(null)
       return
     }
@@ -132,12 +144,12 @@ export function AccountsPage() {
     try {
       if (modalMode === 'edit' && selectedId) {
         const updated = await adminApi.updateAccount(selectedId, {
-          fullName: draft.fullName.trim(),
-          contact: draft.contact.trim() || null,
-          ...(draft.role === 'TEACHER'
+          fullName: normalizedDraft.fullName,
+          contact: normalizedDraft.contact || null,
+          ...(normalizedDraft.role === 'TEACHER'
             ? {
-                qualification: draft.qualification.trim(),
-                specializedSubjectId: draft.specializedSubjectId,
+                qualification: normalizedDraft.qualification.trim(),
+                specializedSubjectId: normalizedDraft.specializedSubjectId,
               }
             : {}),
         })
@@ -160,9 +172,9 @@ export function AccountsPage() {
       const { draft: nextDraft, password: nextPassword } = accountPreview
       const created = await adminApi.createAccount({
         role: nextDraft.role,
-        username: nextDraft.username.trim(),
-        fullName: nextDraft.fullName.trim(),
-        contact: nextDraft.contact.trim() || null,
+         username: nextDraft.username,
+         fullName: nextDraft.fullName,
+         contact: nextDraft.contact || null,
         password: nextPassword,
         ...(nextDraft.role === 'TEACHER'
           ? {

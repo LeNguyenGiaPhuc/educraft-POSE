@@ -9,8 +9,8 @@ describe('validatePasswordReset', () => {
   })
 
   it('enforces the backend password length range', () => {
-    expect(validatePasswordReset('12345', '12345')).toContain('Mật khẩu phải có ít nhất 6 ký tự.')
-    expect(validatePasswordReset('a'.repeat(129), 'a'.repeat(129))).toContain('Mật khẩu không được vượt quá 128 ký tự.')
+    expect(validatePasswordReset('1234567', '1234567')).toContain('Mật khẩu phải có từ 8 đến 128 ký tự.')
+    expect(validatePasswordReset('a'.repeat(129), 'a'.repeat(129))).toContain('Mật khẩu phải có từ 8 đến 128 ký tự.')
   })
 
   it('requires matching confirmation', () => {
@@ -18,6 +18,6 @@ describe('validatePasswordReset', () => {
   })
 
   it('accepts a valid matching password', () => {
-    expect(validatePasswordReset('secret1', 'secret1')).toEqual([])
+    expect(validatePasswordReset('secret12', 'secret12')).toEqual([])
   })
 })

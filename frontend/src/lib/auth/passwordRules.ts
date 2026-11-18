@@ -1,3 +1,5 @@
+import { validatePassword } from '../accountIdentity'
+
 type PasswordChangeInput = {
   currentPassword: string
   newPassword: string
@@ -19,8 +21,9 @@ export function getPasswordChangeErrors(input: PasswordChangeInput): PasswordCha
 
   if (!input.newPassword) {
     errors.newPassword = 'Nhập mật khẩu mới.'
-  } else if (input.newPassword.length < 6 || input.newPassword.length > 128) {
-    errors.newPassword = 'Mật khẩu mới phải có từ 6 đến 128 ký tự.'
+  } else {
+    const passwordError = validatePassword(input.newPassword)
+    if (passwordError) errors.newPassword = `Mật khẩu mới phải có từ 8 đến 128 ký tự.`
   }
 
   if (!input.confirmation) {

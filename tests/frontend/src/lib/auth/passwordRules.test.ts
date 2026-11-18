@@ -12,7 +12,7 @@ describe('getPasswordChangeErrors', () => {
 
   it('rejects a new password outside the existing length policy', () => {
     expect(getPasswordChangeErrors({ currentPassword: 'old-secret', newPassword: '12345', confirmation: '12345' })).toEqual({
-      newPassword: 'Mật khẩu mới phải có từ 6 đến 128 ký tự.',
+      newPassword: 'Mật khẩu mới phải có từ 8 đến 128 ký tự.',
     })
   })
 

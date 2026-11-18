@@ -1,4 +1,12 @@
 import type { AdminAccount } from '../../../lib/api/admin'
+import {
+  normalizeContact,
+  normalizeFullName,
+  normalizeUsername,
+  validateContact,
+  validateFullName,
+  validateUsername,
+} from '../../../lib/accountIdentity'
 
 export type AccountDraft = {
   role: Exclude<AdminAccount['role'], 'ADMIN'>
@@ -18,6 +26,15 @@ export const emptyAccountDraft: AccountDraft = {
   specializedSubjectId: '',
 }
 
+export function normalizeAccountDraft(draft: AccountDraft): AccountDraft {
+  return {
+    ...draft,
+    fullName: normalizeFullName(draft.fullName),
+    username: normalizeUsername(draft.username),
+    contact: normalizeContact(draft.contact),
+  }
+}
+
 export function accountDraftFrom(account: Pick<AdminAccount, 'role' | 'fullName' | 'username' | 'contact' | 'qualification' | 'specializedSubjectId'>): AccountDraft {
   return {
     role: account.role === 'TEACHER' ? 'TEACHER' : 'STUDENT',
@@ -33,17 +50,25 @@ export function validateAccountDraft(
   draft: AccountDraft,
   existingAccounts: Array<Pick<AdminAccount, 'id' | 'username'>> = [],
   editingId?: string,
+  options: { requireContact?: boolean } = {},
 ): string[] {
   const errors: string[] = []
-  const username = draft.username.trim().toLocaleLowerCase()
+  const normalized = normalizeAccountDraft(draft)
+  const fullNameError = validateFullName(normalized.fullName)
+  const usernameError = validateUsername(normalized.username)
+  const contactError = validateContact(normalized.contact)
 
-  if (!draft.fullName.trim()) errors.push('Họ tên không được để trống.')
-  if (!username) errors.push('Tên đăng nhập không được để trống.')
-  if (username && existingAccounts.some((account) => account.id !== editingId && account.username.toLocaleLowerCase() === username)) {
+  if (fullNameError) errors.push(fullNameError)
+  if (usernameError) errors.push(usernameError)
+  if (!usernameError && existingAccounts.some((account) => account.id !== editingId && normalizeUsername(account.username) === normalized.username)) {
     errors.push('Tên đăng nhập đã tồn tại.')
   }
-  if (!draft.contact.trim()) errors.push('Thông tin liên hệ không được để trống.')
-  if (draft.role === 'TEACHER' && !draft.qualification.trim()) errors.push('Giáo viên cần có bằng cấp.')
-  if (draft.role === 'TEACHER' && !draft.specializedSubjectId) errors.push('Hãy chọn môn học chuyên môn của giáo viên.')
+  if (contactError && ((options.requireContact ?? true) || normalized.contact)) errors.push(contactError)
+  if (draft.role === 'TEACHER' && !draft.qualification.trim()) {
+    errors.push('Giáo viên cần có bằng cấp.')
+  }
+  if (draft.role === 'TEACHER' && !draft.specializedSubjectId) {
+    errors.push('Hãy chọn môn học chuyên môn của giáo viên.')
+  }
   return errors
 }
