@@ -55,6 +55,52 @@ describe('ResultsService', () => {
     expect(resultsRepository.findStatistics).toHaveBeenCalledWith('class-1', 'cs-1', {});
   });
 
+  it('rejects a foreign statistics activity before loading aggregate data', async () => {
+    vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue(context);
+    vi.spyOn(resultsRepository, 'findStatisticsActivityScope').mockResolvedValue(null);
+    const statisticsSpy = vi.spyOn(resultsRepository, 'findStatistics');
+
+    await expect(
+      resultsService.getStatistics('teacher-1', 'cs-1', { activityId: 'foreign-activity' })
+    ).rejects.toThrow(NotFoundError);
+
+    expect(statisticsSpy).not.toHaveBeenCalled();
+  });
+
+  it('rejects a period filter for an exercise activity', async () => {
+    vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue(context);
+    vi.spyOn(resultsRepository, 'findStatisticsActivityScope').mockResolvedValue({
+      id: 'exercise-1',
+      kind: 'EXERCISE',
+      status: 'PUBLISHED',
+      periodIds: [],
+    });
+
+    await expect(
+      resultsService.getStatistics('teacher-1', 'cs-1', {
+        activityId: 'exercise-1',
+        periodId: 'period-1',
+      })
+    ).rejects.toThrow(BadRequestError);
+  });
+
+  it('rejects a period that does not belong to the selected notebook activity', async () => {
+    vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue(context);
+    vi.spyOn(resultsRepository, 'findStatisticsActivityScope').mockResolvedValue({
+      id: 'notebook-1',
+      kind: 'NOTEBOOK_CHECK',
+      status: 'PUBLISHED',
+      periodIds: ['period-1'],
+    });
+
+    await expect(
+      resultsService.getStatistics('teacher-1', 'cs-1', {
+        activityId: 'notebook-1',
+        periodId: 'period-2',
+      })
+    ).rejects.toThrow(NotFoundError);
+  });
+
   it('groups assigned progress by lesson and keeps difficulty state', async () => {
     vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue(context);
     vi.spyOn(resultsRepository, 'findStudentInClassroom').mockResolvedValue({
@@ -108,6 +154,19 @@ describe('ResultsService', () => {
     expect(resultsRepository.findPromptTopics).not.toHaveBeenCalled();
   });
 
+  it('does not expose prompt topics for an active class from an old academic year', async () => {
+    vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue({
+      ...context,
+      academicYear: '2025-2026',
+    });
+    vi.spyOn(resultsRepository, 'findPromptTopics');
+
+    await expect(resultsService.getPromptTopics('teacher-1', 'cs-1', {})).rejects.toThrow(
+      NotFoundError
+    );
+    expect(resultsRepository.findPromptTopics).not.toHaveBeenCalled();
+  });
+
   it('rejects a student outside the assigned classroom', async () => {
     vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue(context);
     vi.spyOn(resultsRepository, 'findStudentInClassroom').mockResolvedValue(null);
@@ -117,5 +176,50 @@ describe('ResultsService', () => {
       resultsService.getStudentProgress('teacher-1', 'cs-1', 'student-outside')
     ).rejects.toThrow(NotFoundError);
     expect(resultsRepository.findProgress).not.toHaveBeenCalled();
+  });
+
+  it('uses the current-class roster when an activity is selected', async () => {
+    vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue(context);
+    const roster = vi.spyOn(resultsRepository as any, 'findSubmissionRoster').mockResolvedValue({
+      items: [
+        {
+          id: 'roster:activity-1:student-1',
+          submissionId: null,
+          kind: 'EXERCISE',
+          activityId: 'activity-1',
+          activityTitle: 'Ôn tập chương 1',
+          student: { id: 'student-1', username: 'student-1', fullName: 'Nguyễn Văn A' },
+          submittedAt: null,
+          status: 'MISSING',
+          score: null,
+          gradedAt: null,
+          isCurrentMember: true,
+        },
+      ],
+      total: 1,
+    });
+
+    const result = await resultsService.listSubmissions('teacher-1', 'cs-1', {
+      activityId: 'activity-1',
+      page: 1,
+      pageSize: 20,
+    });
+
+    expect(result.items[0].status).toBe('MISSING');
+    expect(roster).toHaveBeenCalledWith('cs-1', expect.objectContaining({ activityId: 'activity-1' }));
+  });
+
+  it('requires a notebook period when a notebook activity is selected', async () => {
+    vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue(context);
+    vi.spyOn(resultsRepository as any, 'findSubmissionRoster').mockResolvedValue({ items: [], total: 0 });
+
+    await expect(
+      resultsService.listSubmissions('teacher-1', 'cs-1', {
+        activityId: 'activity-1',
+        kind: 'NOTEBOOK_CHECK',
+        page: 1,
+        pageSize: 20,
+      })
+    ).rejects.toThrow(BadRequestError);
   });
 });

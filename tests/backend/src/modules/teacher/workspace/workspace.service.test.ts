@@ -67,6 +67,24 @@ describe('WorkspaceService', () => {
       expect(list[0].status).toBe('ARCHIVED');
       expect(list[0].readOnly).toBe(true);
       expect(list[0].studentCount).toBe(1);
+      expect(list[0].promptTopicsEligible).toBe(false);
+    });
+
+    it('marks only active classrooms in the configured academic year as Prompt Topics eligible', async () => {
+      vi.spyOn(workspaceRepository, 'findAssignedClassrooms').mockResolvedValue([
+        {
+          id: 'cls-current', name: '11A1', academic_year: '2026–2027', grade_level: 11, status: 'ACTIVE',
+          classroomSubjects: [], enrollments: [],
+        },
+        {
+          id: 'cls-old', name: '10A1', academic_year: '2025-2026', grade_level: 10, status: 'ACTIVE',
+          classroomSubjects: [], enrollments: [],
+        },
+      ] as any);
+
+      const list = await workspaceService.listAssignedClassrooms('teacher-1');
+
+      expect(list.map((item) => item.promptTopicsEligible)).toEqual([true, false]);
     });
   });
 

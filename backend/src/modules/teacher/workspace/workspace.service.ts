@@ -1,4 +1,6 @@
 import { NotFoundError } from '../../../shared/errors/app-error.js';
+import { env } from '../../../config/env.js';
+import { normalizeAcademicYear } from '../../../shared/academic-year.js';
 import { requireAssignedSubject } from '../access/teacher-subject.policy.js';
 import { workspaceRepository } from './workspace.repository.js';
 
@@ -32,6 +34,7 @@ export const workspaceService = {
       gradeLevel: c.grade_level,
       status: c.status,
       readOnly: c.status === 'ARCHIVED',
+      promptTopicsEligible: c.status === 'ACTIVE' && normalizeAcademicYear(c.academic_year) === env.CURRENT_ACADEMIC_YEAR,
       studentCount: countStudents(c.enrollments, c.status),
       subjects: c.classroomSubjects.map((cs) => ({
         id: cs.id,
@@ -88,6 +91,7 @@ export const workspaceService = {
     return {
       ...policyCtx,
       readOnly: policyCtx.classroomStatus === 'ARCHIVED',
+      promptTopicsEligible: policyCtx.classroomStatus === 'ACTIVE' && normalizeAcademicYear(policyCtx.academicYear) === env.CURRENT_ACADEMIC_YEAR,
       lessonCount: workspaceData?._count.lessons ?? 0,
       activityCount: workspaceData?._count.activities ?? 0,
       studentCount: workspaceData

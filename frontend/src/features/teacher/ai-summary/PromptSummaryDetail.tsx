@@ -1,6 +1,6 @@
 import { ArrowLeft, BookOpen, MessageSquareOff, Sparkles } from 'lucide-react'
 import { Link } from 'react-router'
-import { PreviewNotice } from '../insights/TeacherUI'
+import { InfoNotice } from '../insights/TeacherUI'
 import type { PromptSummaryStudent, PromptSummaryTopic } from './promptSummaryTypes'
 
 type Props = {
@@ -23,9 +23,9 @@ export function PromptSummaryDetail({ student, topics, academicYear, backSearch 
         <h1>Chủ đề học sinh đã hỏi: {student.studentName}</h1>
         <p>Lớp {student.classroomName} · Môn {student.subjectName} · Năm học {academicYear}</p>
       </div>
-      <PreviewNotice>
+      <InfoNotice>
         Chỉ thống kê chủ đề học tập được gán cho môn bạn đang phụ trách. Hệ thống không hiển thị nguyên văn hội thoại, suy đoán tâm lý hay nhận xét năng lực.
-      </PreviewNotice>
+      </InfoNotice>
       <section className="panel" style={{ marginTop: 20 }}>
         <div className="tc-section-title"><Sparkles size={18} /><h2>Danh sách chủ đề đã hỏi ({topics.length})</h2></div>
         {topics.length === 0 ? (

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, Archive, FileCheck2, FileText, RotateCcw } from 'lucide-react'
 import { useSearchParams } from 'react-router'
 import { ApiError } from '../../../lib/api/client'
+import { teacherActivitiesApi } from '../../../lib/api/teacher/activities'
 import {
   teacherResultsApi,
   type TeacherExerciseResult,
@@ -10,6 +11,7 @@ import {
   type TeacherSubmissionStatus,
   type TeacherSubmissionSummary,
 } from '../../../lib/api/teacher/results'
+import { teacherNotebookChecksApi, type TeacherNotebookPeriod } from '../../../lib/api/teacher/notebookChecks'
 import './submissions.css'
 
 type Props = {
@@ -23,6 +25,7 @@ const exerciseStatuses: TeacherSubmissionStatus[] = ['PENDING', 'PROCESSING', 'G
 const notebookStatuses: TeacherSubmissionStatus[] = ['CURRENT', 'LOCKED', 'FINALIZED']
 
 const statusLabels: Record<TeacherSubmissionStatus, string> = {
+  MISSING: 'ChÆ°a ná»™p',
   PENDING: 'Chờ chấm',
   PROCESSING: 'Đang chấm',
   GRADED: 'Đã chấm',
@@ -45,10 +48,13 @@ function formatDate(value: string): string {
   return new Date(value).toLocaleString('vi-VN')
 }
 
-function getStatusOptions(kind: TeacherSubmissionKind | ''): TeacherSubmissionStatus[] {
-  if (kind === 'EXERCISE') return exerciseStatuses
-  if (kind === 'NOTEBOOK_CHECK') return notebookStatuses
-  return [...exerciseStatuses, ...notebookStatuses]
+function getStatusOptions(kind: TeacherSubmissionKind | '', hasActivity: boolean): TeacherSubmissionStatus[] {
+  const values = kind === 'EXERCISE'
+    ? exerciseStatuses
+    : kind === 'NOTEBOOK_CHECK'
+      ? notebookStatuses
+      : [...exerciseStatuses, ...notebookStatuses]
+  return hasActivity ? [...values, 'MISSING'] : values
 }
 
 export function SubmissionsPage({ classroomSubjectId, classroomName, subjectName, readOnly = false }: Props) {
@@ -61,10 +67,14 @@ export function SubmissionsPage({ classroomSubjectId, classroomName, subjectName
   const [loadError, setLoadError] = useState('')
   const [detailError, setDetailError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
+  const [notebookPeriods, setNotebookPeriods] = useState<TeacherNotebookPeriod[]>([])
+  const [isLoadingPeriods, setIsLoadingPeriods] = useState(false)
+  const [availableActivities, setAvailableActivities] = useState<Array<{ id: string; title: string; kind: TeacherSubmissionKind }>>([])
 
   const kind = params.get('submissionKind') as TeacherSubmissionKind | null
   const status = params.get('submissionStatus') as TeacherSubmissionStatus | null
   const activityId = params.get('submissionActivityId') ?? ''
+  const periodId = params.get('submissionPeriodId') ?? ''
   const studentSearch = params.get('submissionSearch') ?? ''
   const selectedId = params.get('submissionId') ?? ''
   const page = Number(params.get('submissionPage') ?? '1') || 1
@@ -74,6 +84,7 @@ export function SubmissionsPage({ classroomSubjectId, classroomName, subjectName
 
     teacherResultsApi.listSubmissions(classroomSubjectId, {
       activityId: activityId || undefined,
+      periodId: periodId || undefined,
       kind: kind ?? undefined,
       status: status ?? undefined,
       page,
@@ -98,7 +109,61 @@ export function SubmissionsPage({ classroomSubjectId, classroomName, subjectName
     return () => {
       cancelled = true
     }
-  }, [activityId, classroomSubjectId, kind, page, reloadKey, status])
+  }, [activityId, classroomSubjectId, kind, page, periodId, reloadKey, status])
+
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([
+      teacherActivitiesApi.list(classroomSubjectId),
+      teacherNotebookChecksApi.list(classroomSubjectId),
+    ])
+      .then(([exercises, notebooks]) => {
+        if (cancelled) return
+        setAvailableActivities([
+          ...exercises.map((activity) => ({ id: activity.id, title: activity.title, kind: 'EXERCISE' as const })),
+          ...notebooks.map((activity) => ({ id: activity.id, title: activity.title, kind: 'NOTEBOOK_CHECK' as const })),
+        ])
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableActivities([])
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [classroomSubjectId])
+
+  useEffect(() => {
+    let cancelled = false
+    if (kind !== 'NOTEBOOK_CHECK' || !activityId) {
+      setNotebookPeriods([])
+      return
+    }
+
+    setIsLoadingPeriods(true)
+    teacherNotebookChecksApi.getDetail(activityId)
+      .then((detail) => {
+        if (cancelled) return
+        setNotebookPeriods(detail.periods)
+        if (!periodId && detail.periods[0]) {
+          const next = new URLSearchParams(params)
+          next.set('submissionPeriodId', detail.periods[0].id)
+          next.delete('submissionPage')
+          next.delete('submissionId')
+          setParams(next)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setNotebookPeriods([])
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingPeriods(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activityId, kind, params, periodId, setParams])
 
   const visibleItems = useMemo(() => {
     const normalized = studentSearch.trim().toLocaleLowerCase('vi')
@@ -107,10 +172,11 @@ export function SubmissionsPage({ classroomSubjectId, classroomName, subjectName
   }, [items, studentSearch])
 
   const activityOptions = useMemo(() => {
+    if (availableActivities.length > 0) return availableActivities
     const values = new Map<string, string>()
     for (const item of items) values.set(item.activityId, item.activityTitle)
-    return Array.from(values, ([id, title]) => ({ id, title }))
-  }, [items])
+    return Array.from(values, ([id, title]) => ({ id, title, kind: 'EXERCISE' as const }))
+  }, [availableActivities, items])
 
   const selectedSummary = items.find((item) => item.id === selectedId) ?? null
 
@@ -120,9 +186,15 @@ export function SubmissionsPage({ classroomSubjectId, classroomName, subjectName
       return
     }
 
+    if (!selectedSummary.submissionId) {
+      setSelectedResult(null)
+      setIsLoadingDetail(false)
+      return
+    }
+
     const load = selectedSummary.kind === 'EXERCISE'
-      ? teacherResultsApi.getExerciseResult(selectedSummary.id)
-      : teacherResultsApi.getNotebookResult(selectedSummary.id)
+      ? teacherResultsApi.getExerciseResult(selectedSummary.submissionId)
+      : teacherResultsApi.getNotebookResult(selectedSummary.submissionId)
 
     load
       .then((result) => {
@@ -157,7 +229,7 @@ export function SubmissionsPage({ classroomSubjectId, classroomName, subjectName
       if (value) next.set(key, value)
       else next.delete(key)
     }
-    if ('submissionKind' in values || 'submissionStatus' in values || 'submissionActivityId' in values || 'submissionSearch' in values) {
+    if ('submissionKind' in values || 'submissionStatus' in values || 'submissionActivityId' in values || 'submissionPeriodId' in values || 'submissionSearch' in values) {
       next.delete('submissionPage')
       next.delete('submissionId')
     }
@@ -173,9 +245,9 @@ export function SubmissionsPage({ classroomSubjectId, classroomName, subjectName
 
   function changeKind(value: string) {
     const nextKind = value as TeacherSubmissionKind | ''
-    const allowedStatuses = getStatusOptions(nextKind)
+    const allowedStatuses = getStatusOptions(nextKind, false)
     const nextStatus = status && allowedStatuses.includes(status) ? status : ''
-    updateQuery({ submissionKind: nextKind || null, submissionStatus: nextStatus || null })
+    updateQuery({ submissionKind: nextKind || null, submissionStatus: nextStatus || null, submissionActivityId: null, submissionPeriodId: null })
   }
 
   return (
@@ -197,17 +269,23 @@ export function SubmissionsPage({ classroomSubjectId, classroomName, subjectName
           </select>
         </label>
         <label>Hoạt động
-          <select value={activityId} onChange={(event) => updateQuery({ submissionActivityId: event.target.value || null })}>
+          <select value={activityId} onChange={(event) => updateQuery({ submissionActivityId: event.target.value || null, submissionPeriodId: null })}>
             <option value="">Tất cả hoạt động</option>
-            {activityOptions.map((activity) => <option value={activity.id} key={activity.id}>{activity.title}</option>)}
+            {activityOptions.map((activity) => <option value={activity.id} key={activity.id}>{activity.kind === 'NOTEBOOK_CHECK' ? 'Kiểm tra vở · ' : 'Bài tập · '}{activity.title}</option>)}
           </select>
         </label>
         <label>Trạng thái
           <select value={status ?? ''} onChange={(event) => updateQuery({ submissionStatus: event.target.value || null })}>
             <option value="">Tất cả</option>
-            {getStatusOptions(kind ?? '').map((value) => <option value={value} key={value}>{statusLabels[value]}</option>)}
+            {getStatusOptions(kind ?? '', Boolean(activityId)).map((value) => <option value={value} key={value}>{statusLabels[value]}</option>)}
           </select>
         </label>
+        {kind === 'NOTEBOOK_CHECK' && activityId && <label>Đợt kiểm tra vở
+          <select value={periodId} onChange={(event) => updateQuery({ submissionPeriodId: event.target.value || null })} disabled={isLoadingPeriods}>
+            <option value="">{isLoadingPeriods ? 'Đang tải đợt...' : 'Chọn đợt'}</option>
+            {notebookPeriods.map((period) => <option value={period.id} key={period.id}>Đợt {period.periodNo} · hạn {formatDate(period.dueAt)}</option>)}
+          </select>
+        </label>}
         <label>Tìm học sinh
           <input value={studentSearch} onChange={(event) => updateQuery({ submissionSearch: event.target.value || null })} placeholder="Tên hoặc tài khoản" />
         </label>
@@ -238,7 +316,7 @@ export function SubmissionsPage({ classroomSubjectId, classroomName, subjectName
               {visibleItems.map((item) => (
                 <button type="button" key={item.id} className={`ts-list-item ${item.id === selectedId ? 'is-selected' : ''}`} onClick={() => selectItem(item)}>
                   <span className={`ts-kind ${item.kind === 'EXERCISE' ? 'exercise' : 'notebook'}`}>{item.kind === 'EXERCISE' ? <FileText size={17} /> : <FileCheck2 size={17} />}</span>
-                  <span className="ts-item-main"><strong>{item.activityTitle}</strong><small>{item.student.fullName} · {formatDate(item.submittedAt)}</small></span>
+                  <span className="ts-item-main"><strong>{item.activityTitle}</strong><small>{item.student.fullName} · {item.submittedAt ? formatDate(item.submittedAt) : 'Chưa nộp'}{!item.isCurrentMember && ' · Đã rời lớp'}</small></span>
                   <span className="ts-item-status">{statusLabels[item.status]}</span>
                 </button>
               ))}
@@ -253,6 +331,7 @@ export function SubmissionsPage({ classroomSubjectId, classroomName, subjectName
           <section className="ts-card" aria-label="Chi tiết bài nộp">
             {!selectedSummary && <div className="ts-detail-empty"><FileCheck2 size={28} /><h2>Chọn một bài nộp</h2><p>Chọn trong danh sách để xem kết quả chi tiết.</p></div>}
             {selectedSummary && isLoadingDetail && <div className="ts-detail-empty" role="status">Đang tải chi tiết bài nộp...</div>}
+            {selectedSummary && !selectedSummary.submissionId && !isLoadingDetail && <div className="ts-detail-empty"><FileCheck2 size={28} /><h2>Học sinh chưa nộp</h2><p>Học sinh này đang thuộc lớp hiện tại và chưa có bài nộp cho hoạt động này.</p></div>}
             {selectedSummary && !isLoadingDetail && detailError && <div className="ts-detail-empty ts-error" role="alert"><AlertCircle size={20} /><p>{detailError}</p></div>}
             {selectedSummary && selectedResult?.kind === 'EXERCISE' && <ExerciseResultDetail result={selectedResult} />}
             {selectedSummary && selectedResult?.kind === 'NOTEBOOK_CHECK' && <NotebookResultDetail result={selectedResult} />}

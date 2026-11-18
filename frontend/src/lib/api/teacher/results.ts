@@ -104,10 +104,11 @@ export type TeacherStudentProgressResult = {
 export type TeacherSubmissionKind = 'EXERCISE' | 'NOTEBOOK_CHECK'
 export type TeacherExerciseSubmissionStatus = 'PENDING' | 'PROCESSING' | 'GRADED' | 'FAILED'
 export type TeacherNotebookSubmissionStatus = 'CURRENT' | 'LOCKED' | 'FINALIZED'
-export type TeacherSubmissionStatus = TeacherExerciseSubmissionStatus | TeacherNotebookSubmissionStatus
+export type TeacherSubmissionStatus = TeacherExerciseSubmissionStatus | TeacherNotebookSubmissionStatus | 'MISSING'
 
 export type TeacherSubmissionSummary = {
   id: string
+  submissionId: string | null
   kind: TeacherSubmissionKind
   activityId: string
   activityTitle: string
@@ -116,10 +117,11 @@ export type TeacherSubmissionSummary = {
     username: string
     fullName: string
   }
-  submittedAt: string
+  submittedAt: string | null
   status: TeacherSubmissionStatus
   score: number | null
   gradedAt: string | null
+  isCurrentMember: boolean
 }
 
 export type TeacherSubmissionListMeta = {
@@ -138,6 +140,7 @@ export type TeacherSubmissionListResult = {
 
 export type TeacherSubmissionQuery = {
   activityId?: string
+  periodId?: string
   studentId?: string
   kind?: TeacherSubmissionKind
   status?: TeacherSubmissionStatus
@@ -253,6 +256,7 @@ function promptTopicsPath(classroomSubjectId: string, query: TeacherPromptTopics
 function submissionsPath(classroomSubjectId: string, query: TeacherSubmissionQuery): string {
   const params = new URLSearchParams()
   if (query.activityId) params.set('activityId', query.activityId)
+  if (query.periodId) params.set('periodId', query.periodId)
   if (query.studentId) params.set('studentId', query.studentId)
   if (query.kind) params.set('kind', query.kind)
   if (query.status) params.set('status', query.status)
@@ -273,9 +277,10 @@ export const teacherResultsApi = {
     return response.data
   },
 
-  async getStatistics(classroomSubjectId: string, activityId?: string): Promise<TeacherStatisticsResult> {
+  async getStatistics(classroomSubjectId: string, activityId?: string, periodId?: string): Promise<TeacherStatisticsResult> {
     const params = new URLSearchParams()
     if (activityId) params.set('activityId', activityId)
+    if (periodId) params.set('periodId', periodId)
     const queryString = params.toString()
     const path = `/teacher/classroom-subjects/${encodeURIComponent(classroomSubjectId)}/statistics${queryString ? `?${queryString}` : ''}`
     const response = await apiRequest<TeacherStatisticsResult>(path)

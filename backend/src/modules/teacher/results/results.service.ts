@@ -1,4 +1,6 @@
 import { BadRequestError, NotFoundError } from '../../../shared/errors/app-error.js';
+import { env } from '../../../config/env.js';
+import { normalizeAcademicYear } from '../../../shared/academic-year.js';
 import { requireAssignedSubject } from '../access/teacher-subject.policy.js';
 import type { AssignedSubjectContext } from '../access/teacher-subject.policy.js';
 import { resultsRepository } from './results.repository.js';
@@ -231,6 +233,19 @@ function normalizeTopics(value: unknown): Array<{ label: string; count: number }
 export const resultsService = {
   async listSubmissions(actorId: string, classroomSubjectId: string, query: SubmissionQuery) {
     await requireAssignedSubject(actorId, classroomSubjectId);
+
+    if (query.periodId && (query.kind !== 'NOTEBOOK_CHECK' || !query.activityId)) {
+      throw new BadRequestError('periodId chỉ dùng khi lọc một hoạt động kiểm tra vở');
+    }
+
+    if (query.kind === 'NOTEBOOK_CHECK' && query.activityId && !query.periodId) {
+      throw new BadRequestError('Cần chọn đợt kiểm tra vở');
+    }
+
+    if (query.activityId) {
+      return resultsRepository.findSubmissionRoster(classroomSubjectId, query);
+    }
+
     return resultsRepository.findSubmissions(classroomSubjectId, query);
   },
 
@@ -256,6 +271,26 @@ export const resultsService = {
 
   async getStatistics(actorId: string, classroomSubjectId: string, query: StatisticsQuery) {
     const context = await requireAssignedSubject(actorId, classroomSubjectId);
+
+    if (query.activityId) {
+      const activity = await resultsRepository.findStatisticsActivityScope(
+        context.classroomSubjectId,
+        query.activityId
+      );
+
+      if (!activity) {
+        throw new NotFoundError('Không tìm thấy hoạt động cần thống kê');
+      }
+
+      if (query.periodId && activity.kind !== 'NOTEBOOK_CHECK') {
+        throw new BadRequestError('periodId chỉ dùng cho hoạt động kiểm tra vở');
+      }
+
+      if (query.periodId && !activity.periodIds.includes(query.periodId)) {
+        throw new NotFoundError('Không tìm thấy đợt kiểm tra thuộc hoạt động đã chọn');
+      }
+    }
+
     const statistics = await resultsRepository.findStatistics(
       context.classroomId,
       context.classroomSubjectId,
@@ -355,6 +390,9 @@ export const resultsService = {
     const context = await requireAssignedSubject(actorId, classroomSubjectId);
     if (context.classroomStatus !== 'ACTIVE') {
       throw new BadRequestError('Chỉ có thể xem tổng hợp chủ đề của lớp đang hoạt động');
+    }
+    if (normalizeAcademicYear(context.academicYear) !== env.CURRENT_ACADEMIC_YEAR) {
+      throw new NotFoundError('Không tìm thấy phạm vi chủ đề học tập hiện tại');
     }
 
     if (query.studentId) {

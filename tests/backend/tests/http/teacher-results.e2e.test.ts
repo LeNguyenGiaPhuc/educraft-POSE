@@ -66,6 +66,7 @@ describe('Teacher Results API (E2E)', () => {
         items: [
           {
             id: exerciseSubmissionId,
+            submissionId: exerciseSubmissionId,
             kind: 'EXERCISE',
             activityId: 'd5555555-5555-4555-8555-555555555555',
             activityTitle: 'Ôn tập chương 1',
@@ -78,6 +79,7 @@ describe('Teacher Results API (E2E)', () => {
             status: 'GRADED',
             score: 8,
             gradedAt: '2026-11-15T08:10:00.000Z',
+            isCurrentMember: true,
           },
         ],
         total: 3,
@@ -102,6 +104,44 @@ describe('Teacher Results API (E2E)', () => {
         mockTeacherUser.id,
         classroomSubjectId,
         expect.objectContaining({ page: 2, pageSize: 1, kind: 'EXERCISE' })
+      );
+    });
+
+    it('passes the selected notebook period to the submission roster contract', async () => {
+      vi.spyOn(resultsService, 'listSubmissions').mockResolvedValue({
+        items: [
+          {
+            id: 'roster:period-1:student-1',
+            submissionId: null,
+            kind: 'NOTEBOOK_CHECK',
+            activityId: 'd5555555-5555-4555-8555-555555555555',
+            activityTitle: 'Kiểm tra vở',
+            student: { id: studentId, username: 'student_a', fullName: 'Nguyễn Văn A' },
+            submittedAt: null,
+            status: 'MISSING',
+            score: null,
+            gradedAt: null,
+            isCurrentMember: true,
+          },
+        ],
+        total: 1,
+      });
+
+      const response = await request(app)
+        .get(`/api/v1/teacher/classroom-subjects/${classroomSubjectId}/submissions`)
+        .query({ activityId: 'd5555555-5555-4555-8555-555555555555', kind: 'NOTEBOOK_CHECK', periodId: 'e6666666-6666-4666-8666-666666666666' })
+        .set('Cookie', ['educraft_session=mock_cookie']);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data[0].status).toBe('MISSING');
+      expect(resultsService.listSubmissions).toHaveBeenCalledWith(
+        mockTeacherUser.id,
+        classroomSubjectId,
+        expect.objectContaining({
+          activityId: 'd5555555-5555-4555-8555-555555555555',
+          periodId: 'e6666666-6666-4666-8666-666666666666',
+          kind: 'NOTEBOOK_CHECK',
+        })
       );
     });
 

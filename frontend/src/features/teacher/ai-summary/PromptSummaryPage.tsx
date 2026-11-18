@@ -5,10 +5,11 @@ import { ApiError } from '../../../lib/api/client'
 import { teacherResultsApi, type TeacherPromptTopicItem } from '../../../lib/api/teacher/results'
 import type { TeacherClassroomSummary, TeacherSubjectStudent } from '../../../lib/api/teacher/types'
 import { teacherWorkspaceApi } from '../../../lib/api/teacher/workspace'
-import { PreviewNotice } from '../insights/TeacherUI'
+import { InfoNotice } from '../insights/TeacherUI'
 import { PromptSummaryDetail } from './PromptSummaryDetail'
 import { PromptSummaryFilters } from './PromptSummaryFilters'
 import { PromptSummaryList } from './PromptSummaryList'
+import { getPromptEligibleClassrooms } from './promptSummaryEligibility'
 import type { PromptSummaryStats, PromptSummaryStudent, PromptSummaryTopic } from './promptSummaryTypes'
 import './ai-summary.css'
 
@@ -85,7 +86,7 @@ export function PromptSummaryPage() {
     teacherWorkspaceApi.listClassrooms()
       .then((items) => {
         if (!cancelled) {
-          setClassrooms(items.filter((item) => item.status === 'ACTIVE'))
+          setClassrooms(getPromptEligibleClassrooms(items))
           setLoadError('')
         }
       })
@@ -226,9 +227,9 @@ export function PromptSummaryPage() {
         <p>Danh sách chủ đề tổng hợp theo môn và lớp bạn đang giảng dạy. Hệ thống không hiển thị nguyên văn hội thoại.</p>
       </div>
 
-      <PreviewNotice>
+      <InfoNotice>
         Dữ liệu được tải từ backend theo phạm vi phân công hiện tại. Học sinh chưa có chủ đề vẫn xuất hiện với số lượng 0.
-      </PreviewNotice>
+      </InfoNotice>
 
       <PromptSummaryFilters
         searchTerm={searchTerm}

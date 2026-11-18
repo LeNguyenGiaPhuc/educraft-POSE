@@ -15,6 +15,7 @@ export type TeacherClassroomSummary = {
   gradeLevel: number
   status: TeacherClassroomStatus
   readOnly: boolean
+  promptTopicsEligible: boolean
   studentCount: number
   subjects: TeacherAssignedSubject[]
 }

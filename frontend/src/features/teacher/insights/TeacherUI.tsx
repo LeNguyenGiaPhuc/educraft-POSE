@@ -5,8 +5,8 @@ export function TeacherHeading({ title, description, children }: { title: string
   return <div className="ti-heading"><div><h1>{title}</h1><p>{description}</p></div>{children}</div>
 }
 
-export function PreviewNotice({ children }: { children?: ReactNode }) {
-  return <div className="ti-notice" role="note">{children ?? 'Đây là giao diện xem trước với dữ liệu mẫu. Thao tác chưa ghi lên hệ thống.'}</div>
+export function InfoNotice({ children }: { children?: ReactNode }) {
+  return <div className="ti-notice" role="note">{children ?? 'Thông tin này được tải từ hệ thống EduCraft.'}</div>
 }
 
 export function EmptyState({ title, detail }: { title: string; detail: string }) {

@@ -5,7 +5,7 @@ import { ApiError } from '../../../lib/api/client'
 import { teacherResultsApi, type TeacherStudentProgressResult } from '../../../lib/api/teacher/results'
 import { teacherWorkspacePath } from '../../../lib/api/teacher/workspace'
 import { TeacherBackButton } from '../components/TeacherBackButton'
-import { PreviewNotice } from '../insights/TeacherUI'
+import { InfoNotice } from '../insights/TeacherUI'
 import { StudentProgress } from '../progress/ProgressPage'
 import '../classes/classes.css'
 
@@ -68,7 +68,7 @@ export function StudentDetailPage() {
     <div className="page-content tw-page">
       <TeacherBackButton fallbackTo={parent} />
       <div className="page-heading"><h1>{progress.student.fullName}</h1><p>{context.classroom.name} · {context.subject.name} · {context.classroom.academicYear}</p></div>
-      <PreviewNotice>Dữ liệu tiến độ được tải từ backend. Kiểm tra vở được giữ riêng và không cộng vào xu hướng điểm.</PreviewNotice>
+      <InfoNotice>Dữ liệu tiến độ được tải từ backend. Kiểm tra vở được giữ riêng và không cộng vào xu hướng điểm.</InfoNotice>
       <StudentProgress progress={progress} />
     </div>
   )

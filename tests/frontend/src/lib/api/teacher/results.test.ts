@@ -68,6 +68,21 @@ describe('teacher results API', () => {
     )
   })
 
+  it('loads statistics with an optional notebook period filter', async () => {
+    const result = { classroomSubject: {}, studentCount: 2, exercise: {}, notebook: {} }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: result }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })))
+
+    await expect(teacherResultsApi.getStatistics('subject/id', 'activity/id', 'period/id')).resolves.toEqual(result)
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/v1/teacher/classroom-subjects/subject%2Fid/statistics?activityId=activity%2Fid&periodId=period%2Fid',
+      expect.objectContaining({ credentials: 'include' })
+    )
+  })
+
   it('loads one student progress in the selected classroom subject', async () => {
     const result = { classroomSubject: {}, student: { id: 'student-id' }, lessons: [] }
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: result }), {
@@ -111,6 +126,24 @@ describe('teacher results API', () => {
 
     expect(fetch).toHaveBeenCalledWith(
       '/api/v1/teacher/classroom-subjects/subject%2Fid/submissions?activityId=activity%2Fid&studentId=student%2Fid&kind=EXERCISE&status=GRADED&page=2&pageSize=10',
+      expect.objectContaining({ credentials: 'include' })
+    )
+  })
+
+  it('passes the selected notebook period in roster mode', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: [], meta: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0, hasNextPage: false, hasPrevPage: false } }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })))
+
+    await teacherResultsApi.listSubmissions('subject/id', {
+      activityId: 'activity/id',
+      periodId: 'period/id',
+      kind: 'NOTEBOOK_CHECK',
+    })
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/v1/teacher/classroom-subjects/subject%2Fid/submissions?activityId=activity%2Fid&periodId=period%2Fid&kind=NOTEBOOK_CHECK',
       expect.objectContaining({ credentials: 'include' })
     )
   })

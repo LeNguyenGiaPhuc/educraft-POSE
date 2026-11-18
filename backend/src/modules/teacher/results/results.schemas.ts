@@ -21,6 +21,7 @@ export const notebookSubmissionIdParamSchema = z.object({
 
 const submissionKindSchema = z.enum(['EXERCISE', 'NOTEBOOK_CHECK']);
 const submissionStatusSchema = z.enum([
+  'MISSING',
   'PENDING',
   'PROCESSING',
   'GRADED',
@@ -32,15 +33,41 @@ const submissionStatusSchema = z.enum([
 
 export const submissionQuerySchema = z.object({
   activityId: uuidSchema.optional(),
+  periodId: uuidSchema.optional(),
   studentId: uuidSchema.optional(),
   kind: submissionKindSchema.optional(),
   status: submissionStatusSchema.optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
+}).superRefine((value, context) => {
+  if (value.periodId && (value.kind !== 'NOTEBOOK_CHECK' || !value.activityId)) {
+    context.addIssue({
+      code: 'custom',
+      message: 'periodId chỉ dùng khi lọc một hoạt động kiểm tra vở',
+      path: ['periodId'],
+    });
+  }
+
+  if (value.kind === 'NOTEBOOK_CHECK' && value.activityId && !value.periodId) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Cần chọn đợt kiểm tra vở',
+      path: ['periodId'],
+    });
+  }
 });
 
 export const statisticsQuerySchema = z.object({
   activityId: uuidSchema.optional(),
+  periodId: uuidSchema.optional(),
+}).superRefine((value, context) => {
+  if (value.periodId && !value.activityId) {
+    context.addIssue({
+      code: 'custom',
+      message: 'periodId chỉ dùng khi đã chọn một hoạt động kiểm tra vở',
+      path: ['periodId'],
+    });
+  }
 });
 
 export const promptTopicsQuerySchema = z

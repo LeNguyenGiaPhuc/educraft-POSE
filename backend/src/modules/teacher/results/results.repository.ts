@@ -1,5 +1,6 @@
 import type { GradingStatus, Prisma, SubmissionStatus } from '@prisma/client';
 import { prisma } from '../../../lib/prisma.js';
+import { BadRequestError } from '../../../shared/errors/app-error.js';
 import type { PromptTopicsQuery, StatisticsQuery, SubmissionQuery } from './results.schemas.js';
 
 const exerciseStatuses = new Set(['PENDING', 'PROCESSING', 'GRADED', 'FAILED']);
@@ -7,6 +8,7 @@ const notebookStatuses = new Set(['CURRENT', 'LOCKED', 'FINALIZED']);
 
 export interface SubmissionSummary {
   id: string;
+  submissionId: string | null;
   kind: 'EXERCISE' | 'NOTEBOOK_CHECK';
   activityId: string;
   activityTitle: string;
@@ -15,10 +17,11 @@ export interface SubmissionSummary {
     username: string;
     fullName: string;
   };
-  submittedAt: string;
+  submittedAt: string | null;
   status: string;
   score: number | null;
   gradedAt: string | null;
+  isCurrentMember: boolean;
 }
 
 export interface SubmissionListResult {
@@ -55,6 +58,13 @@ export interface TeacherStatistics {
     }>;
   };
 }
+
+export type StatisticsActivityScope = {
+  id: string;
+  kind: 'EXERCISE' | 'NOTEBOOK_CHECK';
+  status: string;
+  periodIds: string[];
+};
 
 function toNumber(value: unknown): number | null {
   if (value === null || value === undefined) {
@@ -148,6 +158,12 @@ function createNotebookSubmissionWhere(
 }
 
 function compareSubmittedAt(left: SubmissionSummary, right: SubmissionSummary): number {
+  if (!left.submittedAt && !right.submittedAt) {
+    return left.id.localeCompare(right.id);
+  }
+  if (!left.submittedAt) return 1;
+  if (!right.submittedAt) return -1;
+
   const timeDifference =
     new Date(left.submittedAt).getTime() - new Date(right.submittedAt).getTime();
 
@@ -158,11 +174,35 @@ function compareSubmittedAt(left: SubmissionSummary, right: SubmissionSummary): 
   return left.id.localeCompare(right.id);
 }
 
+function isRosterEligible(joinedAt: Date, closesAt: Date | null): boolean {
+  return !closesAt || joinedAt.getTime() <= closesAt.getTime();
+}
+
+function createMissingId(kind: SubmissionSummary['kind'], sourceId: string, studentId: string): string {
+  return `missing:${kind.toLowerCase()}:${sourceId}:${studentId}`;
+}
+
 export const resultsRepository = {
   async findSubmissions(
     classroomSubjectId: string,
     query: SubmissionQuery
   ): Promise<SubmissionListResult> {
+    const classroomSubject = await prisma.classroomSubject.findUnique({
+      where: { id: classroomSubjectId },
+      select: { classroom_id: true },
+    });
+    const currentEnrollments = classroomSubject
+      ? await prisma.classroomEnrollment.findMany({
+          where: {
+            classroom_id: classroomSubject.classroom_id,
+            left_at: null,
+            student: { role: 'STUDENT' },
+          },
+          select: { student_id: true },
+        })
+      : [];
+    const currentStudentIds = new Set(currentEnrollments.map((enrollment) => enrollment.student_id));
+
     const skip = (query.page - 1) * query.pageSize;
     const take = skip + query.pageSize;
     const shouldReadExercises = !query.kind || query.kind === 'EXERCISE';
@@ -251,6 +291,7 @@ export const resultsRepository = {
     for (const row of exerciseRows) {
       items.push({
         id: row.id,
+        submissionId: row.id,
         kind: 'EXERCISE',
         activityId: row.activity.activity.id,
         activityTitle: row.activity.activity.title,
@@ -263,12 +304,14 @@ export const resultsRepository = {
         status: row.grading_status,
         score: toNumber(row.total_score),
         gradedAt: toIso(row.graded_at),
+        isCurrentMember: currentStudentIds.has(row.student.id),
       });
     }
 
     for (const row of notebookRows) {
       items.push({
         id: row.id,
+        submissionId: row.id,
         kind: 'NOTEBOOK_CHECK',
         activityId: row.period.activity.activity.id,
         activityTitle: row.period.activity.activity.title,
@@ -281,6 +324,7 @@ export const resultsRepository = {
         status: row.status,
         score: null,
         gradedAt: toIso(row.assessment?.reviewed_at ?? null),
+        isCurrentMember: currentStudentIds.has(row.student.id),
       });
     }
 
@@ -296,6 +340,251 @@ export const resultsRepository = {
     return {
       items: items.slice(skip, skip + query.pageSize),
       total: exerciseTotal + notebookTotal,
+    };
+  },
+
+  async findSubmissionRoster(
+    classroomSubjectId: string,
+    query: SubmissionQuery
+  ): Promise<SubmissionListResult> {
+    if (!query.activityId) {
+      return { items: [], total: 0 };
+    }
+
+    const activity = await prisma.activity.findFirst({
+      where: {
+        id: query.activityId,
+        classroom_subject_id: classroomSubjectId,
+      },
+      select: {
+        id: true,
+        kind: true,
+        title: true,
+        status: true,
+        published_at: true,
+        closes_at: true,
+        updated_at: true,
+        classroomSubject: { select: { classroom_id: true } },
+      },
+    });
+
+    if (!activity) {
+      return { items: [], total: 0 };
+    }
+
+    if (query.kind && query.kind !== activity.kind) {
+      return { items: [], total: 0 };
+    }
+
+    const currentEnrollments = await prisma.classroomEnrollment.findMany({
+      where: {
+        classroom_id: activity.classroomSubject.classroom_id,
+        left_at: null,
+        student: {
+          role: 'STUDENT',
+          ...(query.studentId ? { id: query.studentId } : {}),
+        },
+      },
+      orderBy: [{ joined_at: 'desc' }, { id: 'asc' }],
+      select: {
+        student_id: true,
+        joined_at: true,
+        student: {
+          select: {
+            id: true,
+            username: true,
+            full_name: true,
+          },
+        },
+      },
+    });
+
+    const currentStudents = new Map<string, (typeof currentEnrollments)[number]>();
+    for (const enrollment of currentEnrollments) {
+      if (!currentStudents.has(enrollment.student_id)) {
+        currentStudents.set(enrollment.student_id, enrollment);
+      }
+    }
+
+    const items: SubmissionSummary[] = [];
+
+    if (activity.kind === 'EXERCISE') {
+      const submissions = await prisma.exerciseSubmission.findMany({
+        where: {
+          activity_id: activity.id,
+          ...(query.studentId ? { student_id: query.studentId } : {}),
+        },
+        orderBy: [{ submitted_at: 'asc' }, { id: 'asc' }],
+        select: {
+          id: true,
+          submitted_at: true,
+          grading_status: true,
+          total_score: true,
+          graded_at: true,
+          student: {
+            select: {
+              id: true,
+              username: true,
+              full_name: true,
+            },
+          },
+        },
+      });
+
+      const submissionsByStudent = new Map<string, (typeof submissions)[number]>();
+      for (const submission of submissions) {
+        submissionsByStudent.set(submission.student.id, submission);
+        const isCurrentMember = currentStudents.has(submission.student.id);
+        if (!query.status || query.status === submission.grading_status) {
+          items.push({
+            id: submission.id,
+            submissionId: submission.id,
+            kind: 'EXERCISE',
+            activityId: activity.id,
+            activityTitle: activity.title,
+            student: {
+              id: submission.student.id,
+              username: submission.student.username,
+              fullName: submission.student.full_name,
+            },
+            submittedAt: submission.submitted_at.toISOString(),
+            status: submission.grading_status,
+            score: toNumber(submission.total_score),
+            gradedAt: toIso(submission.graded_at),
+            isCurrentMember,
+          });
+        }
+      }
+
+      const missingClosesAt = activity.closes_at ?? (activity.status === 'CLOSED' ? activity.updated_at : null);
+      const canCreateMissing = activity.status !== 'DRAFT' && Boolean(activity.published_at);
+      if (canCreateMissing && (!query.status || query.status === 'MISSING')) {
+        for (const [studentId, enrollment] of currentStudents) {
+          if (submissionsByStudent.has(studentId) || !isRosterEligible(enrollment.joined_at, missingClosesAt)) {
+            continue;
+          }
+
+          items.push({
+            id: createMissingId('EXERCISE', activity.id, studentId),
+            submissionId: null,
+            kind: 'EXERCISE',
+            activityId: activity.id,
+            activityTitle: activity.title,
+            student: {
+              id: enrollment.student.id,
+              username: enrollment.student.username,
+              fullName: enrollment.student.full_name,
+            },
+            submittedAt: null,
+            status: 'MISSING',
+            score: null,
+            gradedAt: null,
+            isCurrentMember: true,
+          });
+        }
+      }
+    } else {
+      if (!query.periodId) {
+        throw new BadRequestError('Cần chọn đợt kiểm tra vở để xem sĩ số nộp bài');
+      }
+
+      const period = await prisma.notebookCheckPeriod.findFirst({
+        where: {
+          id: query.periodId,
+          activity_id: activity.id,
+        },
+        select: {
+          id: true,
+          due_at: true,
+          closed_at: true,
+        },
+      });
+
+      if (!period) {
+        return { items: [], total: 0 };
+      }
+
+      const submissions = await prisma.notebookSubmission.findMany({
+        where: {
+          period_id: period.id,
+          ...(query.studentId ? { student_id: query.studentId } : {}),
+        },
+        orderBy: [{ submitted_at: 'asc' }, { id: 'asc' }],
+        select: {
+          id: true,
+          submitted_at: true,
+          status: true,
+          assessment: { select: { reviewed_at: true } },
+          student: {
+            select: {
+              id: true,
+              username: true,
+              full_name: true,
+            },
+          },
+        },
+      });
+
+      const submissionsByStudent = new Map<string, (typeof submissions)[number]>();
+      for (const submission of submissions) {
+        submissionsByStudent.set(submission.student.id, submission);
+        const isCurrentMember = currentStudents.has(submission.student.id);
+        if (!query.status || query.status === submission.status) {
+          items.push({
+            id: submission.id,
+            submissionId: submission.id,
+            kind: 'NOTEBOOK_CHECK',
+            activityId: activity.id,
+            activityTitle: activity.title,
+            student: {
+              id: submission.student.id,
+              username: submission.student.username,
+              fullName: submission.student.full_name,
+            },
+            submittedAt: submission.submitted_at.toISOString(),
+            status: submission.status,
+            score: null,
+            gradedAt: toIso(submission.assessment?.reviewed_at ?? null),
+            isCurrentMember,
+          });
+        }
+      }
+
+      if (!query.status || query.status === 'MISSING') {
+        for (const [studentId, enrollment] of currentStudents) {
+          if (
+            submissionsByStudent.has(studentId) ||
+            !isRosterEligible(enrollment.joined_at, period.closed_at ?? period.due_at)
+          ) {
+            continue;
+          }
+
+          items.push({
+            id: createMissingId('NOTEBOOK_CHECK', period.id, studentId),
+            submissionId: null,
+            kind: 'NOTEBOOK_CHECK',
+            activityId: activity.id,
+            activityTitle: activity.title,
+            student: {
+              id: enrollment.student.id,
+              username: enrollment.student.username,
+              fullName: enrollment.student.full_name,
+            },
+            submittedAt: null,
+            status: 'MISSING',
+            score: null,
+            gradedAt: null,
+            isCurrentMember: true,
+          });
+        }
+      }
+    }
+
+    items.sort(compareSubmittedAt);
+    const skip = (query.page - 1) * query.pageSize;
+    return {
+      items: items.slice(skip, skip + query.pageSize),
+      total: items.length,
     };
   },
 
@@ -497,6 +786,12 @@ export const resultsRepository = {
       'NOTEBOOK_CHECK',
       true
     );
+    const notebookPeriodFilter: Prisma.NotebookCheckPeriodWhereInput = {
+      activity: { activity: notebookActivityFilter },
+    };
+    if (query.periodId) {
+      notebookPeriodFilter.id = query.periodId;
+    }
 
     const studentCount = await prisma.classroomEnrollment.count({
       where: {
@@ -513,7 +808,7 @@ export const resultsRepository = {
       where: { activity: notebookActivityFilter },
     });
     const notebookPeriodCount = await prisma.notebookCheckPeriod.count({
-      where: { activity: { activity: notebookActivityFilter } },
+      where: notebookPeriodFilter,
     });
 
     const exerciseSubmissions = await prisma.exerciseSubmission.findMany({
@@ -525,7 +820,7 @@ export const resultsRepository = {
     });
 
     const notebookSubmissions = await prisma.notebookSubmission.findMany({
-      where: { period: { activity: { activity: notebookActivityFilter } } },
+      where: { period: notebookPeriodFilter },
       select: {
         status: true,
         assessment: {
@@ -643,6 +938,41 @@ export const resultsRepository = {
           return rightCount - leftCount || left.content.localeCompare(right.content);
         }),
       },
+    };
+  },
+
+  async findStatisticsActivityScope(
+    classroomSubjectId: string,
+    activityId: string
+  ): Promise<StatisticsActivityScope | null> {
+    const activity = await prisma.activity.findFirst({
+      where: {
+        id: activityId,
+        classroom_subject_id: classroomSubjectId,
+      },
+      select: {
+        id: true,
+        kind: true,
+        status: true,
+        notebookCheck: {
+          select: {
+            periods: {
+              select: { id: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!activity || (activity.status !== 'PUBLISHED' && activity.status !== 'CLOSED')) {
+      return null;
+    }
+
+    return {
+      id: activity.id,
+      kind: activity.kind,
+      status: activity.status,
+      periodIds: activity.notebookCheck?.periods.map((period) => period.id) ?? [],
     };
   },
 

@@ -23,7 +23,10 @@ function latestVersion(material: TeacherLessonMaterial) {
 function publishBlockReason(lesson: TeacherLessonDetail): string {
   const materials = lesson.materials.filter((material) => material.status !== 'ARCHIVED')
   if (materials.length === 0) return 'Cần ít nhất một học liệu đang giữ lại.'
-  const pending = materials.filter((material) => latestVersion(material)?.processingStatus !== 'PROCESSED')
+  const pending = materials.filter((material) => {
+    const active = material.versions.find((version) => version.id === material.activeVersionId)
+    return active?.processingStatus !== 'PROCESSED'
+  })
   if (pending.length > 0) return 'Tất cả phiên bản mới nhất của học liệu phải ở trạng thái Đã xử lý.'
   return ''
 }

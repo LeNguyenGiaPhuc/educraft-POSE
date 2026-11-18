@@ -1,5 +1,16 @@
+import { Link } from 'react-router'
 import type { TeacherStudentProgressResult } from '../../../lib/api/teacher/results'
+import { teacherWorkspacePath } from '../../../lib/api/teacher/workspace'
 import { EmptyState } from '../insights/TeacherUI'
+
+function resultPath(progress: TeacherStudentProgressResult, submissionId: string): string {
+  const query = new URLSearchParams({
+    tab: 'submissions',
+    submissionId,
+    submissionKind: 'EXERCISE',
+  })
+  return `${teacherWorkspacePath(progress.classroomSubject.classroom.id, progress.classroomSubject.id)}?${query.toString()}`
+}
 
 export function StudentProgress({ progress }: { progress: TeacherStudentProgressResult }) {
   const points = progress.lessons.flatMap((lesson) => lesson.results.map((result) => ({
@@ -26,7 +37,10 @@ export function StudentProgress({ progress }: { progress: TeacherStudentProgress
           {progress.lessons.map((lesson) => (
             <details className="tw-evidence" key={lesson.lessonId}>
               <summary>{lesson.title} · {lesson.hasDifficulty ? 'Đang gặp khó' : 'Không đánh dấu khó'}</summary>
-              {lesson.results.length === 0 ? <p>Chưa có kết quả chấm.</p> : <ul>{lesson.results.map((result) => <li key={result.id}>{result.occurredAt.slice(0, 10)} · {result.earnedPoints ?? '—'}/{result.maxPoints ?? '—'} điểm · {result.percentage === null ? 'Chưa tính tỷ lệ' : `${Math.round(result.percentage)}%`}</li>)}</ul>}
+              {lesson.results.length === 0 ? <p>Chưa có kết quả chấm.</p> : <ul>{lesson.results.map((result) => {
+                const summary = `${result.occurredAt.slice(0, 10)} · ${result.earnedPoints ?? '—'}/${result.maxPoints ?? '—'} điểm · ${result.percentage === null ? 'Chưa tính tỷ lệ' : `${Math.round(result.percentage)}%`}`
+                return <li key={result.id}>{result.exerciseSubmissionId ? <Link to={resultPath(progress, result.exerciseSubmissionId)}>{summary}</Link> : summary}</li>
+              })}</ul>}
             </details>
           ))}
         </>
