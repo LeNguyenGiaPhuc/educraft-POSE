@@ -64,6 +64,55 @@ describe('teacher notebook checks API', () => {
     expect(fetch).toHaveBeenNthCalledWith(5, '/api/v1/teacher/notebook-checks/activity%2Fid/periods', expect.objectContaining({ method: 'POST' }))
   })
 
+  it('creates and publishes a notebook check as one multipart request', async () => {
+    stubJson({
+      id: 'activity-id',
+      classroom_subject_id: 'subject-id',
+      title: 'Kiểm tra vở',
+      description: 'Bài 1',
+      status: 'PUBLISHED',
+      created_at: '2026-11-17T00:00:00.000Z',
+      notebookCheck: {
+        criteria: [],
+        referenceFiles: [],
+        periods: [],
+      },
+    })
+
+    const file = new File(['image'], 'reference.png', { type: 'image/png' })
+    await teacherNotebookChecksApi.createAndPublish('subject/id', {
+      title: 'Kiểm tra vở',
+      description: 'Bài 1',
+      dueAt: '2026-11-20T00:00:00.000Z',
+      criteria: [{ content: 'Ghi đủ ý' }],
+      files: [file],
+    })
+
+    const request = vi.mocked(fetch).mock.calls[0]
+    expect(request[0]).toBe('/api/v1/teacher/classroom-subjects/subject%2Fid/notebook-checks/publish')
+    expect(request[1]).toEqual(expect.objectContaining({ method: 'POST', body: expect.any(FormData) }))
+    const body = (request[1] as RequestInit).body as FormData
+    expect(body.get('title')).toBe('Kiểm tra vở')
+    expect(body.get('dueAt')).toBe('2026-11-20T00:00:00.000Z')
+    expect(body.get('criteria')).toBe(JSON.stringify([{ content: 'Ghi đủ ý' }]))
+    expect(body.get('files')).toBe(file)
+  })
+
+  it('requests stateless criteria suggestions as multipart form data', async () => {
+    stubJson({ status: 'READY', criteria: [{ content: 'Ghi đủ các mốc chính' }] })
+    const file = new File(['image'], 'reference.png', { type: 'image/png' })
+
+    await expect(teacherNotebookChecksApi.suggestCriteria('subject/id', [file])).resolves.toEqual({
+      status: 'READY',
+      criteria: [{ content: 'Ghi đủ các mốc chính' }],
+    })
+
+    const request = vi.mocked(fetch).mock.calls[0]
+    expect(request[0]).toBe('/api/v1/teacher/classroom-subjects/subject%2Fid/notebook-checks/criteria-suggestions')
+    expect(request[1]).toEqual(expect.objectContaining({ method: 'POST', body: expect.any(FormData) }))
+    expect(((request[1] as RequestInit).body as FormData).get('files')).toBe(file)
+  })
+
   it('uploads a reference file as multipart form data and downloads it privately', async () => {
     stubJson({ id: 'file-id', mime_type: 'image/png', byte_size: 10, sort_order: 1 })
     const file = new File(['image'], 'reference.png', { type: 'image/png' })

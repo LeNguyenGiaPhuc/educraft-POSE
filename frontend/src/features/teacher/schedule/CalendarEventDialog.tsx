@@ -12,6 +12,11 @@ type Props = {
   subjects: TeacherAssignedSubject[]
   initialClassroomSubjectId: string
   initialTitle?: string
+  initialDetails?: string
+  initialEventType?: string
+  initialStartsAt?: string
+  initialLessonId?: string
+  initialActivityId?: string
   lessons: CalendarLinkOption[]
   activities: CalendarLinkOption[]
   isLoadingLinks: boolean
@@ -33,6 +38,11 @@ export function CalendarEventDialog({
   subjects,
   initialClassroomSubjectId,
   initialTitle,
+  initialDetails,
+  initialEventType,
+  initialStartsAt,
+  initialLessonId,
+  initialActivityId,
   lessons,
   activities,
   isLoadingLinks,
@@ -43,10 +53,10 @@ export function CalendarEventDialog({
 }: Props) {
   const [classroomSubjectId, setClassroomSubjectId] = useState(event?.classroomSubjectId ?? initialClassroomSubjectId)
   const [title, setTitle] = useState(event?.title ?? initialTitle ?? '')
-  const [details, setDetails] = useState(event?.details ?? '')
-  const [eventType, setEventType] = useState(event?.eventType ?? 'LESSON')
-  const [startsAt, setStartsAt] = useState(toDateTimeLocal(event?.startsAt))
-  const [link, setLink] = useState(event?.lessonId ? `lesson:${event.lessonId}` : event?.activityId ? `activity:${event.activityId}` : '')
+  const [details, setDetails] = useState(event?.details ?? initialDetails ?? '')
+  const [eventType, setEventType] = useState(event?.eventType ?? initialEventType ?? 'LESSON')
+  const [startsAt, setStartsAt] = useState(() => toDateTimeLocal(event?.startsAt ?? initialStartsAt))
+  const [link, setLink] = useState(event?.lessonId ? `lesson:${event.lessonId}` : event?.activityId ? `activity:${event.activityId}` : initialLessonId ? `lesson:${initialLessonId}` : initialActivityId ? `activity:${initialActivityId}` : '')
   const [error, setError] = useState('')
 
   function handleSubjectChange(value: string) {
@@ -77,6 +87,7 @@ export function CalendarEventDialog({
 
     setError('')
     const input: TeacherCalendarEventInput = {
+      ...(event ? { expectedUpdatedAt: event.updatedAt } : {}),
       title: title.trim(),
       details: details.trim(),
       eventType: eventType.trim() || 'LESSON',

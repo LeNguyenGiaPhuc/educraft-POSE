@@ -8,6 +8,7 @@
 **/dist/
 **/build/
 **/coverage/
+**/storage_private/
 
 # Local editor and AI working files.
 /.vscode/

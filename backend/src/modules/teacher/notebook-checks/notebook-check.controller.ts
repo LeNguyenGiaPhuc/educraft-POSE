@@ -2,11 +2,12 @@ import type { NextFunction, Request, Response } from 'express';
 import multer from 'multer';
 import { BadRequestError, NotFoundError, UnauthorizedError } from '../../../shared/errors/app-error.js';
 import { sendSuccess } from '../../../shared/http/response.js';
-import { LocalPrivateStorage } from '../../storage/local-private-storage.js';
+import { defaultStorageProvider } from '../../storage/storage-factory.js';
 import {
   activityIdParamSchema,
   classroomSubjectIdParamSchema,
   createNotebookCheckSchema,
+  createAndPublishNotebookCheckSchema,
   createPeriodSchema,
   fileIdParamSchema,
   finalizeSubmissionSchema,
@@ -18,7 +19,7 @@ import {
 } from './notebook-check.schemas.js';
 import { notebookCheckService } from './notebook-check.service.js';
 
-const storage = new LocalPrivateStorage();
+const storage = defaultStorageProvider;
 
 export const uploadReferenceFileMiddleware = multer({
   storage: multer.memoryStorage(),
@@ -26,6 +27,14 @@ export const uploadReferenceFileMiddleware = multer({
     fileSize: 10 * 1024 * 1024, // 10MB limit for reference images
   },
 }).single('file');
+
+export const uploadReferenceFilesMiddleware = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+    files: 5,
+  },
+}).array('files', 5);
 
 export const notebookCheckController = {
   async list(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -50,6 +59,59 @@ export const notebookCheckController = {
         body
       );
       sendSuccess(res, data, undefined, 201);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async createAndPublish(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) throw new UnauthorizedError();
+      const { classroomSubjectId } = classroomSubjectIdParamSchema.parse(req.params);
+      const body = createAndPublishNotebookCheckSchema.parse(req.body);
+      let criteria: Array<{ content: string }>;
+      try {
+        criteria = putCriteriaSchema.parse({ criteria: JSON.parse(body.criteria) }).criteria;
+      } catch {
+        throw new BadRequestError('Danh sÃ¡ch tiÃªu chÃ­ khÃ´ng há»£p lá»‡');
+      }
+
+      const files = Array.isArray(req.files) ? req.files : [];
+      const data = await notebookCheckService.createAndPublishNotebookCheck({
+        actorId: req.user.id,
+        classroomSubjectId,
+        input: body,
+        criteria,
+        files: files.map((file) => ({
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+          buffer: file.buffer,
+        })),
+        storage,
+      });
+      sendSuccess(res, data, undefined, 201);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async suggestCriteria(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) throw new UnauthorizedError();
+      const { classroomSubjectId } = classroomSubjectIdParamSchema.parse(req.params);
+      const files = Array.isArray(req.files) ? req.files : [];
+      const result = await notebookCheckService.suggestCriteria({
+        actorId: req.user.id,
+        classroomSubjectId,
+        files: files.map((file) => ({
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+          buffer: file.buffer,
+        })),
+      });
+      sendSuccess(res, result);
     } catch (err) {
       next(err);
     }

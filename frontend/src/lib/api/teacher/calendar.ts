@@ -15,6 +15,7 @@ export type TeacherCalendarEvent = {
   startsAt: string
   publishedAt: string | null
   createdAt: string
+  updatedAt: string
   lessonId: string | null
   lessonTitle: string | null
   activityId: string | null
@@ -23,6 +24,7 @@ export type TeacherCalendarEvent = {
 }
 
 export type TeacherCalendarEventInput = {
+  expectedUpdatedAt?: string
   title: string
   details: string
   eventType: string

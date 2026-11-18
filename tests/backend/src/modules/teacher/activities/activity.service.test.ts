@@ -397,7 +397,13 @@ describe('ActivityService', () => {
       } as any);
       vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue({} as any);
       vi.spyOn(prisma.lesson, 'findMany').mockResolvedValue([{ id: 'les-1' }] as any);
-      vi.spyOn(prisma.materialSegment, 'findMany').mockResolvedValue([{ id: 'seg-1' }] as any);
+      vi.spyOn(prisma.materialSegment, 'findMany').mockResolvedValue([{
+        id: 'seg-1',
+        materialVersion: {
+          id: 'version-1',
+          material: { active_version_id: 'version-1' },
+        },
+      }] as any);
 
       vi.spyOn(activityRepository, 'putQuestionsAtomically').mockResolvedValue({
         id: 'act-1',

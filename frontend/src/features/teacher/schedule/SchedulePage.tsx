@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle, Archive, CalendarDays, ChevronLeft, ChevronRight, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { Link, useLocation, useSearchParams } from 'react-router'
 import { ApiError } from '../../../lib/api/client'
@@ -9,10 +9,21 @@ import type { TeacherClassroomStatus, TeacherClassroomSummary, TeacherAssignedSu
 import { teacherWorkspaceApi, teacherWorkspacePath } from '../../../lib/api/teacher/workspace'
 import { TeacherBackButton } from '../components/TeacherBackButton'
 import { CalendarEventDialog, type CalendarLinkOption } from './CalendarEventDialog'
+import { getCalendarCreatePrefill } from './calendarPrefill'
 import './schedule.css'
 
 type SubjectOption = TeacherAssignedSubject & { classroomName: string; classroomStatus: TeacherClassroomStatus }
-type DialogState = { mode: 'create' | 'edit'; event?: TeacherCalendarEvent; classroomSubjectId: string; initialTitle?: string } | null
+type DialogState = {
+  mode: 'create' | 'edit'
+  event?: TeacherCalendarEvent
+  classroomSubjectId: string
+  initialTitle?: string
+  initialDetails?: string
+  initialEventType?: string
+  initialStartsAt?: string
+  initialLessonId?: string
+  initialActivityId?: string
+} | null
 
 function monthLabel(month: string): string {
   return new Date(`${month}-01T12:00:00`).toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })
@@ -61,6 +72,7 @@ export function SchedulePage() {
   const [linkLessons, setLinkLessons] = useState<CalendarLinkOption[]>([])
   const [linkActivities, setLinkActivities] = useState<CalendarLinkOption[]>([])
   const [isLoadingLinks, setIsLoadingLinks] = useState(false)
+  const consumedCreatePrefillRef = useRef('')
 
   const rawMonth = params.get('month') ?? ''
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(rawMonth) && Number(rawMonth.slice(0, 4)) >= 1900 && Number(rawMonth.slice(0, 4)) <= 2100 ? rawMonth : '2026-11'
@@ -167,15 +179,32 @@ export function SchedulePage() {
   }
 
   useEffect(() => {
-    if (params.get('create') !== '1' || dialog || subjectOptions.length === 0) return
-    const initialSubject = requestedSubjectId && subjectOptions.some((subject) => subject.id === requestedSubjectId)
-      ? requestedSubjectId
+    const prefill = getCalendarCreatePrefill(params)
+    if (!prefill || subjectOptions.length === 0) return
+    const prefillKey = params.toString()
+    if (consumedCreatePrefillRef.current === prefillKey) return
+    consumedCreatePrefillRef.current = prefillKey
+    const requestedSubject = subjectOptions.find((subject) => subject.id === prefill.classroomSubjectId)
+    if (requestedSubject && requestedSubject.classroomStatus !== 'ACTIVE') {
+      setNotice('Lớp đã lưu trữ nên lịch chỉ xem; không thể tạo sự kiện mới.')
+      return
+    }
+    const initialSubject = requestedSubject?.classroomStatus === 'ACTIVE'
+      ? requestedSubject.id
       : subjectOptions.find((subject) => subject.classroomStatus === 'ACTIVE')?.id ?? ''
     if (!initialSubject) return
-    setDialog({ mode: 'create', classroomSubjectId: initialSubject, initialTitle: params.get('title') ?? '' })
+    setDialog({
+      mode: 'create',
+      classroomSubjectId: initialSubject,
+      initialTitle: prefill.title,
+      initialDetails: prefill.details,
+      initialEventType: prefill.eventType,
+      initialStartsAt: prefill.startsAt,
+      initialLessonId: prefill.lessonId || undefined,
+      initialActivityId: prefill.activityId || undefined,
+    })
     void loadLinks(initialSubject)
-    updateQuery({ create: '', title: '' })
-  }, [dialog, loadLinks, params, requestedSubjectId, subjectOptions, updateQuery])
+  }, [loadLinks, params, subjectOptions])
 
   async function handleSave(classroomSubjectId: string, input: TeacherCalendarEventInput) {
     setIsSaving(true)
@@ -240,7 +269,7 @@ export function SchedulePage() {
       <div className="tc-toolbar"><label>Lớp<select value={validClassroomId} onChange={(event) => updateQuery({ classroomId: event.target.value, classroomSubjectId: '', day: '', eventId: '' })}><option value="">Tất cả lớp</option>{classrooms.map((classroom) => <option key={classroom.id} value={classroom.id}>{classroom.name}{classroom.status === 'ARCHIVED' ? ' · Lưu trữ' : ''}</option>)}</select></label><label>Môn trong lớp<select value={validSubjectId} onChange={(event) => updateQuery({ classroomSubjectId: event.target.value, day: '', eventId: '' })}><option value="">Tất cả môn được phân công</option>{subjectOptions.filter((subject) => !validClassroomId || subject.classroomId === validClassroomId).map((subject) => <option key={subject.id} value={subject.id}>{subject.classroomName} · {subject.name}</option>)}</select></label><button className="ti-button primary" type="button" onClick={openCreate} disabled={isReadOnlyFilter || !subjectOptions.some((subject) => subject.classroomStatus === 'ACTIVE')}><Plus size={16} /> Thêm sự kiện</button></div>
       <section className="ti-card ti-margin-top"><div className="tc-month-heading"><button type="button" className="ti-button" aria-label="Tháng trước" onClick={() => moveMonth(-1)}><ChevronLeft size={18} /></button><h2>{monthLabel(month)}</h2><button type="button" className="ti-button" aria-label="Tháng sau" onClick={() => moveMonth(1)}><ChevronRight size={18} /></button></div><p className="ti-muted">{isLoadingEvents ? 'Đang tải sự kiện...' : `${filteredEvents.length} sự kiện · Chọn ngày để xem chi tiết.`}</p><div className="tc-month" aria-label={`Lịch ${monthLabel(month)}`}>{['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((label) => <div className="tc-weekday" key={label}>{label}</div>)}{monthCells(month).map((date, index) => { const dayEvents = filteredEvents.filter((event) => event.startsAt.slice(0, 10) === date); return date ? <button key={date} type="button" aria-pressed={selectedDay === date} aria-label={`${date}, ${dayEvents.length} sự kiện`} className={`tc-day ${selectedDay === date ? 'selected' : ''}`} onClick={() => updateQuery({ day: date, eventId: dayEvents[0]?.id ?? '' })}><span>{Number(date.slice(-2))}</span>{dayEvents.length > 0 && <><span className="tc-count">{dayEvents.length}<span className="tc-count-text"> sự kiện</span></span><span className="tc-day-summary">{dayEvents.map((event) => event.subjectName).join(' / ')}</span></>}</button> : <div className="tc-day blank" key={`blank-${index}`} /> })}</div>{!isLoadingEvents && !filteredEvents.length && <div className="tc-empty"><CalendarDays size={28} /><h2>Tháng này chưa có sự kiện</h2><p>Đổi tháng, điều chỉnh bộ lọc hoặc thêm sự kiện mới.</p></div>}</section>
       <div className="ti-grid ti-margin-top"><section className="ti-card"><h2>{selectedDay ? `Ngày ${selectedDay.split('-').reverse().join('/')}` : 'Sự kiện trong tháng'}</h2>{(selectedDay ? selectedDayEvents : filteredEvents).map((event) => <button type="button" key={event.id} className={`ti-list-button ${params.get('eventId') === event.id ? 'active' : ''}`} onClick={() => updateQuery({ eventId: event.id, day: event.startsAt.slice(0, 10) })}><strong>{event.title}</strong><small>{event.classroomName} · {event.subjectName} · {new Date(event.startsAt).toLocaleString('vi-VN')}</small></button>)}{selectedDay && !selectedDayEvents.length && <p>Ngày này chưa có sự kiện.</p>}</section><section className="ti-card"><h2>Chi tiết sự kiện</h2>{selectedEvent ? <><span className="ti-chip">{selectedEvent.eventType} · {selectedEvent.publishedAt ? 'Đã công bố' : 'Bản nháp'}</span><h3>{selectedEvent.title}</h3><p><strong>{selectedEvent.classroomName} · {selectedEvent.subjectName}</strong></p><p>{new Date(selectedEvent.startsAt).toLocaleString('vi-VN')}</p><p className="tc-details">{selectedEvent.details}</p>{!selectedArchived ? <div className="ti-actions"><button type="button" className="ti-button" onClick={() => openEdit(selectedEvent)} disabled={isSaving}><Pencil size={14} /> Sửa</button>{!selectedEvent.publishedAt && <button type="button" className="ti-button primary" onClick={() => void publishEvent(selectedEvent)} disabled={isSaving}>Công bố</button>}<button type="button" className="ti-button" onClick={() => void deleteEvent(selectedEvent)} disabled={isSaving} style={{ color: '#b91c1c', borderColor: '#fca5a5' }}><Trash2 size={14} /> Xóa</button></div> : <p className="ti-muted"><Archive size={14} /> Lớp đã lưu trữ · chỉ xem.</p>}{selectedEvent.lessonId && <Link className="ti-button" to={`${teacherWorkspacePath(selectedEvent.classroomId, selectedEvent.classroomSubjectId)}/lessons/${selectedEvent.lessonId}`}>Mở bài học liên kết</Link>}{selectedEvent.activityId && <Link className="ti-button" to={`${teacherWorkspacePath(selectedEvent.classroomId, selectedEvent.classroomSubjectId)}/activities/${selectedEvent.activityId}`}>Mở hoạt động liên kết</Link>}</> : <p>Chọn một sự kiện để xem chi tiết.</p>}</section></div>
-      {dialog && <CalendarEventDialog key={dialog.mode === 'edit' ? dialog.event?.id : `create-${dialog.classroomSubjectId}`} event={dialog.event} subjects={subjectOptions.filter((subject) => subject.classroomStatus === 'ACTIVE' || subject.id === dialog.classroomSubjectId)} initialClassroomSubjectId={dialog.classroomSubjectId} initialTitle={dialog.initialTitle ?? params.get('title') ?? ''} lessons={linkLessons} activities={linkActivities} isLoadingLinks={isLoadingLinks} isSaving={isSaving} onClose={() => setDialog(null)} onSubjectChange={(subjectId) => void loadLinks(subjectId)} onSave={handleSave} />}
+      {dialog && <CalendarEventDialog key={dialog.mode === 'edit' ? dialog.event?.id : `create-${dialog.classroomSubjectId}`} event={dialog.event} subjects={subjectOptions.filter((subject) => subject.classroomStatus === 'ACTIVE' || subject.id === dialog.classroomSubjectId)} initialClassroomSubjectId={dialog.classroomSubjectId} initialTitle={dialog.initialTitle ?? params.get('title') ?? ''} initialDetails={dialog.initialDetails} initialEventType={dialog.initialEventType} initialStartsAt={dialog.initialStartsAt} initialLessonId={dialog.initialLessonId} initialActivityId={dialog.initialActivityId} lessons={linkLessons} activities={linkActivities} isLoadingLinks={isLoadingLinks} isSaving={isSaving} onClose={() => setDialog(null)} onSubjectChange={(subjectId) => void loadLinks(subjectId)} onSave={handleSave} />}
     </div>
   )
 }

@@ -195,13 +195,21 @@ export const activityRepository = {
         select: {
           id: true,
           content: true,
-          materialVersion: { select: { material: { select: { lesson_id: true } } } },
+          materialVersion: {
+            select: {
+              id: true,
+              material: { select: { lesson_id: true, active_version_id: true } },
+            },
+          },
         },
       });
       validateExerciseQuestionShape(input.exerciseType, input.questions);
 
       const eligibleSegments: EligibleActivitySegment[] = segments
-        .filter((segment) => selectedLessonIds.has(segment.materialVersion.material.lesson_id))
+        .filter((segment) =>
+          selectedLessonIds.has(segment.materialVersion.material.lesson_id) &&
+          segment.materialVersion.material.active_version_id === segment.materialVersion.id
+        )
         .map((segment) => ({
           id: segment.id,
           content: segment.content,
@@ -426,9 +434,14 @@ export const activityRepository = {
         select: {
           id: true,
           content: true,
-          materialVersion: { select: { material: { select: { lesson_id: true } } } },
+          materialVersion: {
+            select: {
+              id: true,
+              material: { select: { lesson_id: true, active_version_id: true } },
+            },
+          },
         },
-      })).map((segment) => ({
+      })).filter((segment) => segment.materialVersion.material.active_version_id === segment.materialVersion.id).map((segment) => ({
         id: segment.id,
         content: segment.content,
         lessonId: segment.materialVersion.material.lesson_id,
@@ -528,11 +541,20 @@ export const activityRepository = {
         throw new ConflictError('Không thể xóa hoạt động đã có bài nộp của học sinh');
       }
 
-      // 1. Unlink schedule events pointing to this activity
-      await tx.scheduleEvent.updateMany({
+      // 1. Remove linked schedule events and their owned notifications.
+      const linkedEvents = await tx.scheduleEvent.findMany({
         where: { activity_id: activityId },
-        data: { activity_id: null },
+        select: { id: true },
       });
+      const linkedEventIds = linkedEvents.map((event) => event.id);
+      if (linkedEventIds.length > 0) {
+        await tx.notification.deleteMany({
+          where: { schedule_event_id: { in: linkedEventIds } },
+        });
+        await tx.scheduleEvent.deleteMany({
+          where: { id: { in: linkedEventIds } },
+        });
+      }
 
       // 2. Delete question citations & questions
       await tx.questionCitation.deleteMany({
@@ -621,9 +643,14 @@ export const activityRepository = {
             select: {
               id: true,
               content: true,
-              materialVersion: { select: { material: { select: { lesson_id: true } } } },
+              materialVersion: {
+                select: {
+                  id: true,
+                  material: { select: { lesson_id: true, active_version_id: true } },
+                },
+              },
             },
-          })).map((segment) => ({
+          })).filter((segment) => segment.materialVersion.material.active_version_id === segment.materialVersion.id).map((segment) => ({
             id: segment.id,
             content: segment.content,
             lessonId: segment.materialVersion.material.lesson_id,
@@ -923,7 +950,7 @@ export const activityRepository = {
   },
 
   async findEligibleSegments(classroomSubjectId: string, lessonIds: string[]) {
-    return prisma.materialSegment.findMany({
+    const segments = await prisma.materialSegment.findMany({
       where: {
         processing_status: 'PROCESSED',
         materialVersion: {
@@ -943,9 +970,12 @@ export const activityRepository = {
         content: true,
         materialVersion: {
           select: {
+            id: true,
             material: {
               select: {
+                id: true,
                 lesson_id: true,
+                active_version_id: true,
                 file_name: true,
               },
             },
@@ -953,5 +983,7 @@ export const activityRepository = {
         },
       },
     });
+
+    return segments.filter((segment) => segment.materialVersion.material.active_version_id === segment.materialVersion.id);
   },
 };

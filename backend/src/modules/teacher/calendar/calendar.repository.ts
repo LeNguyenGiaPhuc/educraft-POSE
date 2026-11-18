@@ -1,5 +1,5 @@
 import { prisma } from '../../../lib/prisma.js';
-import { BadRequestError, NotFoundError } from '../../../shared/errors/app-error.js';
+import { BadRequestError, ConflictError, NotFoundError } from '../../../shared/errors/app-error.js';
 import { requireAssignedSubjectForMutation } from '../access/teacher-subject.policy.js';
 import type { CreateCalendarEventInput, UpdateCalendarEventInput } from './calendar.schemas.js';
 
@@ -163,6 +163,15 @@ export const calendarRepository = {
 
       if (!existing) {
         throw new NotFoundError('Không tìm thấy sự kiện lịch');
+      }
+
+      if (input.expectedUpdatedAt) {
+        const actualUpdatedAt = existing.updated_at instanceof Date
+          ? existing.updated_at.toISOString()
+          : String(existing.updated_at);
+        if (actualUpdatedAt !== input.expectedUpdatedAt) {
+          throw new ConflictError('Sự kiện lịch vừa thay đổi. Vui lòng tải lại rồi thử lại.');
+        }
       }
 
       // 2. Authoritative check

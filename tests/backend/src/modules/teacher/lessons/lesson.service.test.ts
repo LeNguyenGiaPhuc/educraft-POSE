@@ -99,6 +99,7 @@ describe('LessonService', () => {
           {
             id: 'mat-1',
             status: 'DRAFT',
+            activeVersion: { processing_status: 'PROCESSED' },
             versions: [{ version_no: 1, processing_status: 'PROCESSED' }],
           },
         ],
@@ -130,6 +131,32 @@ describe('LessonService', () => {
       await expect(lessonService.publishLesson('lesson-1', 'teacher-1')).rejects.toThrow(
         'Tất cả học liệu đang giữ lại phải được xử lý thành công trước khi công bố'
       );
+    });
+
+    it('publishes with the processed active version while a replacement is pending', async () => {
+      vi.spyOn(lessonRepository, 'findLessonDetail').mockResolvedValue({
+        id: 'lesson-1',
+        classroom_subject_id: 'cs-1',
+        status: 'DRAFT',
+        materials: [
+          {
+            id: 'mat-1',
+            status: 'DRAFT',
+            activeVersion: { processing_status: 'PROCESSED' },
+            versions: [{ version_no: 2, processing_status: 'PENDING' }],
+          },
+        ],
+      } as any);
+      vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue(mockPolicyCtx);
+      vi.spyOn(lessonRepository, 'publishLessonWithMaterials').mockResolvedValue({
+        id: 'lesson-1',
+        status: 'PUBLISHED',
+        published_at: new Date('2026-11-01'),
+      } as any);
+
+      await expect(lessonService.publishLesson('lesson-1', 'teacher-1')).resolves.toMatchObject({
+        status: 'PUBLISHED',
+      });
     });
   });
 });

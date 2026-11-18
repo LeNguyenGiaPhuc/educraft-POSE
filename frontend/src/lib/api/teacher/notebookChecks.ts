@@ -49,10 +49,24 @@ export type TeacherNotebookCheckDetail = TeacherNotebookCheckSummary & {
   periods: TeacherNotebookPeriod[]
 }
 
+export type TeacherNotebookCriteriaSuggestionResult = {
+  status: 'READY' | 'UNAVAILABLE' | 'FAILED'
+  message?: string
+  criteria: Array<{ content: string }>
+}
+
 export type TeacherCreateNotebookCheckInput = {
   title: string
   description: string
   closesAt: string | null
+}
+
+export type TeacherCreateAndPublishNotebookCheckInput = {
+  title: string
+  description: string
+  dueAt: string
+  criteria: Array<{ content: string }>
+  files: File[]
 }
 
 export type TeacherUpdateNotebookCheckInput = Partial<TeacherCreateNotebookCheckInput>
@@ -304,6 +318,31 @@ export const teacherNotebookChecksApi = {
       body: input,
     })
     return mapDetail(response.data)
+  },
+
+  async createAndPublish(classroomSubjectId: string, input: TeacherCreateAndPublishNotebookCheckInput): Promise<TeacherNotebookCheckDetail> {
+    const body = new FormData()
+    body.append('title', input.title)
+    body.append('description', input.description)
+    body.append('dueAt', input.dueAt)
+    body.append('criteria', JSON.stringify(input.criteria))
+    for (const file of input.files) body.append('files', file)
+
+    const response = await apiRequest<unknown>(`/teacher/classroom-subjects/${encodeURIComponent(classroomSubjectId)}/notebook-checks/publish`, {
+      method: 'POST',
+      body,
+    })
+    return mapDetail(response.data)
+  },
+
+  async suggestCriteria(classroomSubjectId: string, files: File[]): Promise<TeacherNotebookCriteriaSuggestionResult> {
+    const body = new FormData()
+    for (const file of files) body.append('files', file)
+    const response = await apiRequest<TeacherNotebookCriteriaSuggestionResult>(`/teacher/classroom-subjects/${encodeURIComponent(classroomSubjectId)}/notebook-checks/criteria-suggestions`, {
+      method: 'POST',
+      body,
+    })
+    return response.data
   },
 
   async update(activityId: string, input: TeacherUpdateNotebookCheckInput): Promise<TeacherNotebookCheckDetail> {

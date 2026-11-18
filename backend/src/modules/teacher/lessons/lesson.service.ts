@@ -19,12 +19,14 @@ export const lessonService = {
       updatedAt: l.updated_at.toISOString(),
       materials: l.materials.map((m) => {
         const latest = m.versions[0];
+        const active = m.activeVersion;
         return {
           id: m.id,
           name: m.file_name,
           version: latest ? latest.version_no : 1,
           processing: latest ? latest.processing_status : 'PENDING',
-          sourcePosition: latest?.segments[0]?.position_label ?? '',
+          activeVersionId: active?.id ?? null,
+          sourcePosition: active?.segments[0]?.position_label ?? '',
         };
       }),
     }));
@@ -81,6 +83,7 @@ export const lessonService = {
         fileName: m.file_name,
         status: m.status,
         createdAt: m.created_at.toISOString(),
+        activeVersionId: m.activeVersion?.id ?? null,
         versions: m.versions.map((v) => ({
           id: v.id,
           versionNo: v.version_no,
@@ -137,7 +140,7 @@ export const lessonService = {
     }
 
     const allMaterialsProcessed = activeMaterials.every((m) =>
-      m.versions[0]?.processing_status === 'PROCESSED'
+      m.activeVersion?.processing_status === 'PROCESSED'
     );
 
     if (!allMaterialsProcessed) {

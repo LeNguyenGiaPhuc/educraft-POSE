@@ -25,6 +25,11 @@ import {
 } from './modules/teacher/notebook-checks/notebook-ai-analysis.provider.js';
 import { createGeminiNotebookAiProvider } from './modules/teacher/notebook-checks/gemini-notebook-ai.provider.js';
 import {
+  DefaultNotebookCriteriaSuggestionProvider,
+  setNotebookCriteriaSuggestionProvider,
+} from './modules/teacher/notebook-checks/notebook-criteria-suggestion.provider.js';
+import { createGeminiNotebookCriteriaProvider } from './modules/teacher/notebook-checks/gemini-notebook-criteria.provider.js';
+import {
   DefaultAiProcessingProvider,
   setAiProcessingProvider,
 } from './modules/teacher/materials/ai-processing.provider.js';
@@ -45,6 +50,21 @@ function configureNotebookAiProvider(): void {
     maxRetries: env.AI_MAX_RETRIES,
     maxReferenceImages: env.AI_MAX_REFERENCE_IMAGES,
     maxSubmissionImages: env.AI_MAX_SUBMISSION_IMAGES,
+    maxTotalBytes: env.AI_MAX_TOTAL_BYTES,
+  }));
+}
+
+function configureNotebookCriteriaProvider(): void {
+  if (env.AI_PROVIDER !== 'gemini') {
+    setNotebookCriteriaSuggestionProvider(new DefaultNotebookCriteriaSuggestionProvider());
+    return;
+  }
+
+  setNotebookCriteriaSuggestionProvider(createGeminiNotebookCriteriaProvider({
+    apiKey: env.GEMINI_API_KEY,
+    model: env.GEMINI_MODEL,
+    timeoutMs: env.AI_TIMEOUT_MS,
+    maxRetries: env.AI_MAX_RETRIES,
     maxTotalBytes: env.AI_MAX_TOTAL_BYTES,
   }));
 }
@@ -80,6 +100,7 @@ function configureActivityAiProvider(): void {
 
 export function createApp(): Express {
   configureNotebookAiProvider();
+  configureNotebookCriteriaProvider();
   configureMaterialAiProvider();
   configureActivityAiProvider();
   const app = express();

@@ -9,6 +9,7 @@ export type TeacherMaterialSummary = {
   name: string
   version: number
   processing: TeacherMaterialProcessingStatus
+  activeVersionId: string | null
   sourcePosition: string
 }
 
@@ -49,6 +50,7 @@ export type TeacherLessonMaterial = {
   fileName: string
   status: TeacherMaterialStatus
   createdAt: string
+  activeVersionId: string | null
   versions: TeacherMaterialVersion[]
 }
 

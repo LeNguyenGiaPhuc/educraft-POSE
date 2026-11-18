@@ -58,4 +58,26 @@ describe('teacherCalendarApi', () => {
       }),
     }))
   })
+
+  it('sends the event version when updating so stale edits are rejected', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: {} }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await teacherCalendarApi.update('event-id', {
+      expectedUpdatedAt: '2026-11-18T10:00:00.000Z',
+      title: 'Tiêu đề mới',
+    })
+
+    expect(fetchMock.mock.calls[0][1]).toEqual(expect.objectContaining({
+      body: JSON.stringify({
+        expectedUpdatedAt: '2026-11-18T10:00:00.000Z',
+        title: 'Tiêu đề mới',
+      }),
+    }))
+  })
 })

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Archive, CalendarPlus, Eye, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { Link } from 'react-router'
 import { ApiError } from '../../../lib/api/client'
 import {
   teacherNotebookChecksApi,
@@ -11,10 +12,15 @@ import {
 import { NotebookCheckForm } from './NotebookCheckForm'
 import { NotebookSubmissionReviewPanel } from './NotebookSubmissionReviewPanel'
 import { getNotebookSelection } from './notebookReviewState'
+import { notebookCheckCalendarPath } from '../schedule/calendarLinks'
 
 type Props = {
   classroomSubjectId: string
   readOnly: boolean
+}
+
+export function canDeleteNotebookCheck(activity: Pick<TeacherNotebookCheckDetail, 'status' | 'criteriaLockedAt'>): boolean {
+  return activity.criteriaLockedAt === null
 }
 
 const statusLabels: Record<TeacherNotebookCheckStatus, string> = {
@@ -84,18 +90,28 @@ export function NotebookChecksPanel({ classroomSubjectId, readOnly }: Props) {
     }
   }
 
-  async function saveForm(input: { title: string; description: string; closesAt: string | null; criteria: Array<{ content: string }>; files: File[] }) {
+  async function saveForm(input: { title: string; description: string; dueAt: string | null; closesAt: string | null; criteria: Array<{ content: string }>; files: File[] }) {
     setIsSaving(true)
     setError('')
     setNotice('')
     try {
-      let saved = detail
-        ? await teacherNotebookChecksApi.update(detail.id, {
-            title: input.title,
-            description: input.description,
-            closesAt: input.closesAt,
-          })
-        : await teacherNotebookChecksApi.create(classroomSubjectId, {
+      if (!detail) {
+        if (!input.dueAt) throw new Error('Cần chọn hạn nộp cho đợt đầu tiên.')
+        const published = await teacherNotebookChecksApi.createAndPublish(classroomSubjectId, {
+          title: input.title,
+          description: input.description,
+          dueAt: input.dueAt,
+          criteria: input.criteria,
+          files: input.files,
+        })
+        setDetail(published)
+        setShowForm(false)
+        setNotice('Đã tạo và công bố kiểm tra vở.')
+        await loadList()
+        return
+      }
+
+      let saved = await teacherNotebookChecksApi.update(detail.id, {
             title: input.title,
             description: input.description,
             closesAt: input.closesAt,
@@ -158,7 +174,7 @@ export function NotebookChecksPanel({ classroomSubjectId, readOnly }: Props) {
       <section className="panel tn-panel">
         <button type="button" className="ta-back" onClick={() => setShowForm(false)}>← Danh sách kiểm tra vở</button>
         <div className="ta-editor-head"><span className="ta-step">NOTEBOOK CHECK · API</span><h2>{detail ? 'Sửa kiểm tra vở' : 'Tạo kiểm tra vở'}</h2><p>Giáo viên nhập tiêu chí, tải ảnh mẫu và lưu bản nháp trước khi công bố.</p></div>
-        <NotebookCheckForm activity={detail ?? undefined} isSaving={isSaving} onCancel={() => setShowForm(false)} onSave={saveForm} />
+        <NotebookCheckForm classroomSubjectId={classroomSubjectId} activity={detail ?? undefined} isSaving={isSaving} onCancel={() => setShowForm(false)} onSave={saveForm} />
       </section>
     )
   }
@@ -280,7 +296,7 @@ function NotebookCheckDetail({ detail, readOnly, isSaving, notice, error, onBack
   return (
     <section className="panel tn-panel">
       <button type="button" className="ta-back" onClick={onBack}>← Danh sách kiểm tra vở</button>
-      <div className="tn-panel-heading"><div><span className="ta-step">NOTEBOOK CHECK · API</span><h2>{detail.title}</h2><p>{detail.description || 'Không có mô tả.'}</p><p>Trạng thái: <strong>{statusLabels[detail.status]}</strong> · {detail.criteria.length} tiêu chí · {detail.referenceFiles.length} ảnh mẫu</p></div>{!readOnly && <div className="ta-actions"><button type="button" className="ta-secondary" onClick={onEdit} disabled={isSaving || Boolean(detail.criteriaLockedAt)}>Sửa</button>{detail.status === 'DRAFT' && <button type="button" className="ta-primary" onClick={onPublish} disabled={isSaving}>Công bố</button>}{detail.status === 'DRAFT' && <button type="button" className="ta-delete-btn" onClick={onDelete} disabled={isSaving}><Trash2 size={14} /> Xóa</button>}</div>}</div>
+      <div className="tn-panel-heading"><div><span className="ta-step">NOTEBOOK CHECK · API</span><h2>{detail.title}</h2><p>{detail.description || 'Không có mô tả.'}</p><p>Trạng thái: <strong>{statusLabels[detail.status]}</strong> · {detail.criteria.length} tiêu chí · {detail.referenceFiles.length} ảnh mẫu</p></div><div className="ta-actions">{detail.status !== 'DRAFT' && <Link className="ta-secondary" to={notebookCheckCalendarPath({ classroomSubjectId: detail.classroomSubjectId, activityId: detail.id, title: detail.title, details: detail.description })}>Thêm vào lịch</Link>}{!readOnly && <><button type="button" className="ta-secondary" onClick={onEdit} disabled={isSaving || !canDeleteNotebookCheck(detail)}>Sửa</button>{detail.status === 'DRAFT' && <button type="button" className="ta-primary" onClick={onPublish} disabled={isSaving}>Công bố</button>}{canDeleteNotebookCheck(detail) && <button type="button" className="ta-delete-btn" onClick={onDelete} disabled={isSaving}><Trash2 size={14} /> Xóa</button>}</>}</div></div>
       {readOnly && <div className="ta-readonly"><Archive size={16} /> Lớp đã lưu trữ. Chỉ xem dữ liệu Notebook.</div>}
       {notice && <p className="ta-success" role="status">{notice}</p>}
       {error && <p className="ta-error" role="alert">{error}</p>}

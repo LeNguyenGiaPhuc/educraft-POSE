@@ -104,6 +104,64 @@ describe('Teacher Notebook Checks API (E2E)', () => {
       expect(res.body.data.id).toBe(sampleActivityId);
     });
 
+    it('POST /classroom-subjects/:id/notebook-checks/publish accepts criteria and reference files', async () => {
+      vi.spyOn(notebookCheckService, 'createAndPublishNotebookCheck').mockResolvedValue({
+        id: sampleActivityId,
+        title: 'Kiá»ƒm tra vá»Ÿ má»›i',
+        status: 'PUBLISHED',
+        notebookCheck: { periods: [{ period_no: 1 }] },
+      } as any);
+
+      const res = await request(app)
+        .post(`/api/v1/teacher/classroom-subjects/${sampleClassroomSubjectId}/notebook-checks/publish`)
+        .set('Cookie', ['educraft_session=mock_cookie'])
+        .field('title', 'Kiá»ƒm tra vá»Ÿ má»›i')
+        .field('description', 'BÃ i 1')
+        .field('dueAt', '2026-12-01T00:00:00.000Z')
+        .field('criteria', JSON.stringify([{ content: 'Ghi Ä‘áº§y Ä‘á»§' }]))
+        .attach('files', Buffer.from([0xff, 0xd8, 0xff, 0xe0]), {
+          filename: 'mau.jpg',
+          contentType: 'image/jpeg',
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.status).toBe('PUBLISHED');
+      expect(notebookCheckService.createAndPublishNotebookCheck).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorId: mockTeacherUser.id,
+          classroomSubjectId: sampleClassroomSubjectId,
+          criteria: [{ content: 'Ghi Ä‘áº§y Ä‘á»§' }],
+          files: [expect.objectContaining({ mimetype: 'image/jpeg' })],
+        })
+      );
+    });
+
+    it('POST /classroom-subjects/:id/notebook-checks/criteria-suggestions keeps files in memory', async () => {
+      vi.spyOn(notebookCheckService, 'suggestCriteria').mockResolvedValue({
+        status: 'READY',
+        criteria: [{ content: 'Ghi đủ các mốc chính' }],
+      });
+
+      const res = await request(app)
+        .post(`/api/v1/teacher/classroom-subjects/${sampleClassroomSubjectId}/notebook-checks/criteria-suggestions`)
+        .set('Cookie', ['educraft_session=mock_cookie'])
+        .attach('files', Buffer.from([0xff, 0xd8, 0xff, 0xe0]), {
+          filename: 'mau.jpg',
+          contentType: 'image/jpeg',
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toEqual({
+        status: 'READY',
+        criteria: [{ content: 'Ghi đủ các mốc chính' }],
+      });
+      expect(notebookCheckService.suggestCriteria).toHaveBeenCalledWith(expect.objectContaining({
+        actorId: mockTeacherUser.id,
+        classroomSubjectId: sampleClassroomSubjectId,
+        files: [expect.objectContaining({ mimetype: 'image/jpeg' })],
+      }));
+    });
+
     it('GET /notebook-checks/:id returns detail with 200', async () => {
       vi.spyOn(notebookCheckService, 'getNotebookCheckDetail').mockResolvedValue({
         id: sampleActivityId,

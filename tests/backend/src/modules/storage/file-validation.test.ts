@@ -46,6 +46,8 @@ describe('FileValidation', () => {
     expect(key).not.toContain('..');
     expect(key).not.toContain('/');
     expect(key).not.toContain('\\');
+    expect(key).not.toContain('passwd');
+    expect(key).toMatch(/^[0-9a-f-]{36}\.pdf$/);
     expect(key.endsWith('.pdf')).toBe(true);
   });
 

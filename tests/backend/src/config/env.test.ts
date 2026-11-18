@@ -9,6 +9,7 @@ const validProductionEnv = {
   SESSION_COOKIE_NAME: 'educraft_session',
   SESSION_MAX_AGE_DAYS: '7',
   ROSTER_TOKEN_SECRET: 'production-roster-token-secret-1234567890',
+  CURRENT_ACADEMIC_YEAR: '2026-2027',
 };
 
 describe('parseEnv', () => {
@@ -94,5 +95,48 @@ describe('parseEnv', () => {
     expect(parseEnv({ ...validProductionEnv, AI_MAX_TEXT_CONTEXT_BYTES: '250000' }).AI_MAX_TEXT_CONTEXT_BYTES).toBe(250000);
     expect(() => parseEnv({ ...validProductionEnv, AI_MAX_TEXT_CONTEXT_BYTES: '9999' })).toThrow('Invalid environment configuration');
     expect(() => parseEnv({ ...validProductionEnv, AI_MAX_TEXT_CONTEXT_BYTES: '2000001' })).toThrow('Invalid environment configuration');
+  });
+
+  it('uses local storage by default outside production', () => {
+    expect(parseEnv({ NODE_ENV: 'development' }).STORAGE_PROVIDER).toBe('local');
+    expect(parseEnv({ NODE_ENV: 'test' }).STORAGE_PROVIDER).toBe('local');
+  });
+
+  it('treats empty optional integration values as unset', () => {
+    const parsed = parseEnv({
+      ...validProductionEnv,
+      SUPABASE_URL: '',
+      SUPABASE_SECRET_KEY: '',
+      SUPABASE_STORAGE_BUCKET: '',
+      GEMINI_API_KEY: '',
+    });
+
+    expect(parsed.SUPABASE_URL).toBeUndefined();
+    expect(parsed.SUPABASE_SECRET_KEY).toBeUndefined();
+    expect(parsed.SUPABASE_STORAGE_BUCKET).toBe('educraft-private');
+    expect(parsed.GEMINI_API_KEY).toBeUndefined();
+  });
+
+  it('requires the Supabase private storage settings in production', () => {
+    expect(() => parseEnv({ ...validProductionEnv, STORAGE_PROVIDER: 'supabase' }))
+      .toThrow('Invalid environment configuration');
+
+    const parsed = parseEnv({
+      ...validProductionEnv,
+      STORAGE_PROVIDER: 'supabase',
+      SUPABASE_URL: 'https://example.supabase.co',
+      SUPABASE_SECRET_KEY: 'test-secret-key',
+      SUPABASE_STORAGE_BUCKET: 'educraft-private',
+    });
+
+    expect(parsed.STORAGE_PROVIDER).toBe('supabase');
+    expect(parsed.SUPABASE_STORAGE_BUCKET).toBe('educraft-private');
+  });
+
+  it('normalizes the configured current academic year', () => {
+    expect(parseEnv({ NODE_ENV: 'development', CURRENT_ACADEMIC_YEAR: '2026–2027' }).CURRENT_ACADEMIC_YEAR)
+      .toBe('2026-2027');
+    expect(() => parseEnv({ ...validProductionEnv, CURRENT_ACADEMIC_YEAR: '2026-2028' }))
+      .toThrow('Invalid environment configuration');
   });
 });

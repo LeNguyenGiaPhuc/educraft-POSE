@@ -22,6 +22,7 @@ export const materialRepository = {
             classroomSubject: true,
           },
         },
+        activeVersion: true,
         versions: {
           orderBy: { version_no: 'desc' },
         },
@@ -177,7 +178,35 @@ export const materialRepository = {
         });
       }
 
+      if (status === 'PROCESSED') {
+        await tx.learningMaterial.update({
+          where: { id: updated.material_id },
+          data: { active_version_id: updated.id },
+        });
+      }
+
       return updated;
+    });
+  },
+
+  async promoteMaterialVersion(versionId: string) {
+    return prisma.$transaction(async (tx) => {
+      const version = await tx.materialVersion.findUnique({
+        where: { id: versionId },
+        select: { id: true, material_id: true, processing_status: true },
+      });
+
+      if (!version) {
+        throw new NotFoundError('KhÃ´ng tÃ¬m tháº¥y phiÃªn báº£n há»c liá»‡u');
+      }
+      if (version.processing_status !== 'PROCESSED') {
+        throw new BadRequestError('Chá»‰ cÃ³ thá»ƒ chá»n phiÃªn báº£n Ä‘Ã£ xá»­ lÃ½ thÃ nh cÃ´ng');
+      }
+
+      return tx.learningMaterial.update({
+        where: { id: version.material_id },
+        data: { active_version_id: version.id },
+      });
     });
   },
 };

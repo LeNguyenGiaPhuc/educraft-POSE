@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { materialService } from '../../../../../../backend/src/modules/teacher/materials/material.service.js';
 import { materialRepository } from '../../../../../../backend/src/modules/teacher/materials/material.repository.js';
-import { defaultStorageProvider } from '../../../../../../backend/src/modules/storage/local-private-storage.js';
+import { defaultStorageProvider } from '../../../../../../backend/src/modules/storage/storage-factory.js';
 import { defaultAiProcessingProvider } from '../../../../../../backend/src/modules/teacher/materials/ai-processing.provider.js';
 import * as teacherSubjectPolicy from '../../../../../../backend/src/modules/teacher/access/teacher-subject.policy.js';
 import { ForbiddenError } from '../../../../../../backend/src/shared/errors/app-error.js';
@@ -215,6 +215,12 @@ describe('MaterialService', () => {
         lesson: {
           classroom_subject_id: 'cs-1',
         },
+        activeVersion: {
+          version_no: 1,
+          storage_key: 'safe-key.pdf',
+          mime_type: 'application/pdf',
+          processing_status: 'PROCESSED',
+        },
         versions: [
           {
             version_no: 1,
@@ -251,6 +257,36 @@ describe('MaterialService', () => {
       await expect(materialService.downloadMaterial('mat-1', 'teacher-intruder')).rejects.toThrow(
         ForbiddenError
       );
+    });
+
+    it('downloads the published active version instead of a pending replacement', async () => {
+      vi.spyOn(materialRepository, 'findMaterialWithLessonContext').mockResolvedValue({
+        id: 'mat-1',
+        file_name: 'bai_hoc.pdf',
+        lesson: { classroom_subject_id: 'cs-1' },
+        activeVersion: {
+          id: 'ver-1',
+          storage_key: 'active-key.pdf',
+          mime_type: 'application/pdf',
+          processing_status: 'PROCESSED',
+        },
+        versions: [{
+          id: 'ver-2',
+          version_no: 2,
+          storage_key: 'pending-key.pdf',
+          mime_type: 'application/pdf',
+          processing_status: 'PENDING',
+        }],
+      } as any);
+
+      vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue(mockPolicyCtx);
+      const testBuffer = Buffer.from('%PDF-1.4 active version');
+      const openSpy = vi.spyOn(defaultStorageProvider, 'open').mockResolvedValue(testBuffer);
+
+      await materialService.downloadMaterial('mat-1', 'teacher-1');
+
+      expect(openSpy).toHaveBeenCalledWith('active-key.pdf');
+      expect(openSpy).not.toHaveBeenCalledWith('pending-key.pdf');
     });
   });
 

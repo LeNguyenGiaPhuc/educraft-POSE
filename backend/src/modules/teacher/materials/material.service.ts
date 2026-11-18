@@ -1,5 +1,5 @@
 import { BadRequestError, NotFoundError } from '../../../shared/errors/app-error.js';
-import { defaultStorageProvider } from '../../storage/local-private-storage.js';
+import { defaultStorageProvider } from '../../storage/storage-factory.js';
 import {
   generateStorageKey,
   validateMaterialFile,
@@ -260,17 +260,17 @@ export const materialService = {
       allowArchived: true,
     });
 
-    const latest = material.versions[0];
-    if (!latest) {
+    const activeVersion = material.activeVersion;
+    if (activeVersion?.processing_status !== 'PROCESSED') {
       throw new NotFoundError('Không tìm thấy tệp đính kèm của học liệu');
     }
 
-    const buffer = await defaultStorageProvider.open(latest.storage_key);
+    const buffer = await defaultStorageProvider.open(activeVersion.storage_key);
 
     return {
       buffer,
       fileName: material.file_name,
-      mimeType: latest.mime_type,
+      mimeType: activeVersion.mime_type,
     };
   },
 };

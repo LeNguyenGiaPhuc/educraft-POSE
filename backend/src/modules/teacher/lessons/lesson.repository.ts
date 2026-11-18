@@ -12,6 +12,14 @@ export const lessonRepository = {
         materials: {
           where: { status: { not: 'ARCHIVED' } },
           include: {
+            activeVersion: {
+              include: {
+                segments: {
+                  orderBy: { ordinal: 'asc' },
+                  take: 1,
+                },
+              },
+            },
             versions: {
               orderBy: { version_no: 'desc' },
               take: 1,
@@ -49,6 +57,7 @@ export const lessonRepository = {
           where: { status: { not: 'ARCHIVED' } },
           orderBy: { created_at: 'asc' },
           include: {
+            activeVersion: true,
             versions: {
               orderBy: { version_no: 'desc' },
               include: {
@@ -124,16 +133,12 @@ export const lessonRepository = {
         },
         select: {
           id: true,
-          versions: {
-            orderBy: { version_no: 'desc' },
-            take: 1,
-            select: { processing_status: true },
-          },
+          activeVersion: { select: { processing_status: true } },
         },
       });
       const allMaterialsProcessed =
         activeMaterials.length > 0 &&
-        activeMaterials.every((material) => material.versions[0]?.processing_status === 'PROCESSED');
+        activeMaterials.every((material) => material.activeVersion?.processing_status === 'PROCESSED');
 
       if (!allMaterialsProcessed) {
         throw new BadRequestError(

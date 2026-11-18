@@ -19,6 +19,7 @@ function formatEventDto(e: any) {
     startsAt: e.starts_at instanceof Date ? e.starts_at.toISOString() : e.starts_at,
     publishedAt: e.published_at instanceof Date ? e.published_at.toISOString() : e.published_at ? String(e.published_at) : null,
     createdAt: e.created_at instanceof Date ? e.created_at.toISOString() : e.created_at,
+    updatedAt: e.updated_at instanceof Date ? e.updated_at.toISOString() : e.updated_at,
     lessonId: e.lesson_id ?? null,
     lessonTitle: e.lesson?.title ?? null,
     activityId: e.activity_id ?? null,

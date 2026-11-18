@@ -9,6 +9,8 @@ import {
 } from '../../../../../../backend/src/modules/teacher/notebook-checks/notebook-ai-analysis.provider.js';
 import { BadRequestError, ConflictError, NotFoundError } from '../../../../../../backend/src/shared/errors/app-error.js';
 import type { StorageProvider } from '../../../../../../backend/src/modules/storage/storage-provider.js';
+import { setNotebookCriteriaSuggestionProvider, type NotebookCriteriaSuggestionProvider } from '../../../../../../backend/src/modules/teacher/notebook-checks/notebook-criteria-suggestion.provider.js';
+import { putCriteriaSchema } from '../../../../../../backend/src/modules/teacher/notebook-checks/notebook-check.schemas.js';
 
 describe('NotebookCheckService', () => {
   const mockStorage: StorageProvider = {
@@ -21,6 +23,35 @@ describe('NotebookCheckService', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     setNotebookAiProvider(new DefaultNotebookAiAnalysisProvider());
+    setNotebookCriteriaSuggestionProvider({
+      suggestCriteria: vi.fn().mockResolvedValue({ status: 'UNAVAILABLE', criteria: [] }),
+    });
+  });
+
+  it('requests stateless criteria suggestions after checking the assigned subject', async () => {
+    vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue({ classroomStatus: 'ACTIVE' } as any);
+    const provider: NotebookCriteriaSuggestionProvider = {
+      suggestCriteria: vi.fn().mockResolvedValue({
+        status: 'READY',
+        criteria: [{ content: 'Ghi đủ các mốc chính' }],
+      }),
+    };
+    setNotebookCriteriaSuggestionProvider(provider);
+    const storageSpy = vi.spyOn(mockStorage, 'put');
+
+    const result = await notebookCheckService.suggestCriteria({
+      actorId: 'tea-1',
+      classroomSubjectId: 'cs-1',
+      files: [{ originalname: 'sample.jpg', mimetype: 'image/jpeg', size: 4, buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0]) }],
+    });
+
+    expect(result.status).toBe('READY');
+    expect(provider.suggestCriteria).toHaveBeenCalled();
+    expect(storageSpy).not.toHaveBeenCalled();
+  });
+
+  it('limits manually entered criteria to 500 characters', () => {
+    expect(() => putCriteriaSchema.parse({ criteria: [{ content: 'a'.repeat(501) }] })).toThrow();
   });
 
   describe('CRUD & Criteria', () => {
@@ -55,6 +86,90 @@ describe('NotebookCheckService', () => {
       });
       expect(res?.id).toBe('act-1');
       expect(notebookCheckRepository.createNotebookCheckAtomically).toHaveBeenCalled();
+    });
+
+    it('creates and publishes a complete notebook check in one repository call', async () => {
+      const createAndPublish = vi
+        .spyOn(notebookCheckRepository, 'createAndPublishNotebookCheckAtomically')
+        .mockResolvedValue({
+          id: 'act-1',
+          notebookCheck: { referenceFiles: [], criteria: [], periods: [] },
+        } as any);
+      const validJpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
+
+      const result = await notebookCheckService.createAndPublishNotebookCheck({
+        actorId: 'tea-1',
+        classroomSubjectId: 'cs-1',
+        input: {
+          title: 'Kiá»ƒm tra vá»Ÿ',
+          description: 'BÃ i 1',
+          dueAt: '2026-12-01T00:00:00.000Z',
+          criteria: JSON.stringify([{ content: 'Ghi Ä‘áº§y Ä‘á»§' }]),
+        },
+        criteria: [{ content: 'Ghi Ä‘áº§y Ä‘á»§' }],
+        files: [{ originalname: 'mau.jpg', mimetype: 'image/jpeg', size: validJpeg.length, buffer: validJpeg }],
+        storage: mockStorage,
+      });
+
+      expect(result?.id).toBe('act-1');
+      expect(createAndPublish).toHaveBeenCalledWith(
+        'tea-1',
+        'cs-1',
+        expect.objectContaining({
+          title: 'Kiá»ƒm tra vá»Ÿ',
+          dueAt: expect.any(Date),
+          criteria: [{ content: 'Ghi Ä‘áº§y Ä‘á»§' }],
+          files: [expect.objectContaining({ mimeType: 'image/jpeg' })],
+        })
+      );
+      expect(mockStorage.put).toHaveBeenCalledTimes(1);
+    });
+
+    it('cleans every stored reference file when database finalization fails', async () => {
+      vi.spyOn(notebookCheckRepository, 'createAndPublishNotebookCheckAtomically').mockRejectedValue(
+        new Error('database failure')
+      );
+      const deleteSpy = vi.spyOn(mockStorage, 'delete');
+      const validJpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
+
+      await expect(
+        notebookCheckService.createAndPublishNotebookCheck({
+          actorId: 'tea-1',
+          classroomSubjectId: 'cs-1',
+          input: {
+            title: 'Kiá»ƒm tra vá»Ÿ',
+            description: '',
+            dueAt: '2026-12-01T00:00:00.000Z',
+            criteria: JSON.stringify([{ content: 'Ghi Ä‘áº§y Ä‘á»§' }]),
+          },
+          criteria: [{ content: 'Ghi Ä‘áº§y Ä‘á»§' }],
+          files: [
+            { originalname: 'mau-1.jpg', mimetype: 'image/jpeg', size: validJpeg.length, buffer: validJpeg },
+            { originalname: 'mau-2.jpg', mimetype: 'image/jpeg', size: validJpeg.length, buffer: validJpeg },
+          ],
+          storage: mockStorage,
+        })
+      ).rejects.toThrow('database failure');
+
+      expect(deleteSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('rejects notebook creation without a reference image', async () => {
+      await expect(
+        notebookCheckService.createAndPublishNotebookCheck({
+          actorId: 'tea-1',
+          classroomSubjectId: 'cs-1',
+          input: {
+            title: 'Kiá»ƒm tra vá»Ÿ',
+            description: '',
+            dueAt: '2026-12-01T00:00:00.000Z',
+            criteria: JSON.stringify([{ content: 'Ghi Ä‘áº§y Ä‘á»§' }]),
+          },
+          criteria: [{ content: 'Ghi Ä‘áº§y Ä‘á»§' }],
+          files: [],
+          storage: mockStorage,
+        })
+      ).rejects.toThrow(BadRequestError);
     });
 
     it('putCriteria rejects if criteria are already locked', async () => {
