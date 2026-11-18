@@ -32,4 +32,11 @@ export const authApi = {
   async logout(): Promise<void> {
     await apiRequest<{ success: boolean }>('/auth/logout', { method: 'POST' })
   },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    await apiRequest<{ success: boolean }>('/auth/password', {
+      method: 'PATCH',
+      body: { currentPassword, newPassword },
+    })
+  },
 }

@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react'
-import { ArrowRight, LogOut, Menu, X } from 'lucide-react'
+import { ArrowRight, KeyRound, LogOut, Menu, X } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import type { DemoUser } from '../data/demo'
 import { teacherWorkspaceApi } from '../lib/api/teacher/workspace'
 import type { TeacherClassroomSubjectContext } from '../lib/api/teacher/types'
 import { navigation, roleNames } from '../data/navigation'
+import { ChangePasswordDialog } from './ChangePasswordDialog'
 
 type Props = { user: DemoUser; onSignOut: () => void }
 
 export function RoleLayout({ user, onSignOut }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false)
   const { pathname, search } = useLocation()
   const items = navigation[user.role]
   const current = items.find((item) => {
@@ -78,6 +80,7 @@ export function RoleLayout({ user, onSignOut }: Props) {
           ))}
         </nav>
         <div className="sidebar-bottom">
+          {isManagedWorkspace && <button type="button" className="account-password-link" onClick={() => setIsPasswordDialogOpen(true)}><KeyRound size={16} /> Đổi mật khẩu</button>}
           {user.role === 'student' && <div className="preview-note"><span className="preview-spark">✳</span><div><strong>Bản mô phỏng Student</strong><p>Các thao tác dùng dữ liệu mẫu và được lưu trong phiên này.</p></div></div>}
           <div className="sidebar-user"><span className="avatar">{user.initials}</span><span className="user-copy"><strong>{user.name}</strong><small>{user.context}</small></span><button className="icon-button logout" onClick={onSignOut} title="Đăng xuất" aria-label="Đăng xuất"><LogOut size={18} /></button></div>
         </div>
@@ -90,6 +93,7 @@ export function RoleLayout({ user, onSignOut }: Props) {
         </header>
         <main className="content"><Outlet /></main>
       </div>
+      {isManagedWorkspace && <ChangePasswordDialog isOpen={isPasswordDialogOpen} onClose={() => setIsPasswordDialogOpen(false)} />}
     </div>
   )
 }
