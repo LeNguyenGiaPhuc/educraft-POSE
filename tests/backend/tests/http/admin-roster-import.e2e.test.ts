@@ -109,6 +109,7 @@ describe('Admin Roster Import API (E2E)', () => {
           { line: 2, fullName: 'Nguyen Van A', username: 'nguyenvana', contact: '0901234567' },
         ],
         issues: [],
+        normalizationNotices: [],
         isValid: true,
         validationToken: 'mock-valid-token.signature',
         totalRows: 1,
@@ -123,6 +124,34 @@ describe('Admin Roster Import API (E2E)', () => {
       expect(res.status).toBe(200);
       expect(res.body.data.isValid).toBe(true);
       expect(res.body.data.validationToken).toBe('mock-valid-token.signature');
+      expect(res.body.data.rows).toHaveLength(1);
+    });
+
+    it('POST /admin/classrooms/roster/preview previews a new classroom roster', async () => {
+      const validBuffer = await createTestXlsxBuffer([
+        ['Họ và tên', 'Tên đăng nhập', 'Thông tin liên hệ'],
+        ['Nguyen Van B', 'nguyen.van.b', '0901234567'],
+      ]);
+
+      vi.spyOn(rosterService, 'previewNewRoster').mockResolvedValue({
+        rows: [
+          { line: 2, fullName: 'Nguyen Van B', username: 'nguyen.van.b', contact: '0901234567' },
+        ],
+        issues: [],
+        normalizationNotices: [],
+        isValid: true,
+        validationToken: 'new-class-token.signature',
+        totalRows: 1,
+        validRows: 1,
+      });
+
+      const res = await request(app)
+        .post('/api/v1/admin/classrooms/roster/preview')
+        .set('Cookie', ['educraft_session=mock_cookie'])
+        .attach('file', validBuffer, 'students.xlsx');
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.validationToken).toBe('new-class-token.signature');
       expect(res.body.data.rows).toHaveLength(1);
     });
 
@@ -163,6 +192,34 @@ describe('Admin Roster Import API (E2E)', () => {
       expect(res.body.data.importedCount).toBe(2);
       expect(res.body.data.defaultPassword).toBeUndefined();
       expect(res.body.data.password).toBeUndefined();
+    });
+
+    it('POST /admin/classrooms/roster/commit creates a classroom with the validated roster', async () => {
+      vi.spyOn(rosterService, 'commitNewClassroom').mockResolvedValue({
+        classroomId: 'c4444444-4444-4444-8444-444444444444',
+        importedCount: 2,
+      });
+
+      const res = await request(app)
+        .post('/api/v1/admin/classrooms/roster/commit')
+        .set('Cookie', ['educraft_session=mock_cookie'])
+        .send({
+          validationToken: 'new-class-token.signature',
+          name: '11B4',
+          gradeLevel: 11,
+          academicYear: '2026-2027',
+          initialStudentPassword: 'StrongPassword123!',
+          rows: [
+            { line: 2, fullName: 'Nguyen Van A', username: 'student.a', contact: '0901234567' },
+            { line: 3, fullName: 'Tran Thi B', username: 'student.b', contact: '0907654321' },
+          ],
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.data).toEqual({
+        classroomId: 'c4444444-4444-4444-8444-444444444444',
+        importedCount: 2,
+      });
     });
   });
 });

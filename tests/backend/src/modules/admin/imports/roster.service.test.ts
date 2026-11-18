@@ -5,6 +5,7 @@ import { BadRequestError, NotFoundError } from '../../../../../../backend/src/sh
 import { rosterTokenService } from '../../../../../../backend/src/modules/admin/imports/roster.token.js';
 import { hashRosterRows } from '../../../../../../backend/src/modules/admin/imports/roster.types.js';
 import { passwordService } from '../../../../../../backend/src/modules/auth/password.service.js';
+import { classroomRepository } from '../../../../../../backend/src/modules/admin/classrooms/classroom.repository.js';
 import ExcelJS from 'exceljs';
 
 async function createTestWorkbookBuffer(rows: Array<Array<string | number | object>>): Promise<Buffer> {
@@ -100,6 +101,29 @@ describe('RosterService', () => {
       expect(result.validationToken).toBeDefined();
       expect(result.rows).toHaveLength(2);
       expect(result.issues).toHaveLength(0);
+    });
+  });
+
+  describe('previewNewRoster', () => {
+    it('previews a new-class roster without requiring a classroom id', async () => {
+      const buffer = await createTestWorkbookBuffer([
+        ['Họ và tên', 'Tên đăng nhập', 'Thông tin liên hệ'],
+        ['  Nguyễn   Văn An  ', ' Student.One ', '+84 (912) 345-678'],
+      ]);
+      vi.spyOn(prisma.user, 'findMany').mockResolvedValue([]);
+
+      const result = await rosterService.previewNewRoster({
+        adminId: 'admin-1',
+        fileBuffer: buffer,
+      });
+
+      expect(result.isValid).toBe(true);
+      expect(result.rows[0].username).toBe('student.one');
+      expect(result.normalizationNotices).toHaveLength(3);
+      expect(result.validationToken).toBeDefined();
+      expect(rosterTokenService.verifyToken(result.validationToken as string).operation).toBe(
+        'NEW_CLASSROOM'
+      );
     });
   });
 
@@ -206,6 +230,50 @@ describe('RosterService', () => {
           ],
         })
       ).rejects.toThrow(BadRequestError);
+    });
+  });
+
+  describe('commitNewClassroom', () => {
+    it('creates the class and roster through the repository after token validation', async () => {
+      const rows = [
+        { line: 2, fullName: 'Nguyễn Văn An', username: 'student.one', contact: '0912345678' },
+      ];
+      const token = rosterTokenService.generateToken({
+        adminId: 'admin-1',
+        operation: 'NEW_CLASSROOM',
+        rowCount: rows.length,
+        rowsHash: hashRosterRows(rows),
+      });
+      vi.spyOn(classroomRepository, 'createClassroomWithSubjects').mockResolvedValue({
+        id: 'class-new',
+        name: '11A1',
+        grade_level: 11,
+        academic_year: '2026-2027',
+        status: 'ACTIVE',
+        created_at: new Date(),
+        updated_at: new Date(),
+        _count: { enrollments: 1, classroomSubjects: 2 },
+        classroomSubjects: [],
+      } as any);
+
+      const result = await rosterService.commitNewClassroom({
+        adminId: 'admin-1',
+        validationToken: token,
+        name: '11A1',
+        gradeLevel: 11,
+        academicYear: '2026-2027',
+        initialStudentPassword: 'Password123',
+        rows,
+      });
+
+      expect(result).toEqual({ classroomId: 'class-new', importedCount: 1 });
+      expect(classroomRepository.createClassroomWithSubjects).toHaveBeenCalledWith({
+        name: '11A1',
+        gradeLevel: 11,
+        academicYear: '2026-2027',
+        initialStudentPassword: 'Password123',
+        students: rows,
+      });
     });
   });
 });

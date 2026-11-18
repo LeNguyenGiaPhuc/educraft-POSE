@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { rosterRowSchema } from '../imports/roster.schemas.js';
 
 const classroomStatuses = ['ACTIVE', 'ARCHIVED'] as const;
 const classroomSortFields = ['name', 'grade_level', 'academic_year', 'created_at'] as const;
@@ -13,13 +14,6 @@ export const listClassroomsQuerySchema = z.object({
   academicYear: z.string().optional(),
   sortBy: z.enum(classroomSortFields).optional(),
   sortOrder: z.enum(sortOrders).optional(),
-});
-
-const classroomStudentRowSchema = z.object({
-  line: z.number().int().min(2),
-  fullName: z.string().trim().min(1, 'Họ và tên không được để trống'),
-  username: z.string().trim().min(1, 'Tên đăng nhập không được để trống'),
-  contact: z.string().trim().min(1, 'Thông tin liên hệ không được để trống'),
 });
 
 export const createClassroomSchema = z.object({
@@ -43,7 +37,7 @@ export const createClassroomSchema = z.object({
     .min(8, 'Mật khẩu khởi tạo phải từ 8 ký tự trở lên')
     .max(128, 'Mật khẩu khởi tạo không được vượt quá 128 ký tự')
     .optional(),
-  students: z.array(classroomStudentRowSchema).max(500, 'Danh sách học sinh tối đa 500 dòng').optional(),
+  students: z.array(rosterRowSchema).max(500, 'Danh sách học sinh tối đa 500 dòng').optional(),
 }).superRefine((data, context) => {
   const students = data.students ?? [];
   if (students.length > 0 && !data.initialStudentPassword) {

@@ -1,160 +1,308 @@
 import ExcelJS from 'exceljs';
-import type { StudentImportRow, ImportIssue } from './roster.types.js';
+import {
+  getIdentityErrorMessage,
+  normalizeContact,
+  normalizeFullName,
+  normalizeUsername,
+  validateContact,
+  validateFullName,
+  validateUsername,
+} from '../../../shared/account-identity.js';
+import type {
+  ImportIssue,
+  NormalizationNotice,
+  StudentImportRow,
+} from './roster.types.js';
 
 export const EXPECTED_HEADERS = ['Họ và tên', 'Tên đăng nhập', 'Thông tin liên hệ'] as const;
+export const MAX_ROSTER_ROWS = 500;
 
-function extractCellValue(cell: ExcelJS.Cell): { text: string; hasFormula: boolean } {
-  const val = cell.value;
-  if (val === null || val === undefined) {
-    return { text: '', hasFormula: false };
-  }
+type ExtractedCell = {
+  raw: string;
+  text: string;
+  hasFormula: boolean;
+};
 
-  if (typeof val === 'object') {
-    if ('formula' in val) {
-      return { text: '', hasFormula: true };
-    }
-    if ('richText' in val && Array.isArray((val as { richText?: Array<{ text: string }> }).richText)) {
-      const text = (val as { richText: Array<{ text: string }> }).richText
-        .map((t) => t.text)
-        .join('')
-        .trim();
-      return { text, hasFormula: text.startsWith('=') };
-    }
-  }
+type ParseResult = {
+  rows: StudentImportRow[];
+  issues: ImportIssue[];
+  normalizationNotices: NormalizationNotice[];
+  isValid: boolean;
+};
 
-  const str = String(val).trim();
-  return { text: str, hasFormula: str.startsWith('=') };
+function createIssue(
+  line: number,
+  field: ImportIssue['field'],
+  code: string,
+  message: string
+): ImportIssue {
+  return { line, field, code, message };
 }
 
-export async function parseRosterWorkbook(
-  buffer: Buffer
-): Promise<{ rows: StudentImportRow[]; issues: ImportIssue[] }> {
+function extractCellValue(cell: ExcelJS.Cell): ExtractedCell {
+  const value = cell.value;
+  if (value === null || value === undefined) {
+    return { raw: '', text: '', hasFormula: false };
+  }
+
+  if (typeof value === 'object') {
+    if ('formula' in value) {
+      return { raw: '', text: '', hasFormula: true };
+    }
+    if ('richText' in value && Array.isArray((value as { richText?: Array<{ text: string }> }).richText)) {
+      const raw = (value as { richText: Array<{ text: string }> }).richText
+        .map((item) => item.text)
+        .join('');
+      return { raw, text: raw.trim(), hasFormula: raw.trim().startsWith('=') };
+    }
+  }
+
+  const raw = String(value);
+  return { raw, text: raw.trim(), hasFormula: raw.trim().startsWith('=') };
+}
+
+function hasPopulatedValue(cell: ExtractedCell): boolean {
+  return cell.hasFormula || cell.text.length > 0;
+}
+
+function getRowCells(worksheet: ExcelJS.Worksheet, line: number): ExtractedCell[] {
+  const row = worksheet.getRow(line);
+  const cells: ExtractedCell[] = [];
+  for (let column = 1; column <= worksheet.columnCount; column += 1) {
+    cells.push(extractCellValue(row.getCell(column)));
+  }
+  return cells;
+}
+
+function getLastPopulatedRow(worksheet: ExcelJS.Worksheet): number {
+  let lastLine = 0;
+  for (let line = 1; line <= worksheet.rowCount; line += 1) {
+    const cells = getRowCells(worksheet, line);
+    if (cells.some(hasPopulatedValue)) {
+      lastLine = line;
+    }
+  }
+  return lastLine;
+}
+
+function addMergeIssues(worksheet: ExcelJS.Worksheet, issues: ImportIssue[]): void {
+  for (const merge of worksheet.model.merges ?? []) {
+    const [startAddress] = merge.split(':');
+    const match = startAddress.match(/^(?:[A-Z]+)(\d+)$/i);
+    const line = match ? Number(match[1]) : 0;
+    issues.push(
+      createIssue(
+        line,
+        'file',
+        'MERGED_CELL',
+        'File không được chứa ô đã gộp trong vùng dữ liệu.'
+      )
+    );
+  }
+}
+
+function addNormalizationNotice(
+  notices: NormalizationNotice[],
+  line: number,
+  field: NormalizationNotice['field'],
+  original: string,
+  normalized: string
+): void {
+  if (original === normalized) return;
+  notices.push({
+    line,
+    field,
+    code: 'NORMALIZED',
+    message: `Đã chuẩn hóa giá trị từ "${original}" thành "${normalized}".`,
+  });
+}
+
+function validateRow(
+  line: number,
+  values: { fullName: string; username: string; contact: string },
+  issues: ImportIssue[],
+  notices: NormalizationNotice[],
+  original: { fullName: string; username: string; contact: string }
+): StudentImportRow {
+  const fullName = normalizeFullName(values.fullName);
+  const username = normalizeUsername(values.username);
+  const contact = normalizeContact(values.contact);
+
+  addNormalizationNotice(notices, line, 'fullName', original.fullName, fullName);
+  addNormalizationNotice(notices, line, 'username', original.username, username);
+  addNormalizationNotice(notices, line, 'contact', original.contact, contact);
+
+  const fullNameError = validateFullName(fullName);
+  if (fullNameError) {
+    issues.push(createIssue(line, 'fullName', fullNameError, getIdentityErrorMessage(fullNameError)));
+  }
+
+  const usernameError = validateUsername(username);
+  if (usernameError) {
+    issues.push(createIssue(line, 'username', usernameError, getIdentityErrorMessage(usernameError)));
+  }
+
+  const contactError = validateContact(contact);
+  if (contactError) {
+    issues.push(createIssue(line, 'contact', contactError, getIdentityErrorMessage(contactError)));
+  }
+
+  const changed =
+    original.fullName !== fullName || original.username !== username || original.contact !== contact;
+
+  return {
+    line,
+    fullName,
+    username,
+    contact,
+    ...(changed ? { original } : {}),
+  };
+}
+
+export async function parseRosterWorkbook(buffer: Buffer): Promise<ParseResult> {
   const issues: ImportIssue[] = [];
+  const normalizationNotices: NormalizationNotice[] = [];
   const rows: StudentImportRow[] = [];
 
   const workbook = new ExcelJS.Workbook();
   try {
     await workbook.xlsx.load(buffer as any);
   } catch {
-    issues.push({
-      line: 0,
-      message: 'Không thể đọc nội dung file .xlsx hoặc file bị hỏng.',
-    });
-    return { rows, issues };
+    issues.push(
+      createIssue(0, 'file', 'INVALID_XLSX', 'Không thể đọc nội dung file .xlsx hoặc file bị hỏng.')
+    );
+    return { rows, issues, normalizationNotices, isValid: false };
   }
 
   const worksheet = workbook.worksheets[0];
-  if (!worksheet || worksheet.rowCount === 0) {
-    issues.push({ line: 1, message: 'File không có nội dung hoặc bảng tính rỗng.' });
-    return { rows, issues };
+  if (!worksheet) {
+    issues.push(createIssue(0, 'file', 'EMPTY_WORKBOOK', 'File không có worksheet nào.'));
+    return { rows, issues, normalizationNotices, isValid: false };
   }
 
-  // 1. Verify Header row (Row 1)
-  const headerRow = worksheet.getRow(1);
-  const col1 = extractCellValue(headerRow.getCell(1)).text.toLowerCase();
-  const col2 = extractCellValue(headerRow.getCell(2)).text.toLowerCase();
-  const col3 = extractCellValue(headerRow.getCell(3)).text.toLowerCase();
-
-  const isHeaderValid =
-    col1 === EXPECTED_HEADERS[0].toLowerCase() &&
-    col2 === EXPECTED_HEADERS[1].toLowerCase() &&
-    col3 === EXPECTED_HEADERS[2].toLowerCase();
-
-  if (!isHeaderValid) {
-    issues.push({
-      line: 1,
-      message: 'Dòng tiêu đề phải có đúng 3 cột theo thứ tự: "Họ và tên", "Tên đăng nhập", "Thông tin liên hệ".',
-    });
-    return { rows, issues };
+  addMergeIssues(worksheet, issues);
+  const lastLine = getLastPopulatedRow(worksheet);
+  if (lastLine === 0) {
+    issues.push(createIssue(1, 'file', 'EMPTY_WORKBOOK', 'File không có nội dung hoặc bảng tính rỗng.'));
+    return { rows, issues, normalizationNotices, isValid: false };
   }
 
-  // 2. Process data rows
-  const rowCount = worksheet.rowCount;
-  if (rowCount < 2) {
-    issues.push({ line: 1, message: 'File không có dòng dữ liệu nào.' });
-    return { rows, issues };
+  const headerCells = getRowCells(worksheet, 1);
+  const headerTexts = headerCells.filter(hasPopulatedValue).map((cell) => cell.text.toLowerCase());
+  const expectedHeaders = EXPECTED_HEADERS.map((header) => header.toLowerCase());
+  if (
+    headerTexts.length !== expectedHeaders.length ||
+    headerTexts.some((header, index) => header !== expectedHeaders[index])
+  ) {
+    if (headerTexts.length > expectedHeaders.length) {
+      issues.push(
+        createIssue(
+          1,
+          'file',
+          'EXTRA_COLUMN',
+          'Dòng tiêu đề không được có cột phát sinh ngoài 3 cột chuẩn.'
+        )
+      );
+    }
+    issues.push(
+      createIssue(
+        1,
+        'file',
+        'INVALID_HEADER',
+        'Dòng tiêu đề phải có đúng 3 cột theo thứ tự: "Họ và tên", "Tên đăng nhập", "Thông tin liên hệ".'
+      )
+    );
+    return { rows, issues, normalizationNotices, isValid: false };
   }
 
-  const usernameCount = new Map<string, number>();
-  const parsedEntries: Array<{
-    line: number;
-    fullName: string;
-    username: string;
-    contact: string;
-    hasFormula: boolean;
-    isEmpty: boolean;
-  }> = [];
+  if (lastLine < 2) {
+    issues.push(createIssue(1, 'file', 'NO_DATA_ROWS', 'File không có dòng dữ liệu nào.'));
+    return { rows, issues, normalizationNotices, isValid: false };
+  }
 
-  for (let line = 2; line <= rowCount; line++) {
-    const row = worksheet.getRow(line);
-    const cell1 = extractCellValue(row.getCell(1));
-    const cell2 = extractCellValue(row.getCell(2));
-    const cell3 = extractCellValue(row.getCell(3));
+  const dataLineCount = lastLine - 1;
+  if (dataLineCount > MAX_ROSTER_ROWS) {
+    issues.push(
+      createIssue(
+        0,
+        'file',
+        'ROW_LIMIT',
+        `File chỉ được chứa tối đa ${MAX_ROSTER_ROWS} học sinh.`
+      )
+    );
+  }
 
-    const hasFormula = cell1.hasFormula || cell2.hasFormula || cell3.hasFormula;
-    const isEmpty = !cell1.text && !cell2.text && !cell3.text;
+  const rowLimit = Math.min(lastLine, MAX_ROSTER_ROWS + 1);
+  for (let line = 2; line <= rowLimit; line += 1) {
+    const cells = getRowCells(worksheet, line);
+    const firstThree = cells.slice(0, 3);
+    const hasAnyValue = cells.some(hasPopulatedValue);
 
-    if (isEmpty) {
-      issues.push({ line, message: 'Dòng trống không có dữ liệu.' });
+    if (!hasAnyValue) {
+      issues.push(createIssue(line, 'file', 'BLANK_ROW', 'Dòng trống không được nằm giữa danh sách dữ liệu.'));
       continue;
     }
 
-    if (hasFormula) {
-      issues.push({
+    if (cells.slice(3).some(hasPopulatedValue)) {
+      issues.push(createIssue(line, 'file', 'EXTRA_COLUMN', 'Dòng dữ liệu không được có cột phát sinh ngoài 3 cột chuẩn.'));
+    }
+
+    if (cells.some((cell) => cell.hasFormula)) {
+      issues.push(
+        createIssue(
+          line,
+          'file',
+          'FORMULA_CELL',
+          'Dòng dữ liệu không được chứa công thức; hãy dán giá trị văn bản thuần túy.'
+        )
+      );
+    }
+
+    const original = {
+      fullName: firstThree[0]?.raw ?? '',
+      username: firstThree[1]?.raw ?? '',
+      contact: firstThree[2]?.raw ?? '',
+    };
+    rows.push(
+      validateRow(
         line,
-        message: 'Dòng chứa ô có công thức (formula), hệ thống chỉ chấp nhận văn bản thuần túy.',
-      });
-    }
-
-    const key = cell2.text.toLowerCase();
-    if (key) {
-      usernameCount.set(key, (usernameCount.get(key) ?? 0) + 1);
-    }
-
-    parsedEntries.push({
-      line,
-      fullName: cell1.text,
-      username: cell2.text,
-      contact: cell3.text,
-      hasFormula,
-      isEmpty: false,
-    });
+        {
+          fullName: firstThree[0]?.text ?? '',
+          username: firstThree[1]?.text ?? '',
+          contact: firstThree[2]?.text ?? '',
+        },
+        issues,
+        normalizationNotices,
+        original
+      )
+    );
   }
 
-  if (parsedEntries.length === 0 && issues.length === 0) {
-    issues.push({ line: 1, message: 'File không có dòng dữ liệu nào.' });
-    return { rows, issues };
+  const usernameLines = new Map<string, number[]>();
+  for (const row of rows) {
+    const lines = usernameLines.get(row.username) ?? [];
+    lines.push(row.line);
+    usernameLines.set(row.username, lines);
+  }
+  for (const [username, lines] of usernameLines) {
+    if (lines.length < 2) continue;
+    for (const line of lines) {
+      issues.push(
+        createIssue(
+          line,
+          'username',
+          'DUPLICATE_USERNAME',
+          `Tên đăng nhập "${username}" bị trùng lặp với dòng khác trong file.`
+        )
+      );
+    }
   }
 
-  for (const entry of parsedEntries) {
-    const missing: string[] = [];
-    if (!entry.fullName) missing.push('Họ và tên');
-    if (!entry.username) missing.push('Tên đăng nhập');
-    if (!entry.contact) missing.push('Thông tin liên hệ');
-
-    if (missing.length > 0) {
-      issues.push({
-        line: entry.line,
-        message: `Thiếu thông tin bắt buộc: ${missing.join(', ')}.`,
-      });
-    }
-
-    const key = entry.username.toLowerCase();
-    if (key && (usernameCount.get(key) ?? 0) > 1) {
-      issues.push({
-        line: entry.line,
-        message: `Tên đăng nhập "${entry.username}" bị trùng lặp với dòng khác trong file.`,
-      });
-    }
-
-    rows.push({
-      line: entry.line,
-      fullName: entry.fullName,
-      username: entry.username,
-      contact: entry.contact,
-    });
-  }
-
-  issues.sort((a, b) => a.line - b.line);
-  return { rows, issues };
+  issues.sort((left, right) => left.line - right.line || left.field.localeCompare(right.field));
+  return {
+    rows,
+    issues,
+    normalizationNotices,
+    isValid: issues.length === 0 && rows.length > 0,
+  };
 }

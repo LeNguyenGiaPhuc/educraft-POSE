@@ -137,13 +137,13 @@ describe('Admin Classrooms API (E2E)', () => {
           gradeLevel: 11,
           academicYear: '2026-2027',
           initialStudentPassword: 'TempPassword123!',
-          students: [{ line: 2, fullName: 'Nguyễn Văn An', username: 'nguyen.an', contact: '0901' }],
+          students: [{ line: 2, fullName: 'Nguyễn Văn An', username: 'nguyen.an', contact: '0901234567' }],
         });
 
       expect(res.status).toBe(201);
       expect(createSpy).toHaveBeenCalledWith(expect.objectContaining({
         initialStudentPassword: 'TempPassword123!',
-        students: [{ line: 2, fullName: 'Nguyễn Văn An', username: 'nguyen.an', contact: '0901' }],
+        students: [{ line: 2, fullName: 'Nguyễn Văn An', username: 'nguyen.an', contact: '0901234567' }],
       }));
     });
 

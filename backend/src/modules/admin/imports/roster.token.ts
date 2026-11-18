@@ -11,7 +11,8 @@ export const rosterTokenService = {
   generateToken(
     params: {
       adminId: string;
-      classroomId: string;
+      classroomId?: string;
+      operation?: ValidationTokenPayload['operation'];
       rowCount: number;
       rowsHash: string;
     },
@@ -19,6 +20,7 @@ export const rosterTokenService = {
   ): string {
     const payload: ValidationTokenPayload = {
       adminId: params.adminId,
+      operation: params.operation ?? 'EXISTING_CLASSROOM',
       classroomId: params.classroomId,
       rowCount: params.rowCount,
       rowsHash: params.rowsHash,
