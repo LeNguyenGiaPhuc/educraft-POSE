@@ -286,6 +286,8 @@ model MaterialVersion {
   mime_type         String            @db.VarChar(100)
   byte_size         BigInt
   processing_status ProcessingStatus  @default(PENDING)
+  processing_attempt_id String?        @db.Uuid
+  processing_started_at DateTime?      @db.Timestamptz(6)
   uploaded_at       DateTime          @default(now()) @db.Timestamptz(6)
   published_at      DateTime?         @db.Timestamptz(6)
   material          LearningMaterial  @relation("MaterialVersions", fields: [material_id], references: [id], onDelete: Restrict)
@@ -293,6 +295,7 @@ model MaterialVersion {
   segments          MaterialSegment[]
 
   @@unique([material_id, version_no])
+  @@index([processing_status, processing_started_at])
   @@map("material_versions")
 }
 

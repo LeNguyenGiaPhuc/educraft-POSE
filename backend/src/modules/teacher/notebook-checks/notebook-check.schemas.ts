@@ -110,5 +110,4 @@ export type CreateAndPublishNotebookCheckInput = z.infer<typeof createAndPublish
 export type UpdateNotebookCheckInput = z.infer<typeof updateNotebookCheckSchema>;
 export type PutCriteriaInput = z.infer<typeof putCriteriaSchema>;
 export type CreatePeriodInput = z.infer<typeof createPeriodSchema>;
-export type FinalizeCriterionResultInput = z.infer<typeof finalizeCriterionResultInputSchema>;
 export type FinalizeSubmissionInput = z.infer<typeof finalizeSubmissionSchema>;

@@ -71,6 +71,3 @@ export const commitNewClassroomRosterSchema = z.object({
 export const classroomIdParamSchema = z.object({
   id: z.string().uuid('ID lớp học không hợp lệ'),
 });
-
-export type CommitRosterInput = z.infer<typeof commitRosterSchema>;
-export type CommitNewClassroomRosterInput = z.infer<typeof commitNewClassroomRosterSchema>;

@@ -2,6 +2,18 @@ import { z } from 'zod';
 
 const uuidSchema = z.string().uuid('ID phải là UUID hợp lệ');
 
+function isValidCalendarDate(value: string): boolean {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function calendarDateSchema(fieldName: string) {
+  return z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, `${fieldName} phải có định dạng YYYY-MM-DD`)
+    .refine(isValidCalendarDate, `${fieldName} không phải là ngày hợp lệ`);
+}
+
 export const classroomSubjectIdParamSchema = z.object({
   classroomSubjectId: uuidSchema,
 });
@@ -73,14 +85,8 @@ export const statisticsQuerySchema = z.object({
 export const promptTopicsQuerySchema = z
   .object({
     studentId: uuidSchema.optional(),
-    periodStart: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, 'periodStart phải có định dạng YYYY-MM-DD')
-      .optional(),
-    periodEnd: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, 'periodEnd phải có định dạng YYYY-MM-DD')
-      .optional(),
+    periodStart: calendarDateSchema('periodStart').optional(),
+    periodEnd: calendarDateSchema('periodEnd').optional(),
   })
   .superRefine((value, context) => {
     if ((value.periodStart && !value.periodEnd) || (!value.periodStart && value.periodEnd)) {

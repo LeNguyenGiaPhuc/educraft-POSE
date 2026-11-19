@@ -237,6 +237,16 @@ describe('Teacher Results API (E2E)', () => {
         .set('Cookie', ['educraft_session=mock_cookie']);
 
       expect(invalidResponse.status).toBe(400);
+
+      for (const periodStart of ['2026-02-30', '2026-99-99', '2023-02-29']) {
+        const invalidCalendarResponse = await request(app)
+          .get(`/api/v1/teacher/classroom-subjects/${classroomSubjectId}/prompt-topics`)
+          .query({ periodStart, periodEnd: '2026-03-01' })
+          .set('Cookie', ['educraft_session=mock_cookie']);
+
+        expect(invalidCalendarResponse.status).toBe(400);
+      }
+
       expect(resultsService.getPromptTopics).toHaveBeenCalledTimes(1);
     });
   });

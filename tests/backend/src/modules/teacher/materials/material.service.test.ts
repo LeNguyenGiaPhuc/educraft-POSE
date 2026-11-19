@@ -4,7 +4,10 @@ import { materialRepository } from '../../../../../../backend/src/modules/teache
 import { defaultStorageProvider } from '../../../../../../backend/src/modules/storage/storage-factory.js';
 import { defaultAiProcessingProvider } from '../../../../../../backend/src/modules/teacher/materials/ai-processing.provider.js';
 import * as teacherSubjectPolicy from '../../../../../../backend/src/modules/teacher/access/teacher-subject.policy.js';
-import { ForbiddenError } from '../../../../../../backend/src/shared/errors/app-error.js';
+import {
+  ConflictError,
+  ForbiddenError,
+} from '../../../../../../backend/src/shared/errors/app-error.js';
 
 describe('MaterialService', () => {
   beforeEach(() => {
@@ -291,6 +294,145 @@ describe('MaterialService', () => {
   });
 
   describe('retryProcessing', () => {
+    it('returns a readable error when the material is missing', async () => {
+      vi.spyOn(materialRepository, 'findMaterialWithLessonContext').mockResolvedValue(null);
+
+      await expect(materialService.retryProcessing('missing', 'teacher-1')).rejects.toThrow(
+        'Không tìm thấy học liệu'
+      );
+    });
+
+    it('returns a readable error when the material is archived', async () => {
+      vi.spyOn(materialRepository, 'findMaterialWithLessonContext').mockResolvedValue({
+        id: 'mat-1',
+        status: 'ARCHIVED',
+        lesson: { classroom_subject_id: 'cs-1' },
+        versions: [],
+      } as any);
+      vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue(mockPolicyCtx);
+
+      await expect(materialService.retryProcessing('mat-1', 'teacher-1')).rejects.toThrow(
+        'Không thể xử lý lại học liệu đã lưu trữ'
+      );
+    });
+
+    it('rejects a retry when another worker already owns the processing claim', async () => {
+      vi.spyOn(materialRepository, 'findMaterialWithLessonContext').mockResolvedValue({
+        id: 'mat-1',
+        file_name: 'lesson.pdf',
+        status: 'DRAFT',
+        lesson: { classroom_subject_id: 'cs-1' },
+        versions: [{
+          id: 'ver-1',
+          version_no: 1,
+          storage_key: 'lesson.pdf',
+          mime_type: 'application/pdf',
+          processing_status: 'FAILED',
+        }],
+      } as any);
+      vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue(mockPolicyCtx);
+      vi.spyOn(materialRepository, 'claimProcessingAttempt').mockResolvedValue(null);
+      const openSpy = vi.spyOn(defaultStorageProvider, 'open').mockResolvedValue(Buffer.from('file'));
+
+      await expect(materialService.retryProcessing('mat-1', 'teacher-1')).rejects.toThrow(
+        'đang được xử lý'
+      );
+      expect(openSpy).not.toHaveBeenCalled();
+    });
+
+    it('releases the claim when the source file cannot be opened', async () => {
+      vi.spyOn(materialRepository, 'findMaterialWithLessonContext').mockResolvedValue({
+        id: 'mat-1',
+        file_name: 'lesson.pdf',
+        status: 'DRAFT',
+        lesson: { classroom_subject_id: 'cs-1' },
+        versions: [{
+          id: 'ver-1',
+          version_no: 1,
+          storage_key: 'lesson.pdf',
+          mime_type: 'application/pdf',
+          processing_status: 'FAILED',
+        }],
+      } as any);
+      vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue(mockPolicyCtx);
+      vi.spyOn(materialRepository, 'claimProcessingAttempt').mockResolvedValue('attempt-1');
+      vi.spyOn(defaultStorageProvider, 'open').mockRejectedValue(new Error('missing file'));
+      const updateProcessing = vi
+        .spyOn(materialRepository, 'updateClaimedVersionProcessing')
+        .mockResolvedValue({ applied: true });
+
+      await expect(materialService.retryProcessing('mat-1', 'teacher-1')).rejects.toThrow();
+      expect(updateProcessing).toHaveBeenCalledWith('ver-1', 'attempt-1', 'FAILED');
+    });
+
+    it('runs only the request that wins the processing claim', async () => {
+      vi.spyOn(materialRepository, 'findMaterialWithLessonContext').mockResolvedValue({
+        id: 'mat-1',
+        file_name: 'lesson.pdf',
+        status: 'DRAFT',
+        lesson: { classroom_subject_id: 'cs-1' },
+        versions: [{
+          id: 'ver-1',
+          version_no: 1,
+          storage_key: 'lesson.pdf',
+          mime_type: 'application/pdf',
+          processing_status: 'FAILED',
+        }],
+      } as any);
+      vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue(mockPolicyCtx);
+      vi.spyOn(materialRepository, 'claimProcessingAttempt')
+        .mockResolvedValueOnce('attempt-1')
+        .mockResolvedValueOnce(null);
+      vi.spyOn(defaultStorageProvider, 'open').mockResolvedValue(Buffer.from('file'));
+      const processSpy = vi.spyOn(defaultAiProcessingProvider, 'process').mockResolvedValue({
+        status: 'PROCESSED',
+        segments: [],
+      });
+      const updateProcessing = vi
+        .spyOn(materialRepository, 'updateClaimedVersionProcessing')
+        .mockResolvedValue({ applied: true });
+
+      const results = await Promise.allSettled([
+        materialService.retryProcessing('mat-1', 'teacher-1'),
+        materialService.retryProcessing('mat-1', 'teacher-1'),
+      ]);
+
+      expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+      expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
+      expect(processSpy).toHaveBeenCalledTimes(1);
+      expect(updateProcessing).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not report success when its claim was replaced before completion', async () => {
+      vi.spyOn(materialRepository, 'findMaterialWithLessonContext').mockResolvedValue({
+        id: 'mat-1',
+        file_name: 'lesson.pdf',
+        status: 'DRAFT',
+        lesson: { classroom_subject_id: 'cs-1' },
+        versions: [{
+          id: 'ver-1',
+          version_no: 1,
+          storage_key: 'lesson.pdf',
+          mime_type: 'application/pdf',
+          processing_status: 'FAILED',
+        }],
+      } as any);
+      vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue(mockPolicyCtx);
+      vi.spyOn(materialRepository, 'claimProcessingAttempt').mockResolvedValue('attempt-1');
+      vi.spyOn(defaultStorageProvider, 'open').mockResolvedValue(Buffer.from('file'));
+      vi.spyOn(defaultAiProcessingProvider, 'process').mockResolvedValue({
+        status: 'PROCESSED',
+        segments: [],
+      });
+      vi.spyOn(materialRepository, 'updateClaimedVersionProcessing').mockRejectedValue(
+        new ConflictError('Quyền xử lý học liệu đã hết hiệu lực')
+      );
+
+      await expect(materialService.retryProcessing('mat-1', 'teacher-1')).rejects.toThrow(
+        ConflictError
+      );
+    });
+
     it('reprocesses the latest failed version from private storage', async () => {
       vi.spyOn(materialRepository, 'findMaterialWithLessonContext').mockResolvedValue({
         id: 'mat-1',
@@ -306,6 +448,7 @@ describe('MaterialService', () => {
         }],
       } as any);
       vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue(mockPolicyCtx);
+      vi.spyOn(materialRepository, 'claimProcessingAttempt').mockResolvedValue('attempt-1');
       const fileBuffer = Buffer.from('%PDF-1.4 stored');
       vi.spyOn(defaultStorageProvider, 'open').mockResolvedValue(fileBuffer);
       vi.spyOn(defaultAiProcessingProvider, 'process').mockResolvedValue({
@@ -319,8 +462,8 @@ describe('MaterialService', () => {
         }],
       });
       const updateProcessing = vi
-        .spyOn(materialRepository, 'updateVersionProcessing')
-        .mockResolvedValue({ processing_status: 'PROCESSED' } as any);
+        .spyOn(materialRepository, 'updateClaimedVersionProcessing')
+        .mockResolvedValue({ applied: true });
 
       await expect(materialService.retryProcessing('mat-1', 'teacher-1')).resolves.toEqual({
         materialId: 'mat-1',
@@ -335,7 +478,12 @@ describe('MaterialService', () => {
         mimeType: 'application/pdf',
         buffer: fileBuffer,
       });
-      expect(updateProcessing).toHaveBeenCalledWith('ver-1', 'PROCESSED', expect.any(Array));
+      expect(updateProcessing).toHaveBeenCalledWith(
+        'ver-1',
+        'attempt-1',
+        'PROCESSED',
+        expect.any(Array)
+      );
     });
 
     it('rejects retry for an already processed version', async () => {
@@ -354,7 +502,7 @@ describe('MaterialService', () => {
       vi.spyOn(teacherSubjectPolicy, 'requireAssignedSubject').mockResolvedValue(mockPolicyCtx);
 
       await expect(materialService.retryProcessing('mat-1', 'teacher-1')).rejects.toThrow(
-        'Chá»‰ cÃ³ thá»ƒ xá»­ lÃ½ láº¡i'
+        'Chỉ có thể xử lý lại'
       );
     });
   });

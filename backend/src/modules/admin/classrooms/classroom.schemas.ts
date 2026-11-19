@@ -94,6 +94,5 @@ export const classroomIdParamSchema = z.object({
   id: z.string().uuid('ID lớp học không hợp lệ'),
 });
 
-export type ListClassroomsQuery = z.infer<typeof listClassroomsQuerySchema>;
 export type CreateClassroomInput = z.infer<typeof createClassroomSchema>;
 export type UpdateClassroomInput = z.infer<typeof updateClassroomSchema>;

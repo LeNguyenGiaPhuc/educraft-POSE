@@ -1,4 +1,8 @@
-import { BadRequestError, NotFoundError } from '../../../shared/errors/app-error.js';
+import {
+  BadRequestError,
+  ConflictError,
+  NotFoundError,
+} from '../../../shared/errors/app-error.js';
 import { defaultStorageProvider } from '../../storage/storage-factory.js';
 import {
   generateStorageKey,
@@ -20,7 +24,39 @@ async function processMaterialVersion(params: {
   mimeType: string;
   buffer: Buffer;
   persistPending?: boolean;
+  attemptId?: string;
 }): Promise<ProcessedMaterialResult['status']> {
+  const updateProcessing = async (
+    status: 'PROCESSED' | 'FAILED' | 'PENDING',
+    segments?: ProcessedMaterialResult['segments']
+  ) => {
+    if (params.attemptId) {
+      if (segments === undefined) {
+        await materialRepository.updateClaimedVersionProcessing(
+          params.versionId,
+          params.attemptId,
+          status
+        );
+        return;
+      }
+
+      await materialRepository.updateClaimedVersionProcessing(
+        params.versionId,
+        params.attemptId,
+        status,
+        segments
+      );
+      return;
+    }
+
+    if (segments === undefined) {
+      await materialRepository.updateVersionProcessing(params.versionId, status);
+      return;
+    }
+
+    await materialRepository.updateVersionProcessing(params.versionId, status, segments);
+  };
+
   let result: ProcessedMaterialResult;
 
   try {
@@ -31,19 +67,19 @@ async function processMaterialVersion(params: {
       buffer: params.buffer,
     });
   } catch {
-    await materialRepository.updateVersionProcessing(params.versionId, 'FAILED');
+    await updateProcessing('FAILED');
     return 'FAILED';
   }
 
   if (result.status === 'PENDING') {
-    if (params.persistPending) {
-      await materialRepository.updateVersionProcessing(params.versionId, 'PENDING');
+    if (params.attemptId || params.persistPending) {
+      await updateProcessing('PENDING');
     }
     return 'PENDING';
   }
 
   const segments = result.status === 'PROCESSED' ? result.segments : undefined;
-  await materialRepository.updateVersionProcessing(params.versionId, result.status, segments);
+  await updateProcessing(result.status, segments);
   return result.status;
 }
 
@@ -190,7 +226,7 @@ export const materialService = {
   async retryProcessing(materialId: string, teacherId: string) {
     const material = await materialRepository.findMaterialWithLessonContext(materialId);
     if (!material) {
-      throw new NotFoundError('KhÃ´ng tÃ¬m tháº¥y há»c liá»‡u');
+      throw new NotFoundError('Không tìm thấy học liệu');
     }
 
     await requireAssignedSubject(teacherId, material.lesson.classroom_subject_id, {
@@ -198,23 +234,31 @@ export const materialService = {
     });
 
     if (material.status === 'ARCHIVED') {
-      throw new BadRequestError('KhÃ´ng thá»ƒ xá»­ lÃ½ láº¡i há»c liá»‡u Ä‘Ã£ lÆ°u trá»¯');
+      throw new BadRequestError('Không thể xử lý lại học liệu đã lưu trữ');
     }
 
     const latest = material.versions[0];
     if (!latest) {
-      throw new NotFoundError('KhÃ´ng tÃ¬m tháº¥y phiÃªn báº£n há»c liá»‡u');
+      throw new NotFoundError('Không tìm thấy phiên bản học liệu');
     }
 
     if (latest.processing_status !== 'FAILED' && latest.processing_status !== 'PENDING') {
-      throw new BadRequestError('Chá»‰ cÃ³ thá»ƒ xá»­ lÃ½ láº¡i há»c liá»‡u Ä‘ang chá» hoáº·c bá»‹ lá»—i');
+      throw new BadRequestError('Chỉ có thể xử lý lại học liệu đang chờ hoặc bị lỗi');
+    }
+
+    const attemptId = await materialRepository.claimProcessingAttempt(latest.id);
+    if (!attemptId) {
+      throw new ConflictError('Học liệu đang được xử lý bởi một yêu cầu khác');
     }
 
     let buffer: Buffer;
     try {
       buffer = await defaultStorageProvider.open(latest.storage_key);
     } catch {
-      throw new NotFoundError('KhÃ´ng tÃ¬m tháº¥y tá»‡p há»c liá»‡u trong kho lÆ°u trá»¯');
+      await materialRepository
+        .updateClaimedVersionProcessing(latest.id, attemptId, 'FAILED')
+        .catch(() => {});
+      throw new NotFoundError('Không tìm thấy tệp học liệu trong kho lưu trữ');
     }
 
     const processingStatus = await processMaterialVersion({
@@ -222,7 +266,7 @@ export const materialService = {
       fileName: material.file_name,
       mimeType: latest.mime_type,
       buffer,
-      persistPending: true,
+      attemptId,
     });
 
     return {
