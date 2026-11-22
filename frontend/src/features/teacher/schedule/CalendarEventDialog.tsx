@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import type { TeacherCalendarEvent, TeacherCalendarEventInput } from '../../../lib/api/teacher/calendar'
 import type { TeacherAssignedSubject } from '../../../lib/api/teacher/types'
 import { isCalendarDateTime, maxCalendarDateTime, minCalendarDateTime } from './calendarDate'
+import { eventTypeForApi, eventTypeLabel } from './calendarEventType'
 import './schedule.css'
 
 export type CalendarLinkOption = { id: string; title: string }
@@ -51,10 +52,11 @@ export function CalendarEventDialog({
   onSubjectChange,
   onSave,
 }: Props) {
+  const originalEventType = event?.eventType ?? (initialEventType?.trim() || 'LESSON')
   const [classroomSubjectId, setClassroomSubjectId] = useState(event?.classroomSubjectId ?? initialClassroomSubjectId)
   const [title, setTitle] = useState(event?.title ?? initialTitle ?? '')
   const [details, setDetails] = useState(event?.details ?? initialDetails ?? '')
-  const [eventType, setEventType] = useState(event?.eventType ?? initialEventType ?? 'LESSON')
+  const [eventType, setEventType] = useState(eventTypeLabel(originalEventType))
   const [startsAt, setStartsAt] = useState(() => toDateTimeLocal(event?.startsAt ?? initialStartsAt))
   const [link, setLink] = useState(event?.lessonId ? `lesson:${event.lessonId}` : event?.activityId ? `activity:${event.activityId}` : initialLessonId ? `lesson:${initialLessonId}` : initialActivityId ? `activity:${initialActivityId}` : '')
   const [error, setError] = useState('')
@@ -90,7 +92,7 @@ export function CalendarEventDialog({
       ...(event ? { expectedUpdatedAt: event.updatedAt } : {}),
       title: title.trim(),
       details: details.trim(),
-      eventType: eventType.trim() || 'LESSON',
+      eventType: eventTypeForApi(eventType, originalEventType),
       startsAt: new Date(startsAt).toISOString(),
       lessonId: linkKind === 'lesson' ? linkId : null,
       activityId: linkKind === 'activity' ? linkId : null,

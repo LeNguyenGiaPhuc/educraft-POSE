@@ -37,6 +37,7 @@ import {
   type AdminUnassignedStudent,
 } from '../../../lib/api/admin'
 import { validateClassroomDraft, type ClassroomDraft } from './classroomForm'
+import { formatClassroomDate } from './classroomDate'
 import { StudentExcelImportModal } from './StudentExcelImportModal'
 import { TransferStudentDialog } from './TransferStudentDialog'
 import './classrooms.css'
@@ -804,7 +805,7 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
                           )}
                         </td>
                         <td>
-                          <span className="cls-date-text">{membership.joinedAt}</span>
+                          <span className="cls-date-text">{formatClassroomDate(membership.joinedAt)}</span>
                         </td>
                         <td style={{ textAlign: 'right' }}>
                           <button
@@ -880,14 +881,14 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
                           <span className="cls-contact-text">{student.contact}</span>
                         </td>
                         <td>
-                          <span className="cls-date-text">{membership.joinedAt}</span>
+                          <span className="cls-date-text">{formatClassroomDate(membership.joinedAt)}</span>
                         </td>
                         <td>
-                          <span className="cls-date-text is-left">{membership.leftAt}</span>
+                          <span className="cls-date-text is-left">{formatClassroomDate(membership.leftAt)}</span>
                         </td>
                         <td>
                           <span className="cls-duration-badge">
-                            <Clock size={12} /> {membership.joinedAt} → {membership.leftAt}
+                            <Clock size={12} /> {formatClassroomDate(membership.joinedAt)} → {formatClassroomDate(membership.leftAt)}
                           </span>
                         </td>
                       </tr>
