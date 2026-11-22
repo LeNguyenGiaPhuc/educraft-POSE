@@ -23,9 +23,15 @@ describe('BE-05 teacher calendar & activities database constraints (real Postgre
     if (submissionIds.length > 0) {
       await prisma.exerciseSubmission.deleteMany({ where: { id: { in: submissionIds } } });
     }
-    if (notificationIds.length > 0) {
-      await prisma.notification.deleteMany({ where: { id: { in: notificationIds } } });
-    }
+    await prisma.notification.deleteMany({
+      where: {
+        OR: [
+          { id: { in: notificationIds } },
+          { schedule_event_id: { in: eventIds } },
+          { activity_id: { in: activityIds } },
+        ],
+      },
+    });
     if (eventIds.length > 0) {
       await prisma.scheduleEvent.deleteMany({ where: { id: { in: eventIds } } });
     }
@@ -37,6 +43,10 @@ describe('BE-05 teacher calendar & activities database constraints (real Postgre
       await prisma.activity.deleteMany({ where: { id: { in: activityIds } } });
     }
     if (materialVersionIds.length > 0) {
+      await prisma.learningMaterial.updateMany({
+        where: { id: { in: materialIds } },
+        data: { active_version_id: null },
+      });
       await prisma.materialSegment.deleteMany({
         where: { material_version_id: { in: materialVersionIds } },
       });
@@ -64,6 +74,44 @@ describe('BE-05 teacher calendar & activities database constraints (real Postgre
     }
     await prisma.$disconnect();
   });
+
+  async function createPublishedSource(teacherId: string, lessonId: string) {
+    const material = await prisma.learningMaterial.create({
+      data: {
+        lesson_id: lessonId,
+        file_name: `source-${randomUUID()}.pdf`,
+        status: 'PUBLISHED',
+        created_by_id: teacherId,
+      },
+    });
+    materialIds.push(material.id);
+    const version = await prisma.materialVersion.create({
+      data: {
+        material_id: material.id,
+        version_no: 1,
+        storage_key: `be05/${marker}/${randomUUID()}.pdf`,
+        mime_type: 'application/pdf',
+        byte_size: 100,
+        processing_status: 'PROCESSED',
+      },
+    });
+    materialVersionIds.push(version.id);
+    await prisma.learningMaterial.update({
+      where: { id: material.id },
+      data: { active_version_id: version.id },
+    });
+    const segment = await prisma.materialSegment.create({
+      data: {
+        material_version_id: version.id,
+        position_type: 'PAGE',
+        position_index: 1,
+        position_label: 'Page 1',
+        ordinal: 1,
+        content: 'Verified lesson source',
+      },
+    });
+    return segment.id;
+  }
 
   it('enforces exclusive link on schedule_events (cannot link both lesson and activity)', async () => {
     const teacher = await prisma.user.create({
@@ -350,6 +398,7 @@ describe('BE-05 teacher calendar & activities database constraints (real Postgre
     lessonIds.push(lesson.id);
 
     // 1. Create activity atomically
+    const sourceSegmentId = await createPublishedSource(teacher.id, lesson.id);
     const createdActivity = await activityRepository.createActivityAtomically(
       teacher.id,
       classroomSubject.id,
@@ -373,12 +422,12 @@ describe('BE-05 teacher calendar & activities database constraints (real Postgre
       [
         {
           prompt: '1 + 1 = ?',
-          options: ['1', '2', '3'],
+          options: ['1', '2', '3', '4'],
           answerKey: '2',
           explanation: 'Toán cơ bản',
           maxPoints: 1.0,
           lessonId: lesson.id,
-          citations: [],
+          citations: [{ segmentId: sourceSegmentId, excerpt: 'Verified lesson source' }],
         },
       ]
     );
@@ -486,6 +535,7 @@ describe('BE-05 teacher calendar & activities database constraints (real Postgre
     lessonIds.push(lesson.id);
 
     // 1. Create activity & add question
+    const sourceSegmentId = await createPublishedSource(teacher.id, lesson.id);
     const activity = await activityRepository.createActivityAtomically(
       teacher.id,
       classroomSubject.id,
@@ -503,12 +553,12 @@ describe('BE-05 teacher calendar & activities database constraints (real Postgre
     await activityRepository.putQuestionsAtomically(teacher.id, activity.id, [
       {
         prompt: 'Thủ đô Việt Nam là gì?',
-        options: ['Hà Nội', 'Huế', 'Đà Nẵng'],
+        options: ['Hà Nội', 'Huế', 'Đà Nẵng', 'Hải Phòng'],
         answerKey: 'Hà Nội',
         explanation: '',
         maxPoints: 1.0,
         lessonId: lesson.id,
-        citations: [],
+        citations: [{ segmentId: sourceSegmentId, excerpt: 'Verified lesson source' }],
       },
     ]);
 
@@ -529,7 +579,7 @@ describe('BE-05 teacher calendar & activities database constraints (real Postgre
       activityRepository.putQuestionsAtomically(teacher.id, activity.id, [
         {
           prompt: 'Sửa câu hỏi mới?',
-          options: ['A', 'B'],
+          options: ['A', 'B', 'C', 'D'],
           answerKey: 'A',
           explanation: '',
           maxPoints: 1.0,
@@ -787,6 +837,10 @@ describe('BE-05 teacher calendar & activities database constraints (real Postgre
       },
     });
     materialVersionIds.push(publishedVersion.id, draftVersion.id);
+    await prisma.learningMaterial.update({
+      where: { id: publishedMaterial.id },
+      data: { active_version_id: publishedVersion.id },
+    });
 
     const publishedSegment = await prisma.materialSegment.create({
       data: {
@@ -837,12 +891,12 @@ describe('BE-05 teacher calendar & activities database constraints (real Postgre
         questions: [
           {
             prompt: 'Câu hỏi dùng nguồn còn nháp?',
-            options: ['A', 'B'],
+            options: ['A', 'B', 'C', 'D'],
             answerKey: 'A',
             explanation: '',
             maxPoints: 1,
             lessonId: draftLesson.id,
-            citations: [{ segmentId: draftSegment.id }],
+            citations: [{ segmentId: draftSegment.id, excerpt: 'Nguồn còn nháp' }],
           },
         ],
       })
@@ -855,12 +909,12 @@ describe('BE-05 teacher calendar & activities database constraints (real Postgre
       questions: [
         {
           prompt: 'Câu hỏi dùng nguồn đã xuất bản?',
-          options: ['A', 'B'],
+          options: ['A', 'B', 'C', 'D'],
           answerKey: 'A',
           explanation: '',
           maxPoints: 1,
           lessonId: publishedLesson.id,
-          citations: [{ segmentId: publishedSegment.id }],
+          citations: [{ segmentId: publishedSegment.id, excerpt: 'Nguồn đã xuất bản' }],
         },
       ],
     });

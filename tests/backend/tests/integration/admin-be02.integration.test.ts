@@ -78,8 +78,9 @@ describe('BE-02 admin persistence (real PostgreSQL)', () => {
     const created = await subjectService.createSubject({ name: `Sync ${marker}` });
     subjectIds.push(created.id);
     const links = await prisma.classroomSubject.findMany({ where: { subject_id: created.id } });
-    expect(links.map((link) => link.classroom_id)).toEqual([active.id]);
-    expect(links[0]?.teacher_id).toBeNull();
+    expect(links.map((link) => link.classroom_id)).toContain(active.id);
+    expect(links.map((link) => link.classroom_id)).not.toContain(archived.id);
+    expect(links.find((link) => link.classroom_id === active.id)?.teacher_id).toBeNull();
   });
 
   it('enforces case insensitive username and subject names in PostgreSQL', async () => {
