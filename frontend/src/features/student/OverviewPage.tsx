@@ -2,7 +2,7 @@ import { BookOpen, ClipboardList, MessageCircle, Sparkles, type LucideIcon } fro
 import { Link } from 'react-router'
 import { getAccessibleSubjects, getVisibleLessons } from './studentRules'
 import { studentIdentity } from './fixtures'
-import { assignedExercises } from './activities/activities.mock'
+import { assignedExercises, notebookActivity } from './activities/activities.mock'
 import { StudentScenarioControl } from './ScenarioControl'
 import { useStudentScenario } from './useStudentScenario'
 import './student.css'
@@ -16,8 +16,22 @@ export function StudentOverviewPage() {
   const { current, historic } = getAccessibleSubjects(scenario)
   const visibleSubjects = scenario === 'current' ? current : historic
   const publishedLessonCount = visibleSubjects.reduce((total, subject) => total + getVisibleLessons(subject.id).length, 0)
+  const currentSubjectIds = new Set(current.map((subject) => subject.id))
+  const now = Date.now()
+  const isUpcomingAndUnsubmitted = (activity: { classroomSubjectId: string; state: string; dueAt: string; submitted: boolean }) =>
+    currentSubjectIds.has(activity.classroomSubjectId)
+    && activity.state === 'OPEN'
+    && !activity.submitted
+    && Number.isFinite(Date.parse(activity.dueAt))
+    && Date.parse(activity.dueAt) > now
   const openActivityCount = scenario === 'current'
-    ? assignedExercises.filter((activity) => activity.state === 'OPEN').length + 1
+    ? assignedExercises.filter(isUpcomingAndUnsubmitted).length
+      + Number(isUpcomingAndUnsubmitted({
+        classroomSubjectId: notebookActivity.classroomSubjectId,
+        state: notebookActivity.state,
+        dueAt: notebookActivity.dueAt,
+        submitted: notebookActivity.hasCurrentSubmission,
+      }))
     : 0
 
   return <div className="page-content student-page student-overview">

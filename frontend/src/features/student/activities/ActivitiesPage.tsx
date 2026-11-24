@@ -27,8 +27,8 @@ const notebookItem: ActivityItem = {
   classroomSubjectId: notebookActivity.classroomSubjectId,
   title: notebookActivity.title,
   kind: 'NOTEBOOK',
-  state: 'OPEN',
-  submitted: true,
+  state: notebookActivity.state,
+  submitted: notebookActivity.hasCurrentSubmission,
 }
 
 function resultStatus(item: ActivityItem) {
