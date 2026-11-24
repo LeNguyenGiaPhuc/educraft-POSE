@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react'
-import { ArrowRight, LogOut, Menu, X } from 'lucide-react'
+import { ArrowRight, KeyRound, LogOut, Menu, X } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import type { DemoUser } from '../data/demo'
-import { getTeacherSubjectContext } from '../features/teacher/fixtures'
+import { teacherWorkspaceApi } from '../lib/api/teacher/workspace'
+import type { TeacherClassroomSubjectContext } from '../lib/api/teacher/types'
 import { navigation, roleNames } from '../data/navigation'
+import { ChangePasswordDialog } from './ChangePasswordDialog'
 
 type Props = { user: DemoUser; onSignOut: () => void }
 
 export function RoleLayout({ user, onSignOut }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false)
   const { pathname, search } = useLocation()
   const items = navigation[user.role]
   const current = items.find((item) => {
@@ -19,7 +22,26 @@ export function RoleLayout({ user, onSignOut }: Props) {
     const isTeacherClassDetail = user.role === 'teacher' && item.path === 'classes' && pathname.startsWith('/teacher/classes/')
     return isExactPath || isNestedPath || isStudentLesson || isTeacherClassDetail
   }) ?? items[0]
-  const teacherContext = user.role === 'teacher' ? getTeacherSubjectContext(pathname.split('/')[5], pathname.split('/')[3]) : undefined
+  const [teacherContext, setTeacherContext] = useState<TeacherClassroomSubjectContext | null>(null)
+  const teacherSubjectId = user.role === 'teacher' ? pathname.split('/')[5] : ''
+
+  useEffect(() => {
+    if (user.role !== 'teacher' || !teacherSubjectId) return
+
+    let cancelled = false
+    teacherWorkspaceApi.getClassroomSubject(teacherSubjectId)
+      .then((context) => {
+        if (!cancelled) setTeacherContext(context)
+      })
+      .catch(() => {
+        if (!cancelled) setTeacherContext(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [teacherSubjectId, user.role])
+  const visibleTeacherContext = teacherContext?.classroomSubjectId === teacherSubjectId ? teacherContext : null
   const studentParams = user.role === 'student' ? new URLSearchParams(search) : null
   const scenario = studentParams?.get('scenario') ?? null
   const isViewingHistory = scenario === 'history-only' || studentParams?.get('class') === 'history'
@@ -58,18 +80,20 @@ export function RoleLayout({ user, onSignOut }: Props) {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          {!isManagedWorkspace && <div className="preview-note"><span className="preview-spark">✳</span><div><strong>{user.role === 'student' ? 'Bản mô phỏng Student' : 'Bản xem trước'}</strong><p>{user.role === 'student' ? 'Các thao tác dùng dữ liệu mẫu và được lưu trong phiên này.' : 'Giao diện dùng dữ liệu mẫu. Các chức năng sẽ được kết nối sau.'}</p></div></div>}
+          {isManagedWorkspace && <button type="button" className="account-password-link" onClick={() => setIsPasswordDialogOpen(true)}><KeyRound size={16} /> Đổi mật khẩu</button>}
+          {user.role === 'student' && <div className="preview-note"><span className="preview-spark">✳</span><div><strong>Bản mô phỏng Student</strong><p>Các thao tác dùng dữ liệu mẫu và được lưu trong phiên này.</p></div></div>}
           <div className="sidebar-user"><span className="avatar">{user.initials}</span><span className="user-copy"><strong>{user.name}</strong><small>{user.context}</small></span><button className="icon-button logout" onClick={onSignOut} title="Đăng xuất" aria-label="Đăng xuất"><LogOut size={18} /></button></div>
         </div>
       </aside>
       <div className="app-main">
         <header className="topbar">
           <button className="icon-button mobile-menu" aria-label="Mở menu" onClick={() => setMenuOpen(true)}><Menu size={22} /></button>
-          <div className="breadcrumb"><span>Không gian học tập</span><span className="slash">/</span><strong>{current.label}{teacherContext && ` / ${teacherContext.classroom.name} · ${teacherContext.subject.name}`}</strong></div>
+          <div className="breadcrumb"><span>Không gian học tập</span><span className="slash">/</span><strong>{current.label}{visibleTeacherContext && ` / ${visibleTeacherContext.classroomName} · ${visibleTeacherContext.subjectName}`}</strong></div>
           <span className="topbar-right">{!isManagedWorkspace && <><span className="live-dot" /> Giao diện mẫu</>}<span className="topbar-avatar">{user.initials}</span></span>
         </header>
         <main className="content"><Outlet /></main>
       </div>
+      {isManagedWorkspace && <ChangePasswordDialog isOpen={isPasswordDialogOpen} onClose={() => setIsPasswordDialogOpen(false)} />}
     </div>
   )
 }

@@ -156,6 +156,29 @@
 .tc-class-card-btn:hover {
   background: #1b4737;
 }
+.tc-catalog-section + .tc-catalog-section { margin-top: 30px; }
+.tc-class-card.is-archived { border-color: #e5e5d8; background: #fffefa; }
+.tc-class-card-btn.is-read-only { background: #6a7d70; }
+.tc-class-card-btn.is-read-only:hover { background: #53665a; }
+.tc-detail-header { margin-top: 20px; }
+.tc-status-line { display: flex; align-items: center; gap: 7px; color: #b7d9aa; font-size: 10px; letter-spacing: 1.2px; font-weight: 800; }
+.tc-status-pill { display: inline-flex; align-items: center; white-space: nowrap; border-radius: 999px; padding: 6px 10px; font-size: 11px; font-weight: 700; }
+.tc-status-pill.is-active { background: #e5f2df; color: #2e7049; }
+.tc-status-pill.is-archived { background: #f6ead4; color: #8a5d1c; }
+.tc-archive-notice { display: flex; align-items: flex-start; gap: 9px; margin: 18px 0; padding: 13px 15px; border: 1px solid #e8d8b5; border-radius: 10px; background: #fff9ed; color: #76521c; font-size: 12px; line-height: 1.5; }
+.tc-api-section { margin-top: 18px; padding: 20px; }
+.tc-subject-list { display: grid; gap: 8px; }
+.tc-subject-row { display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px solid #e2ebe0; border-radius: 9px; color: #2b664a; text-decoration: none; }
+.tc-subject-row:hover { background: #f2f8ee; border-color: #b9d2b7; }
+.tc-subject-row div { display: grid; gap: 3px; }
+.tc-subject-row small, .tc-muted { color: #789080; font-size: 12px; }
+.tw-subject-summary { display: flex; align-items: center; gap: 10px; margin-top: 20px; padding: 14px 16px; border: 1px solid #e0ebe0; border-radius: 10px; background: #f8fbf7; color: #2b664a; }
+.tw-subject-summary div { display: grid; gap: 3px; }
+.tw-subject-summary span { color: #789080; font-size: 12px; }
+.tw-api-panel { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 20px; padding: 28px; color: #5d8e6d; }
+.tw-api-panel h2 { margin: 4px 0 0; color: #294836; }
+.tw-api-panel p { margin: 0; color: #6f8574; font-size: 13px; }
+.tw-api-panel .tc-muted { font-size: 11px; }
 .tw-class-header {
   display: flex;
   align-items: center;

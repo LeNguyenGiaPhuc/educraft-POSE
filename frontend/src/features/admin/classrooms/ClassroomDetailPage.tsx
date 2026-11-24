@@ -1,4 +1,4 @@
-import { useState, useMemo, type FormEvent } from 'react'
+import { useEffect, useState, useMemo, type FormEvent } from 'react'
 import {
   AlertCircle,
   AlertTriangle,
@@ -26,29 +26,20 @@ import {
   Users,
   X,
 } from 'lucide-react'
+import { ApiError } from '../../../lib/api/client'
 import {
-  accounts,
-  getClassroom,
-  getClassroomSubjects,
-  getEligibleTeachers,
-  getSubject,
-  getTeacher,
+  adminApi,
   type AdminAccount,
-  type Classroom,
-  type ClassroomSubject,
-  type Subject,
-} from '../fixtures'
-import {
-  activeStudents,
-  addManualStudentToClassroom,
-  archiveClassroomAction,
-  assignTeacherToClassroomSubject,
-  historicalStudents,
-  removeStudentFromClassroom,
-  updateClassroomInfo,
-  type ClassroomDraft,
-} from './classrooms.mock'
+  type AdminClassroomDetail,
+  type AdminClassroomSummary,
+  type AdminClassroomSubject,
+  type AdminEligibleTeacher,
+  type AdminUnassignedStudent,
+} from '../../../lib/api/admin'
+import { validateClassroomDraft, type ClassroomDraft } from './classroomForm'
+import { formatClassroomDate } from './classroomDate'
 import { StudentExcelImportModal } from './StudentExcelImportModal'
+import { TransferStudentDialog } from './TransferStudentDialog'
 import './classrooms.css'
 
 export interface ClassroomDetailPageProps {
@@ -59,17 +50,101 @@ export interface ClassroomDetailPageProps {
 type ActiveTab = 'SUBJECTS' | 'STUDENTS'
 type StudentSubTab = 'ACTIVE' | 'HISTORY'
 
-export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPageProps) {
-  // Force update ticker for local mock state changes
-  const [version, setVersion] = useState(0)
-  const refresh = () => setVersion((v) => v + 1)
+type StudentRow = {
+  membership: {
+    studentId: string
+    classroomId: string
+    joinedAt: string
+    leftAt: string | null
+  }
+  student: AdminAccount
+}
 
-  // Current classroom data
-  const classroom: Classroom | undefined = useMemo(() => {
-    // depend on version to re-evaluate
-    void version
-    return getClassroom(classroomId)
-  }, [classroomId, version])
+type ClassroomSubjectRow = {
+  id: string
+  classroomId: string
+  subjectId: string
+  teacherId: string | null
+}
+
+type SubjectOption = { id: string; name: string }
+
+function mapStudentRow(classroomId: string, student: AdminClassroomDetail['students'][number]): StudentRow {
+  return {
+    membership: {
+      studentId: student.id,
+      classroomId,
+      joinedAt: student.joinedAt,
+      leftAt: student.leftAt,
+    },
+    student: {
+      id: student.id,
+      username: student.username,
+      fullName: student.fullName,
+      role: 'STUDENT',
+      status: 'ACTIVE',
+      contact: student.contact ?? '',
+      classroomId,
+      classroomName: null,
+      mustChangePassword: student.mustChangePassword,
+      passwordChangedAt: student.passwordChangedAt,
+      createdAt: student.joinedAt,
+    },
+  }
+}
+
+function mapClassroomSubject(subject: AdminClassroomSubject, classroomId: string): ClassroomSubjectRow {
+  return {
+    id: subject.id,
+    classroomId,
+    subjectId: subject.subjectId,
+    teacherId: subject.teacher?.id ?? null,
+  }
+}
+
+export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPageProps) {
+  const [apiClassroom, setApiClassroom] = useState<AdminClassroomDetail | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [isMutating, setIsMutating] = useState(false)
+  const [eligibleTeachers, setEligibleTeachers] = useState<AdminEligibleTeacher[]>([])
+  const [unassignedStudents, setUnassignedStudents] = useState<AdminUnassignedStudent[]>([])
+  const [transferClassrooms, setTransferClassrooms] = useState<AdminClassroomSummary[]>([])
+  const [isTransferLoading, setIsTransferLoading] = useState(false)
+  const [isTransferring, setIsTransferring] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    setIsLoading(true)
+    setLoadError('')
+    adminApi.getClassroom(classroomId)
+      .then((data) => {
+        if (!cancelled) setApiClassroom(data)
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setApiClassroom(null)
+          setLoadError(error instanceof ApiError ? error.message : 'Không thể tải chi tiết lớp học.')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [classroomId])
+
+  async function refresh() {
+    try {
+      const data = await adminApi.getClassroom(classroomId)
+      setApiClassroom(data)
+      setLoadError('')
+    } catch (error) {
+      setLoadError(error instanceof ApiError ? error.message : 'Không thể tải lại chi tiết lớp học.')
+    }
+  }
 
   // Active top-level tab
   const [activeTab, setActiveTab] = useState<ActiveTab>('SUBJECTS')
@@ -87,7 +162,7 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
   const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false)
 
   // Teacher Assignment Modal state
-  const [assigningSubject, setAssigningSubject] = useState<{ cs: ClassroomSubject; subject: Subject } | null>(null)
+  const [assigningSubject, setAssigningSubject] = useState<{ cs: ClassroomSubjectRow; subject: SubjectOption } | null>(null)
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null)
 
   // Manual Add Student Modal state
@@ -100,34 +175,75 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
 
   // Unenroll / remove student confirmation modal
   const [removingStudent, setRemovingStudent] = useState<AdminAccount | null>(null)
+  const [transferringStudent, setTransferringStudent] = useState<AdminAccount | null>(null)
 
   // Subjects data
   const classroomSubjectList = useMemo(() => {
-    void version
-    if (!classroom) return []
-    return getClassroomSubjects(classroom.id)
-  }, [classroom, version])
+    if (!apiClassroom) return []
+    return apiClassroom.subjects.map((subject) => mapClassroomSubject(subject, apiClassroom.id))
+  }, [apiClassroom])
 
   // Students data
   const currentActiveStudents = useMemo(() => {
-    void version
-    if (!classroom) return []
-    return activeStudents(classroom.id)
-  }, [classroom, version])
+    if (!apiClassroom) return []
+    return apiClassroom.students.map((student) => mapStudentRow(apiClassroom.id, student))
+  }, [apiClassroom])
 
   const pastStudents = useMemo(() => {
-    void version
-    if (!classroom) return []
-    return historicalStudents(classroom.id)
-  }, [classroom, version])
+    if (!apiClassroom) return []
+    return apiClassroom.studentHistory.map((student) => mapStudentRow(apiClassroom.id, student))
+  }, [apiClassroom])
 
-  if (!classroom) {
+  function getSubject(id: string): SubjectOption | undefined {
+    const subject = apiClassroom?.subjects.find((item) => item.subjectId === id)
+    return subject ? { id: subject.subjectId, name: subject.subjectName } : undefined
+  }
+
+  function getTeacher(id: string | null): AdminAccount | undefined {
+    if (!id || !apiClassroom) return undefined
+    const subject = apiClassroom.subjects.find((item) => item.teacher?.id === id)
+    if (!subject?.teacher) return undefined
+    return {
+      id: subject.teacher.id,
+      username: subject.teacher.username,
+      fullName: subject.teacher.fullName,
+      role: 'TEACHER',
+      status: 'ACTIVE',
+      contact: subject.teacher.contact ?? '',
+      classroomId: null,
+      classroomName: null,
+      qualification: subject.teacher.qualification,
+      mustChangePassword: false,
+      passwordChangedAt: null,
+      createdAt: apiClassroom.updatedAt,
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="page-content adm-page cls-container">
+        <div className="cls-empty-box"><p>Đang tải chi tiết lớp học...</p></div>
+      </div>
+    )
+  }
+
+  if (loadError || !apiClassroom) {
     return (
       <div className="page-content adm-page cls-container">
         <div className="cls-not-found-card">
           <AlertCircle size={40} style={{ color: '#c81e1e', margin: '0 auto 12px' }} />
-          <h3>Không tìm thấy lớp học</h3>
-          <p>Mã lớp “{classroomId}” không tồn tại hoặc đã bị xóa khỏi hệ thống.</p>
+          <h3>Không thể tải lớp học</h3>
+          <p>{loadError || `Mã lớp “${classroomId}” không tồn tại hoặc đã bị xóa khỏi hệ thống.`}</p>
+          <button
+            type="button"
+            className="cls-btn-detail"
+            onClick={() => {
+              setIsLoading(true)
+              void refresh().finally(() => setIsLoading(false))
+            }}
+          >
+            <RotateCcw size={14} /> Thử lại
+          </button>
           <button type="button" className="cls-btn-create" onClick={onBack}>
             <ArrowLeft size={16} /> Quay lại danh sách lớp học
           </button>
@@ -136,100 +252,181 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
     )
   }
 
+  const classroom = apiClassroom
   const isArchived = classroom.status === 'ARCHIVED'
 
   // Open Edit modal
   function openEditModal() {
     if (isArchived) return
     setEditDraft({
-      name: classroom!.name,
-      gradeLevel: classroom!.gradeLevel,
-      academicYear: classroom!.academicYear,
+      name: classroom.name,
+      gradeLevel: classroom.gradeLevel,
+      academicYear: classroom.academicYear,
     })
     setEditErrors([])
     setIsEditOpen(true)
   }
 
-  function handleSaveEdit(e: FormEvent) {
+  async function handleSaveEdit(e: FormEvent) {
     e.preventDefault()
-    const result = updateClassroomInfo(classroom!.id, editDraft)
-    if (!result.success) {
-      setEditErrors(result.errors || ['Lỗi cập nhật thông tin lớp.'])
+    const validationErrors = validateClassroomDraft(editDraft)
+    if (validationErrors.length > 0) {
+      setEditErrors(validationErrors)
       return
     }
-    setIsEditOpen(false)
-    refresh()
-    setFeedback({ type: 'success', message: `Đã cập nhật thông tin lớp học "${editDraft.name}" thành công!` })
+    setIsMutating(true)
+    try {
+      await adminApi.updateClassroom(classroom.id, editDraft)
+      setIsEditOpen(false)
+      await refresh()
+      setFeedback({ type: 'success', message: `Đã cập nhật thông tin lớp học "${editDraft.name}" thành công!` })
+    } catch (error) {
+      setEditErrors([error instanceof ApiError ? error.message : 'Lỗi cập nhật thông tin lớp.'])
+    } finally {
+      setIsMutating(false)
+    }
   }
 
   // Handle Archive Confirmation
-  function handleConfirmArchive() {
+  async function handleConfirmArchive() {
     if (isArchived) return
-    const result = archiveClassroomAction(classroom!.id)
-    setIsArchiveConfirmOpen(false)
-    refresh()
-    setFeedback({ type: 'success', message: result.message })
+    setIsMutating(true)
+    try {
+      await adminApi.archiveClassroom(classroom.id)
+      setIsArchiveConfirmOpen(false)
+      await refresh()
+      setFeedback({ type: 'success', message: `Đã lưu trữ lớp "${classroom.name}". Lớp hiện ở chế độ chỉ đọc.` })
+    } catch (error) {
+      setFeedback({ type: 'error', message: error instanceof ApiError ? error.message : 'Không thể lưu trữ lớp học.' })
+    } finally {
+      setIsMutating(false)
+    }
   }
 
   // Open Assign Teacher Modal
-  function handleOpenAssignTeacher(cs: ClassroomSubject) {
+  async function handleOpenAssignTeacher(cs: ClassroomSubjectRow) {
     if (isArchived) return
     const sub = getSubject(cs.subjectId)
     if (!sub) return
     setAssigningSubject({ cs, subject: sub })
     setSelectedTeacherId(cs.teacherId)
+    setEligibleTeachers([])
+    try {
+      const teachers = await adminApi.listEligibleTeachers(classroom.id, cs.subjectId)
+      setEligibleTeachers(teachers)
+    } catch (error) {
+      setAssigningSubject(null)
+      setFeedback({ type: 'error', message: error instanceof ApiError ? error.message : 'Không thể tải danh sách giáo viên đủ điều kiện.' })
+    }
   }
 
-  function handleSaveTeacherAssignment() {
+  async function handleSaveTeacherAssignment() {
     if (!assigningSubject) return
-    const result = assignTeacherToClassroomSubject(
-      classroom!.id,
-      assigningSubject.subject.id,
-      selectedTeacherId
-    )
-    if (result.success) {
-      setFeedback({ type: 'success', message: result.message })
-    } else {
-      setFeedback({ type: 'error', message: result.message })
+    setIsMutating(true)
+    try {
+      await adminApi.assignTeacher(classroom.id, assigningSubject.subject.id, selectedTeacherId, assigningSubject.cs.teacherId)
+      setFeedback({ type: 'success', message: `Đã cập nhật phân công môn ${assigningSubject.subject.name}.` })
+      setAssigningSubject(null)
+      await refresh()
+    } catch (error) {
+      setFeedback({ type: 'error', message: error instanceof ApiError ? error.message : 'Không thể cập nhật phân công giáo viên.' })
+    } finally {
+      setIsMutating(false)
     }
-    setAssigningSubject(null)
-    refresh()
+  }
+
+  async function openAddStudentModal() {
+    setSelectedStudentId('')
+    setStudentFormError('')
+    try {
+      const response = await adminApi.listUnassignedStudents({ limit: 100 })
+      setUnassignedStudents(response.items)
+      setIsAddStudentOpen(true)
+    } catch (error) {
+      setFeedback({ type: 'error', message: error instanceof ApiError ? error.message : 'Không thể tải danh sách học sinh chưa có lớp.' })
+    }
   }
 
   // Handle Manual Student Add
-  function handleManualAddStudent(e: FormEvent) {
+  async function handleManualAddStudent(e: FormEvent) {
     e.preventDefault()
     setStudentFormError('')
     if (!selectedStudentId) {
       setStudentFormError('Vui lòng chọn một học sinh từ danh sách.')
       return
     }
-    const result = addManualStudentToClassroom(selectedStudentId, classroom!.id)
-    if (!result.success) {
-      setStudentFormError(result.message)
-      return
+    setIsMutating(true)
+    try {
+      await adminApi.enrollStudent(classroom.id, selectedStudentId)
+      setIsAddStudentOpen(false)
+      setSelectedStudentId('')
+      await refresh()
+      setFeedback({ type: 'success', message: 'Đã thêm học sinh vào lớp.' })
+    } catch (error) {
+      setStudentFormError(error instanceof ApiError ? error.message : 'Không thể thêm học sinh vào lớp.')
+    } finally {
+      setIsMutating(false)
     }
-    setIsAddStudentOpen(false)
-    setSelectedStudentId('')
-    refresh()
-    setFeedback({ type: 'success', message: result.message })
   }
 
   // Handle Unenroll Student
-  function handleConfirmRemoveStudent() {
+  async function handleConfirmRemoveStudent() {
     if (!removingStudent) return
-    const result = removeStudentFromClassroom(removingStudent.id, classroom!.id)
-    setRemovingStudent(null)
-    refresh()
-    setFeedback({ type: 'success', message: result.message })
+    setIsMutating(true)
+    try {
+      await adminApi.removeStudent(classroom.id, removingStudent.id)
+      setRemovingStudent(null)
+      await refresh()
+      setFeedback({ type: 'success', message: `Đã chuyển ${removingStudent.fullName} ra khỏi lớp.` })
+    } catch (error) {
+      setFeedback({ type: 'error', message: error instanceof ApiError ? error.message : 'Không thể chuyển học sinh ra khỏi lớp.' })
+    } finally {
+      setIsMutating(false)
+    }
+  }
+
+  async function openTransferStudent(student: AdminAccount) {
+    if (isArchived) return
+    setTransferringStudent(student)
+    setTransferClassrooms([])
+    setIsTransferLoading(true)
+    try {
+      const result = await adminApi.listClassrooms({ status: 'ACTIVE', page: 1, limit: 100 })
+      setTransferClassrooms(result.items.filter((item) => item.id !== classroom.id))
+    } catch (error) {
+      setTransferringStudent(null)
+      setFeedback({ type: 'error', message: error instanceof ApiError ? error.message : 'Không thể tải danh sách lớp đích.' })
+    } finally {
+      setIsTransferLoading(false)
+    }
+  }
+
+  async function handleTransferStudent(targetClassroomId: string) {
+    if (!transferringStudent) return
+    setIsTransferring(true)
+    try {
+      await adminApi.transferStudent(transferringStudent.id, targetClassroomId)
+      const studentName = transferringStudent.fullName
+      setTransferringStudent(null)
+      await refresh()
+      setFeedback({ type: 'success', message: `Đã chuyển ${studentName} sang lớp mới.` })
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        await refresh()
+        setFeedback({ type: 'error', message: 'Danh sách phân lớp vừa thay đổi. Đã tải lại dữ liệu, bạn hãy kiểm tra rồi thử lại.' })
+      }
+      throw error
+    } finally {
+      setIsTransferring(false)
+    }
   }
 
   // Handle Excel Import Success
-  function handleExcelImportSuccess(count: number) {
-    refresh()
+  async function handleExcelImportSuccess(count: number) {
+    await refresh()
     setFeedback({
       type: 'success',
-      message: `Đã thêm ${count} học sinh vào lớp ${classroom!.name} trong dữ liệu mẫu của phiên này; chưa tạo tài khoản thật.`,
+      message: `Đã thêm ${count} học sinh vào lớp ${classroom.name}.`,
     })
   }
 
@@ -523,11 +720,7 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
                 type="button"
                 className="cls-btn-create"
                 style={{ minHeight: '36px', padding: '0 14px' }}
-                onClick={() => {
-                  setSelectedStudentId('')
-                  setStudentFormError('')
-                  setIsAddStudentOpen(true)
-                }}
+                onClick={() => void openAddStudentModal()}
                 disabled={isArchived}
                 title={isArchived ? 'Lớp đã lưu trữ, không thể thêm học sinh' : 'Thêm từng học sinh thủ công'}
               >
@@ -557,11 +750,7 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
                         type="button"
                         className="cls-btn-create"
                         style={{ minHeight: '36px', padding: '0 14px' }}
-                        onClick={() => {
-                          setSelectedStudentId('')
-                          setStudentFormError('')
-                          setIsAddStudentOpen(true)
-                        }}
+                        onClick={() => void openAddStudentModal()}
                       >
                         <Plus size={14} /> Thêm thủ công
                       </button>
@@ -578,7 +767,7 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
                       <th style={{ width: '220px' }}>Liên hệ</th>
                       <th style={{ width: '180px' }}>Trạng thái mật khẩu</th>
                       <th style={{ width: '130px' }}>Ngày vào lớp</th>
-                      <th style={{ width: '110px', textAlign: 'right' }}>Thao tác</th>
+                      <th style={{ width: '210px', textAlign: 'right' }}>Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -616,9 +805,18 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
                           )}
                         </td>
                         <td>
-                          <span className="cls-date-text">{membership.joinedAt}</span>
+                          <span className="cls-date-text">{formatClassroomDate(membership.joinedAt)}</span>
                         </td>
                         <td style={{ textAlign: 'right' }}>
+                          <button
+                            type="button"
+                            className="cls-btn-action-outline"
+                            onClick={() => void openTransferStudent(student)}
+                            disabled={isArchived}
+                            title={isArchived ? 'Lớp đã lưu trữ' : 'Chuyển học sinh sang lớp đang hoạt động khác'}
+                          >
+                            <UserCheck size={14} /> Chuyển lớp
+                          </button>
                           <button
                             type="button"
                             className="cls-btn-remove-student"
@@ -683,14 +881,14 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
                           <span className="cls-contact-text">{student.contact}</span>
                         </td>
                         <td>
-                          <span className="cls-date-text">{membership.joinedAt}</span>
+                          <span className="cls-date-text">{formatClassroomDate(membership.joinedAt)}</span>
                         </td>
                         <td>
-                          <span className="cls-date-text is-left">{membership.leftAt}</span>
+                          <span className="cls-date-text is-left">{formatClassroomDate(membership.leftAt)}</span>
                         </td>
                         <td>
                           <span className="cls-duration-badge">
-                            <Clock size={12} /> {membership.joinedAt} → {membership.leftAt}
+                            <Clock size={12} /> {formatClassroomDate(membership.joinedAt)} → {formatClassroomDate(membership.leftAt)}
                           </span>
                         </td>
                       </tr>
@@ -782,8 +980,8 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
                 >
                   Hủy
                 </button>
-                <button type="submit" className="cls-btn-submit">
-                  Lưu thay đổi
+                <button type="submit" className="cls-btn-submit" disabled={isMutating}>
+                  {isMutating ? 'Đang lưu...' : 'Lưu thay đổi'}
                 </button>
               </div>
             </form>
@@ -842,8 +1040,9 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
                 className="cls-btn-submit"
                 style={{ background: '#b72727', borderColor: '#b72727' }}
                 onClick={handleConfirmArchive}
+                disabled={isMutating}
               >
-                Xác nhận lưu trữ lớp
+                {isMutating ? 'Đang lưu...' : 'Xác nhận lưu trữ lớp'}
               </button>
             </div>
           </div>
@@ -881,8 +1080,6 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
             <div className="cls-modal-body">
               {/* Eligible Teachers Query */}
               {(() => {
-                const eligibleTeachers = getEligibleTeachers(assigningSubject.subject.id)
-
                 if (eligibleTeachers.length === 0) {
                   return (
                     <div className="cls-no-teachers-box">
@@ -971,8 +1168,9 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
                 type="button"
                 className="cls-btn-submit"
                 onClick={handleSaveTeacherAssignment}
+                disabled={isMutating}
               >
-                <Check size={15} /> Xác nhận phân công
+                <Check size={15} /> {isMutating ? 'Đang lưu...' : 'Xác nhận phân công'}
               </button>
             </div>
           </div>
@@ -981,10 +1179,6 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
 
       {/* 4. Modal Thêm học sinh thủ công */}
       {isAddStudentOpen && (() => {
-        const unassignedStudents = accounts.filter(
-          (a) => a.role === 'STUDENT' && a.status === 'ACTIVE' && a.classroomId === null
-        )
-
         return (
           <div
             className="cls-modal-overlay"
@@ -1060,8 +1254,8 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
                     Hủy
                   </button>
                   {unassignedStudents.length > 0 && (
-                    <button type="submit" className="cls-btn-submit">
-                      <UserPlus size={15} /> Thêm vào lớp
+                    <button type="submit" className="cls-btn-submit" disabled={isMutating}>
+                      <UserPlus size={15} /> {isMutating ? 'Đang lưu...' : 'Thêm vào lớp'}
                     </button>
                   )}
                 </div>
@@ -1115,12 +1309,25 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
                 className="cls-btn-submit"
                 style={{ background: '#b72727', borderColor: '#b72727' }}
                 onClick={handleConfirmRemoveStudent}
+                disabled={isMutating}
               >
-                Xác nhận chuyển ra
+                {isMutating ? 'Đang lưu...' : 'Xác nhận chuyển ra'}
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {transferringStudent && (
+        <TransferStudentDialog
+          student={transferringStudent}
+          currentClassroomName={classroom.name}
+          classrooms={transferClassrooms}
+          isLoading={isTransferLoading}
+          isSaving={isTransferring}
+          onClose={() => setTransferringStudent(null)}
+          onSave={handleTransferStudent}
+        />
       )}
 
       {/* 6. Modal Import Excel (Task 5 Component) */}

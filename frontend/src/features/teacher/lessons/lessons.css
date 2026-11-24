@@ -159,6 +159,11 @@
 .tl-modal-overlay {
   position: fixed;
   inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
   z-index: 1000;
   background: rgba(18, 41, 31, 0.65);
   backdrop-filter: blur(4px);
@@ -180,6 +185,13 @@
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
   overflow: hidden;
   animation: tlModalScaleUp 0.2s ease-out;
+}
+
+.tl-modal-window > form {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
 }
 
 @keyframes tlModalFadeIn {
@@ -252,4 +264,22 @@
   background: #f7faf6;
   flex: none;
 }
+
+.tl-api-panel{display:block;align-items:stretch}
+.tl-api-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
+.tl-api-heading h2{margin:5px 0;color:#294836}
+.tl-api-heading p{margin:0;color:#6f8574;font-size:12px}
+.tl-api-filters{display:flex;gap:12px;flex-wrap:wrap;padding:12px;margin-bottom:17px;border:1px solid #dce8db;border-radius:10px;background:#f7faf6}
+.tl-api-filters label{display:grid;gap:6px;min-width:220px;font-size:11px;font-weight:700;color:#47624e}
+.tl-api-filters input,.tl-api-filters select{min-height:37px;border:1px solid #cadbc9;border-radius:8px;background:#fff;padding:0 10px;color:#2e4b38}
+.tl-inline-form{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin:18px 0;padding-top:15px;border-top:1px solid #edf2ec}
+.tl-inline-form label{display:grid;gap:6px;min-width:220px;font-size:11px;font-weight:700;color:#47624e}
+.tl-inline-form input{min-height:38px;border:1px solid #d8e4d7;border-radius:8px;padding:0 10px}
+.tl-file-button{position:relative;overflow:hidden;cursor:pointer;margin-top:12px}
+.tl-file-button input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.tl-publish-box{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:20px;padding:14px;border:1px solid #dce8db;border-radius:10px;background:#f7faf6;color:#385e42}
+.tl-publish-box p{flex:1;min-width:220px;margin:0;font-size:12px;color:#637967}
+.tl-publish-box .tl-secondary-button{display:inline-flex;text-decoration:none}
+.tl-card-head .tl-tag{margin-left:auto}
+.tl-modal-overlay{border:0}
 

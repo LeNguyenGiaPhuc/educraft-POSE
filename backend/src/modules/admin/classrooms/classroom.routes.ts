@@ -4,6 +4,7 @@ import { requireRole } from '../../../middleware/require-role.js';
 import { classroomController } from './classroom.controller.js';
 import { enrollmentController } from '../enrollments/enrollment.controller.js';
 import { adminRosterRouter } from '../imports/roster.routes.js';
+import { rosterController, uploadRosterMiddleware } from '../imports/roster.controller.js';
 import { classroomSubjectController } from '../classroom-subjects/classroom-subject.controller.js';
 
 export const adminClassroomRouter = Router();
@@ -11,6 +12,8 @@ export const adminClassroomRouter = Router();
 adminClassroomRouter.use(authenticate, requireRole('ADMIN'));
 
 adminClassroomRouter.get('/', classroomController.list);
+adminClassroomRouter.post('/roster/preview', uploadRosterMiddleware, rosterController.previewNewClassroom);
+adminClassroomRouter.post('/roster/commit', rosterController.commitNewClassroom);
 adminClassroomRouter.post('/', classroomController.create);
 adminClassroomRouter.get('/:id', classroomController.getDetail);
 adminClassroomRouter.patch('/:id', classroomController.update);

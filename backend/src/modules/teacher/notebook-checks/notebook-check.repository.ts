@@ -144,6 +144,73 @@ export const notebookCheckRepository = {
     });
   },
 
+  async createAndPublishNotebookCheckAtomically(
+    actorId: string,
+    classroomSubjectId: string,
+    input: {
+      title: string;
+      description: string;
+      dueAt: Date;
+      criteria: Array<{ content: string }>;
+      files: Array<{ storageKey: string; mimeType: string; byteSize: number }>;
+    }
+  ) {
+    return prisma.$transaction(async (tx) => {
+      await requireAssignedSubjectForMutation(tx, actorId, classroomSubjectId);
+
+      const now = new Date();
+      const activity = await tx.activity.create({
+        data: {
+          classroom_subject_id: classroomSubjectId,
+          created_by_id: actorId,
+          kind: 'NOTEBOOK_CHECK',
+          title: input.title,
+          description: input.description,
+          status: 'PUBLISHED',
+          published_at: now,
+          closes_at: null,
+        },
+      });
+
+      await tx.notebookCheckActivity.create({
+        data: {
+          activity_id: activity.id,
+          criteria_locked_at: null,
+        },
+      });
+
+      await tx.notebookCriterion.createMany({
+        data: input.criteria.map((criterion, index) => ({
+          activity_id: activity.id,
+          content: criterion.content,
+          order_index: index + 1,
+        })),
+      });
+
+      await tx.notebookReferenceFile.createMany({
+        data: input.files.map((file, index) => ({
+          activity_id: activity.id,
+          storage_key: file.storageKey,
+          mime_type: file.mimeType,
+          byte_size: BigInt(file.byteSize),
+          sort_order: index + 1,
+        })),
+      });
+
+      await tx.notebookCheckPeriod.create({
+        data: {
+          activity_id: activity.id,
+          period_no: 1,
+          opened_at: now,
+          due_at: input.dueAt,
+          closed_at: null,
+        },
+      });
+
+      return this.findNotebookCheckById(activity.id, tx);
+    });
+  },
+
   async updateNotebookCheckAtomically(
     actorId: string,
     activityId: string,
@@ -213,11 +280,20 @@ export const notebookCheckRepository = {
         );
       }
 
-      // Unlink calendar events
-      await tx.scheduleEvent.updateMany({
+      // Remove linked schedule events and their owned notifications.
+      const linkedEvents = await tx.scheduleEvent.findMany({
         where: { activity_id: activityId },
-        data: { activity_id: null },
+        select: { id: true },
       });
+      const linkedEventIds = linkedEvents.map((event) => event.id);
+      if (linkedEventIds.length > 0) {
+        await tx.notification.deleteMany({
+          where: { schedule_event_id: { in: linkedEventIds } },
+        });
+        await tx.scheduleEvent.deleteMany({
+          where: { id: { in: linkedEventIds } },
+        });
+      }
 
       // Delete reference files, criteria, periods, and notebook check
       const refFiles = await tx.notebookReferenceFile.findMany({
@@ -683,6 +759,16 @@ export const notebookCheckRepository = {
             activity: {
               include: {
                 activity: true,
+                referenceFiles: {
+                  orderBy: { sort_order: 'asc' },
+                  select: {
+                    id: true,
+                    storage_key: true,
+                    mime_type: true,
+                    byte_size: true,
+                    sort_order: true,
+                  },
+                },
                 criteria: {
                   orderBy: { order_index: 'asc' },
                 },

@@ -19,8 +19,8 @@ export function sanitizeStorageKey(key: string): string {
 
   if (
     key.includes('..') ||
-    key.startsWith('/') ||
-    key.startsWith('\\') ||
+    key.includes('/') ||
+    key.includes('\\') ||
     /^[A-Za-z]:/.test(key)
   ) {
     throw new BadRequestError('Phát hiện đường dẫn không an toàn (path traversal)');
@@ -31,12 +31,8 @@ export function sanitizeStorageKey(key: string): string {
 
 export function generateStorageKey(originalFilename: string): string {
   const ext = path.extname(originalFilename).toLowerCase();
-  const base = path
-    .basename(originalFilename, ext)
-    .replace(/[^a-zA-Z0-9_-]/g, '_')
-    .slice(0, 50);
   const uuid = randomUUID();
-  return `${uuid}-${base}${ext}`;
+  return `${uuid}${ext}`;
 }
 
 function readZipEntryNames(buffer: Buffer): Set<string> | null {

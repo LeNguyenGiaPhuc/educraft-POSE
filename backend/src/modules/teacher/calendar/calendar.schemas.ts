@@ -25,6 +25,7 @@ export const createCalendarEventSchema = z
 
 export const updateCalendarEventSchema = z
   .object({
+    expectedUpdatedAt: z.string().datetime({ message: 'Thời điểm cập nhật hiện tại không hợp lệ' }).optional(),
     title: z.string().trim().min(1, 'Tiêu đề sự kiện không được để trống').max(250, 'Tiêu đề không quá 250 ký tự').optional(),
     details: z.string().trim().optional(),
     eventType: z.string().trim().min(1).max(80).optional(),

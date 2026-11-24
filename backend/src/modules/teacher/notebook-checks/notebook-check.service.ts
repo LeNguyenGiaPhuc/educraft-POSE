@@ -8,9 +8,11 @@ import {
   notebookAiProvider,
   type AiAnalysisResult,
 } from './notebook-ai-analysis.provider.js';
+import { notebookCriteriaSuggestionProvider } from './notebook-criteria-suggestion.provider.js';
 import { notebookCheckRepository } from './notebook-check.repository.js';
 import type {
   CreateNotebookCheckInput,
+  CreateAndPublishNotebookCheckInput,
   CreatePeriodInput,
   FinalizeSubmissionInput,
   PutCriteriaInput,
@@ -30,10 +32,10 @@ function toPublicNotebookCheck(activity: NonNullable<NotebookCheckDetail>) {
     notebookCheck: {
       ...activity.notebookCheck,
       referenceFiles: (activity.notebookCheck.referenceFiles ?? []).map((file) => ({
-          id: file.id,
-          mime_type: file.mime_type,
-          byte_size: Number(file.byte_size),
-          sort_order: file.sort_order,
+        id: file.id,
+        mime_type: file.mime_type,
+        byte_size: Number(file.byte_size),
+        sort_order: file.sort_order,
       })),
     },
   };
@@ -78,6 +80,109 @@ export const notebookCheckService = {
       input
     );
     return activity ? toPublicNotebookCheck(activity) : activity;
+  },
+
+  async createAndPublishNotebookCheck(params: {
+    actorId: string;
+    classroomSubjectId: string;
+    input: CreateAndPublishNotebookCheckInput;
+    criteria: Array<{ content: string }>;
+    files: Array<{
+      originalname: string;
+      mimetype: string;
+      size: number;
+      buffer?: Buffer;
+    }>;
+    storage: StorageProvider;
+  }) {
+    const { actorId, classroomSubjectId, input, criteria, files, storage } = params;
+    const dueAt = new Date(input.dueAt);
+    if (!Number.isFinite(dueAt.getTime()) || dueAt.getTime() <= Date.now()) {
+      throw new BadRequestError('Thá»i háº¡n ná»™p bÃ i (dueAt) pháº£i á»Ÿ tÆ°Æ¡ng lai');
+    }
+
+    if (criteria.length < 1 || criteria.length > 20) {
+      throw new BadRequestError('Hoáº¡t Ä‘á»™ng pháº£i cÃ³ tá»« 1 Ä‘áº¿n 20 tiÃªu chÃ­');
+    }
+    if (files.length < 1 || files.length > 5) {
+      throw new BadRequestError('Hoáº¡t Ä‘á»™ng pháº£i cÃ³ tá»« 1 Ä‘áº¿n 5 áº£nh vá»Ÿ máº«u');
+    }
+
+    const storedKeys: string[] = [];
+    try {
+      const fileMetadata: Array<{ storageKey: string; mimeType: string; byteSize: number }> = [];
+      for (const file of files) {
+        if (file.mimetype !== 'image/jpeg' && file.mimetype !== 'image/png') {
+          throw new BadRequestError('áº¢nh máº«u chá»‰ cháº¥p nháº­n Ä‘á»‹nh dáº¡ng áº£nh JPEG hoáº·c PNG');
+        }
+        if (!file.buffer || file.size > 10 * 1024 * 1024) {
+          throw new BadRequestError('áº¢nh máº«u khÃ´ng há»£p lá»‡ hoáº·c vÆ°á»£t quÃ¡ 10MB');
+        }
+        if (!checkFileSignature(file.buffer, file.mimetype)) {
+          throw new BadRequestError('Äá»‹nh dáº¡ng ná»™i dung áº£nh khÃ´ng khá»›p vá»›i MIME type');
+        }
+
+        const storageKey = generateStorageKey(file.originalname);
+        await storage.put(storageKey, file.buffer, file.mimetype);
+        storedKeys.push(storageKey);
+        fileMetadata.push({
+          storageKey,
+          mimeType: file.mimetype,
+          byteSize: file.size,
+        });
+      }
+
+      const activity = await notebookCheckRepository.createAndPublishNotebookCheckAtomically(
+        actorId,
+        classroomSubjectId,
+        {
+          title: input.title,
+          description: input.description,
+          dueAt,
+          criteria,
+          files: fileMetadata,
+        }
+      );
+
+      return activity ? toPublicNotebookCheck(activity) : activity;
+    } catch (error) {
+      for (const key of storedKeys) {
+        await storage.delete(key).catch(() => {});
+      }
+      throw error;
+    }
+  },
+
+  async suggestCriteria(params: {
+    actorId: string;
+    classroomSubjectId: string;
+    files: Array<{
+      originalname: string;
+      mimetype: string;
+      size: number;
+      buffer?: Buffer;
+    }>;
+  }) {
+    await requireAssignedSubject(params.actorId, params.classroomSubjectId, { allowArchived: false });
+
+    if (params.files.length < 1 || params.files.length > 5) {
+      throw new BadRequestError('Cần từ 1 đến 5 ảnh vở mẫu');
+    }
+
+    const images = params.files.map((file) => {
+      if (file.mimetype !== 'image/jpeg' && file.mimetype !== 'image/png') {
+        throw new BadRequestError('Ảnh mẫu chỉ chấp nhận định dạng ảnh JPEG hoặc PNG');
+      }
+      if (!file.buffer || file.size > 10 * 1024 * 1024) {
+        throw new BadRequestError('Ảnh mẫu không hợp lệ hoặc vượt quá 10MB');
+      }
+      if (!checkFileSignature(file.buffer, file.mimetype)) {
+        throw new BadRequestError('Định dạng nội dung ảnh không khớp với MIME type');
+      }
+      return { buffer: file.buffer, mimeType: file.mimetype };
+    });
+
+    return notebookCriteriaSuggestionProvider.suggestCriteria({ images });
   },
 
   async updateNotebookCheck(
@@ -135,7 +240,7 @@ export const notebookCheckService = {
       throw new NotFoundError('Không tìm thấy hoạt động kiểm tra vở');
     }
 
-    await requireAssignedSubject(actorId, activity.classroom_subject_id);
+    await requireAssignedSubject(actorId, activity.classroom_subject_id, { allowArchived: false });
 
     if (activity.notebookCheck?.criteria_locked_at) {
       throw new ConflictError(
@@ -169,7 +274,7 @@ export const notebookCheckService = {
       throw new NotFoundError('Không tìm thấy hoạt động kiểm tra vở');
     }
 
-    await requireAssignedSubject(actorId, activity.classroom_subject_id);
+    await requireAssignedSubject(actorId, activity.classroom_subject_id, { allowArchived: false });
 
     if (activity.notebookCheck?.criteria_locked_at) {
       throw new ConflictError(
@@ -261,7 +366,7 @@ export const notebookCheckService = {
       throw new NotFoundError('Không tìm thấy hoạt động kiểm tra vở');
     }
 
-    await requireAssignedSubject(actorId, activity.classroom_subject_id);
+    await requireAssignedSubject(actorId, activity.classroom_subject_id, { allowArchived: false });
 
     const refFilesCount = activity.notebookCheck?.referenceFiles?.length ?? 0;
     if (refFilesCount === 0) {
@@ -290,7 +395,7 @@ export const notebookCheckService = {
       throw new NotFoundError('Không tìm thấy hoạt động kiểm tra vở');
     }
 
-    await requireAssignedSubject(actorId, activity.classroom_subject_id);
+    await requireAssignedSubject(actorId, activity.classroom_subject_id, { allowArchived: false });
 
     const dueAt = new Date(input.dueAt);
     if (dueAt.getTime() <= Date.now()) {
@@ -393,7 +498,8 @@ export const notebookCheckService = {
 
     await requireAssignedSubject(
       actorId,
-      submission.period.activity.activity.classroom_subject_id
+      submission.period.activity.activity.classroom_subject_id,
+      { allowArchived: false }
     );
 
     if (submission.status !== 'LOCKED') {
@@ -407,14 +513,23 @@ export const notebookCheckService = {
       content: c.content,
       orderIndex: c.order_index,
     }));
+    const referenceFiles = submission.period.activity.referenceFiles ?? [];
 
     const attemptId = randomUUID();
     await notebookCheckRepository.startSubmissionAnalysis(actorId, submissionId, attemptId);
 
     try {
-      const files = [];
+      const referenceImages = [];
+      for (const file of referenceFiles) {
+        referenceImages.push({
+          buffer: await storage.open(file.storage_key),
+          mimeType: file.mime_type,
+        });
+      }
+
+      const submissionImages = [];
       for (const file of submission.files) {
-        files.push({
+        submissionImages.push({
           buffer: await storage.open(file.storage_key),
           mimeType: file.mime_type,
         });
@@ -422,7 +537,8 @@ export const notebookCheckService = {
 
       const result = await notebookAiProvider.analyzeSubmission({
         submissionId,
-        files,
+        referenceFiles: referenceImages,
+        submissionFiles: submissionImages,
         criteria,
       });
 
@@ -473,7 +589,8 @@ export const notebookCheckService = {
 
     await requireAssignedSubject(
       actorId,
-      submission.period.activity.activity.classroom_subject_id
+      submission.period.activity.activity.classroom_subject_id,
+      { allowArchived: false }
     );
 
     // If already finalized, check idempotency

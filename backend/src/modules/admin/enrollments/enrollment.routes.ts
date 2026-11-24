@@ -9,3 +9,4 @@ adminEnrollmentRouter.use(authenticate, requireRole('ADMIN'));
 
 adminEnrollmentRouter.get('/unassigned-students', enrollmentController.listUnassigned);
 adminEnrollmentRouter.post('/students/:id/transfer', enrollmentController.transfer);
+adminEnrollmentRouter.delete('/classrooms/:id/students/:studentId', enrollmentController.remove);

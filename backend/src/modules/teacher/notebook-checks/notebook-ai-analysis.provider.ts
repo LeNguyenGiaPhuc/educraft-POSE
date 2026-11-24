@@ -4,6 +4,8 @@ export interface AiCriterionSuggestion {
   criterionId: string;
   status: 'RECORDED' | 'NEEDS_SUPPLEMENTATION' | 'UNDETERMINED';
   note?: string;
+  evidence?: string;
+  confidence?: number;
 }
 
 export interface AiAnalysisResult {
@@ -13,12 +15,15 @@ export interface AiAnalysisResult {
   suggestions?: AiCriterionSuggestion[];
 }
 
+export interface NotebookImageInput {
+  buffer: Buffer;
+  mimeType: string;
+}
+
 export interface AnalyzeNotebookParams {
   submissionId: string;
-  files: Array<{
-    buffer: Buffer;
-    mimeType: string;
-  }>;
+  referenceFiles: NotebookImageInput[];
+  submissionFiles: NotebookImageInput[];
   criteria: Array<{
     id: string;
     content: string;

@@ -1,159 +1,161 @@
-import { useMemo, useState } from 'react'
-import { ArrowRight, BookOpen, School, Search, Users } from 'lucide-react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { AlertCircle, Archive, ArrowRight, BookOpen, RotateCcw, Search, School, Users } from 'lucide-react'
 import { Link } from 'react-router'
-import { assignedClasses, currentTeacherId } from '../fixtures'
-import { classScenarios, type ClassScenario } from './classes.mock'
+import { ApiError } from '../../../lib/api/client'
+import { teacherWorkspaceApi } from '../../../lib/api/teacher/workspace'
+import type { TeacherClassroomSummary } from '../../../lib/api/teacher/types'
 import './classes.css'
 
 export function AssignedClassesPage() {
-  const [scenario, setScenario] = useState<ClassScenario>('assigned')
+  const [classrooms, setClassrooms] = useState<TeacherClassroomSummary[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [search, setSearch] = useState('')
   const [gradeFilter, setGradeFilter] = useState<number | 'ALL'>('ALL')
 
-  // Classes where current teacher is assigned to at least one subject
-  const allClasses = useMemo(() => {
-    return assignedClasses.filter((item) =>
-      item.subjects.some((subject) => subject.teacherId === currentTeacherId)
-    )
+  function loadClassrooms() {
+    setIsLoading(true)
+    setLoadError('')
+
+    teacherWorkspaceApi.listClassrooms()
+      .then(setClassrooms)
+      .catch((error) => {
+        setLoadError(error instanceof ApiError ? error.message : 'Không thể tải danh sách lớp học.')
+      })
+      .finally(() => setIsLoading(false))
+  }
+
+  useEffect(() => {
+    let cancelled = false
+
+    teacherWorkspaceApi.listClassrooms()
+      .then((data) => {
+        if (!cancelled) setClassrooms(data)
+      })
+      .catch((error) => {
+        if (!cancelled) setLoadError(error instanceof ApiError ? error.message : 'Không thể tải danh sách lớp học.')
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  // Filtered classes based on search and grade
-  const visibleClasses = useMemo(() => {
-    const term = search.trim().toLowerCase()
-    return allClasses.filter((item) => {
-      const matchSearch =
-        !term ||
-        item.name.toLowerCase().includes(term) ||
-        item.academicYear.toLowerCase().includes(term)
-      const matchGrade = gradeFilter === 'ALL' || item.gradeLevel === gradeFilter
-      return matchSearch && matchGrade
+  const visibleClassrooms = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase('vi')
+
+    return classrooms.filter((classroom) => {
+      const matchesSearch = !term || classroom.name.toLocaleLowerCase('vi').includes(term) || classroom.academicYear.toLocaleLowerCase('vi').includes(term)
+      const matchesGrade = gradeFilter === 'ALL' || classroom.gradeLevel === gradeFilter
+      return matchesSearch && matchesGrade
     })
-  }, [allClasses, search, gradeFilter])
+  }, [classrooms, search, gradeFilter])
+
+  const activeClassrooms = visibleClassrooms.filter((classroom) => classroom.status === 'ACTIVE')
+  const archivedClassrooms = visibleClassrooms.filter((classroom) => classroom.status === 'ARCHIVED')
+  const sections = [
+    { title: 'Lớp hiện tại', icon: <School size={17} />, classrooms: activeClassrooms, archived: false },
+    { title: 'Lịch sử giảng dạy', icon: <Archive size={17} />, classrooms: archivedClassrooms, archived: true },
+  ]
 
   return (
     <div className="page-content tc-page">
       <div className="page-heading">
-        <span className="eyebrow">
-          <span className="eyebrow-line" /> GIÁNG DẠY
-        </span>
+        <span className="eyebrow"><span className="eyebrow-line" /> GIẢNG DẠY</span>
         <h1>Lớp của tôi</h1>
-        <p>Danh mục các lớp học bạn đang được phân công phụ trách môn trong năm học.</p>
+        <p>Danh sách lớp được phân công theo môn học. Lớp đã qua năm học được giữ lại ở phần lịch sử để tra cứu.</p>
       </div>
 
-      <div className="tc-toolbar">
-        <span>Dữ liệu minh họa · Giáo viên Lịch sử</span>
-        <label>
-          Tình huống mẫu{' '}
-          <select
-            value={scenario}
-            onChange={(event) => setScenario(event.target.value as ClassScenario)}
-          >
-            {Object.entries(classScenarios).map(([key, value]) => (
-              <option key={key} value={key}>
-                {value}
-              </option>
-            ))}
+      <div className="tc-catalog-filters">
+        <div className="tc-catalog-search">
+          <Search size={16} />
+          <label className="sr-only" htmlFor="teacher-class-search">Tìm lớp học</label>
+          <input id="teacher-class-search" type="text" placeholder="Tìm theo tên lớp, năm học..." value={search} onChange={(event) => setSearch(event.target.value)} />
+        </div>
+        <div className="tc-catalog-filter-grade">
+          <label htmlFor="teacher-grade-filter">Khối:</label>
+          <select id="teacher-grade-filter" value={gradeFilter} onChange={(event) => setGradeFilter(event.target.value === 'ALL' ? 'ALL' : Number(event.target.value))}>
+            <option value="ALL">Tất cả các khối</option>
+            <option value="10">Khối 10</option>
+            <option value="11">Khối 11</option>
+            <option value="12">Khối 12</option>
           </select>
-        </label>
+        </div>
       </div>
 
-      {scenario === 'empty' ? (
-        <div className="panel tc-empty">
-          <School size={28} />
-          <h2>Chưa được phân công lớp</h2>
-          <p>Khi Admin phân công bạn vào môn học của một lớp, lớp đó sẽ xuất hiện tại danh mục này.</p>
-        </div>
-      ) : scenario === 'revoked' ? (
-        <div className="panel tc-empty" role="alert">
-          <School size={28} />
-          <h2>Phân công đã thay đổi</h2>
-          <p>Bạn không còn quyền phụ trách các môn học tại lớp này. Hãy tải lại danh mục lớp.</p>
-          <button type="button" onClick={() => setScenario('assigned')}>
-            Xem danh sách hiện tại
-          </button>
-        </div>
+      {isLoading ? (
+        <div className="panel tc-empty"><p>Đang tải danh sách lớp học...</p></div>
+      ) : loadError ? (
+        <ClassroomState
+          role="alert"
+          icon={<AlertCircle size={28} />}
+          title="Không thể tải danh sách lớp"
+          detail={loadError}
+          action={<button type="button" onClick={loadClassrooms}><RotateCcw size={14} /> Thử lại</button>}
+        />
+      ) : visibleClassrooms.length === 0 ? (
+        <ClassroomState
+          icon={<School size={28} />}
+          title="Chưa có lớp phù hợp"
+          detail="Hãy thử thay đổi từ khóa hoặc bộ lọc khối."
+        />
       ) : (
         <>
-          {/* Filters Bar */}
-          <div className="tc-catalog-filters">
-            <div className="tc-catalog-search">
-              <Search size={16} />
-              <input
-                type="text"
-                placeholder="Tìm theo tên lớp, năm học..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-
-            <div className="tc-catalog-filter-grade">
-              <label htmlFor="grade-filter-select">Khối:</label>
-              <select
-                id="grade-filter-select"
-                value={gradeFilter}
-                onChange={(e) =>
-                  setGradeFilter(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))
-                }
-              >
-                <option value="ALL">Tất cả các khối</option>
-                <option value={10}>Khối 10</option>
-                <option value={11}>Khối 11</option>
-                <option value={12}>Khối 12</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Classes Cards Grid */}
-          {visibleClasses.length === 0 ? (
-            <div className="panel tc-empty" style={{ padding: '40px 20px' }}>
-              <School size={24} />
-              <h3>Không tìm thấy lớp học phù hợp</h3>
-              <p>Hãy thử tìm với từ khóa hoặc bộ lọc khối khác.</p>
-            </div>
-          ) : (
-            <div className="tc-class-grid">
-              {visibleClasses.map((item) => {
-                const mySubjects = item.subjects.filter(
-                  (s) => s.teacherId === currentTeacherId
-                )
-                return (
-                  <div key={item.id} className="panel tc-class-card">
-                    <div className="tc-class-card-head">
-                      <div className="tc-class-card-badge">Khối {item.gradeLevel}</div>
-                      <span className="tc-class-card-year">{item.academicYear}</span>
-                    </div>
-
-                    <div className="tc-class-card-body">
-                      <h2 className="tc-class-card-title">{item.name}</h2>
-                      <div className="tc-class-card-meta">
-                        <div className="tc-class-meta-item">
-                          <BookOpen size={15} />
-                          <span>
-                            {mySubjects.map((s) => s.name).join(', ') || 'Chưa phân môn'}
-                          </span>
-                        </div>
-                        <div className="tc-class-meta-item">
-                          <Users size={15} />
-                          <span>{item.students.length} học sinh</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="tc-class-card-foot">
-                      <Link
-                        to={`/teacher/classes/${item.id}`}
-                        className="tc-class-card-btn"
-                      >
-                        Vào lớp <ArrowRight size={15} />
-                      </Link>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
+          {sections.map((section) => (
+            <ClassroomSection key={section.title} {...section} />
+          ))}
         </>
       )}
     </div>
+  )
+}
+
+function ClassroomState({ role, icon, title, detail, action }: { role?: 'alert' | 'status'; icon: ReactNode; title: string; detail: string; action?: ReactNode }) {
+  return (
+    <div className="panel tc-empty" role={role}>
+      {icon}
+      <h2>{title}</h2>
+      <p>{detail}</p>
+      {action}
+    </div>
+  )
+}
+
+function ClassroomSection({ title, icon, classrooms, archived = false }: { title: string; icon: ReactNode; classrooms: TeacherClassroomSummary[]; archived?: boolean }) {
+  if (classrooms.length === 0) return null
+
+  return (
+    <section className="tc-catalog-section" aria-labelledby={archived ? 'archived-classrooms-title' : 'active-classrooms-title'}>
+      <div className="tc-section-title">
+        {icon}
+        <h2 id={archived ? 'archived-classrooms-title' : 'active-classrooms-title'}>{title}</h2>
+        <span>{classrooms.length} lớp</span>
+      </div>
+      <div className="tc-class-grid">
+        {classrooms.map((classroom) => (
+          <div key={classroom.id} className={`panel tc-class-card ${archived ? 'is-archived' : ''}`}>
+            <div className="tc-class-card-head">
+              <div className="tc-class-card-badge">Khối {classroom.gradeLevel}</div>
+              <span className="tc-class-card-year">{classroom.academicYear}</span>
+            </div>
+            <div className="tc-class-card-body">
+              <h2 className="tc-class-card-title">{classroom.name}</h2>
+              <div className="tc-class-card-meta">
+                <div className="tc-class-meta-item"><BookOpen size={15} /><span>{classroom.subjects.map((subject) => subject.name).join(', ') || 'Chưa phân môn'}</span></div>
+                <div className="tc-class-meta-item"><Users size={15} /><span>{classroom.studentCount} học sinh</span></div>
+              </div>
+            </div>
+            <div className="tc-class-card-foot">
+              <Link to={`/teacher/classes/${classroom.id}`} className={`tc-class-card-btn ${archived ? 'is-read-only' : ''}`}>
+                {archived ? 'Xem lịch sử' : 'Vào lớp'} <ArrowRight size={15} />
+              </Link>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }

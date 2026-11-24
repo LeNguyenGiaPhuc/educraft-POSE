@@ -1,83 +1,89 @@
-// Route elements and the legacy registry are shared with the role shell.
+// Route elements are shared with the role shell.
 /* oxlint-disable react/only-export-components */
-import { type ComponentType, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import { Navigate, Route, useLocation, useParams } from 'react-router'
-import { assignedClasses, assignedSubjects, currentTeacherId, getTeacherSubjectContext, isTeacherPreviewItem, sampleLessons, teacherSubjectPath, type TeacherWorkspaceTab } from './fixtures'
-import { assignedActivities } from './insights/fixtures'
+import { getWorkspaceTabFromSection, teacherSubjectPath, type TeacherWorkspaceTab } from './navigation'
 import { TeacherBackButton } from './components/TeacherBackButton'
-import { readActivityPreviews } from './activities/activities.mock'
 import { ActivitiesPage } from './activities/ActivitiesPage'
 import { PromptSummaryPage } from './ai-summary/PromptSummaryPage'
 import { AssignedClassesPage } from './classes/AssignedClassesPage'
+import { TeacherClassroomDetailPage } from './classes/TeacherClassroomDetailPage'
 import { TeacherSubjectWorkspace } from './classes/TeacherSubjectWorkspace'
-import { LessonsPage } from './lessons/LessonsPage'
-import { ProgressPage } from './progress/ProgressPage'
+import { TeacherLessonPage } from './lessons/TeacherLessonPage'
 import { SchedulePage } from './schedule/SchedulePage'
-import { ClassStatisticsPage } from './statistics/ClassStatisticsPage'
-import { SubmissionsPage } from './submissions/SubmissionsPage'
 import { StudentDetailPage } from './students/StudentDetailPage'
-
-export const teacherPages: Record<string, ComponentType> = {
-  classes: AssignedClassesPage,
-  lessons: LessonsPage,
-  activities: ActivitiesPage,
-  schedule: SchedulePage,
-  statistics: ClassStatisticsPage,
-  submissions: SubmissionsPage,
-  progress: ProgressPage,
-  'ai-summary': PromptSummaryPage,
-}
+import { teacherWorkspaceApi, teacherWorkspacePath } from '../../lib/api/teacher/workspace'
+import type { TeacherClassroomSubjectContext } from '../../lib/api/teacher/types'
+import { useEffect, useState } from 'react'
 
 export function TeacherContextRoute({ children, tab = 'lessons' }: { children: ReactNode; tab?: TeacherWorkspaceTab }) {
   const { classroomId, classroomSubjectId, lessonId, activityId, studentId } = useParams()
-  const context = getTeacherSubjectContext(classroomSubjectId, classroomId)
-  if (!context) return <Navigate to="/teacher/classes" replace />
-  const parent = teacherSubjectPath(context.subject.id, tab)
-  const invalidLesson = lessonId && lessonId !== 'new' && !isTeacherPreviewItem('lesson', lessonId, context.subject.id) && !sampleLessons.some((item) => item.id === lessonId && item.classroomSubjectId === context.subject.id)
-  const invalidActivity = activityId && activityId !== 'new' && !isTeacherPreviewItem('activity', activityId, context.subject.id) && !readActivityPreviews().some((item) => item.id === activityId && item.classroomSubjectId === context.subject.id) && !assignedActivities.some((item) => item.id === activityId && item.subjectId === context.subject.id)
-  const invalidStudent = studentId && !context.classroom.students.some((item) => item.id === studentId)
-  if (invalidLesson || invalidActivity || invalidStudent) return <Navigate to={parent} replace />
+  if (!classroomId || !classroomSubjectId) return <Navigate to="/teacher/classes" replace />
+  const parent = `${teacherWorkspacePath(classroomId, classroomSubjectId)}?tab=${tab}`
+  void lessonId
+  void activityId
+  void studentId
   return <>{!lessonId && !activityId && <TeacherBackButton fallbackTo={studentId ? parent : '/teacher/classes'} />}{children}</>
 }
 
 function TeacherWorkspaceRoute() {
-  return <TeacherContextRoute><TeacherSubjectWorkspace /></TeacherContextRoute>
+  const { classroomSubjectId } = useParams()
+  return <TeacherContextRoute><TeacherSubjectWorkspace key={classroomSubjectId} /></TeacherContextRoute>
 }
 
 function TeacherClassRoute() {
   const { classroomId } = useParams()
-  const classroom = assignedClasses.find(item => item.id === classroomId)
-  const firstSubject = classroom?.subjects.find(item => item.teacherId === currentTeacherId)
-  return <Navigate to={firstSubject ? teacherSubjectPath(firstSubject.id) : '/teacher/classes'} replace />
-}
-
-function getWorkspaceTabFromSection(section: string): TeacherWorkspaceTab {
-  if (section === 'lessons') return 'lessons'
-  if (section === 'statistics') return 'statistics'
-  if (section === 'progress' || section === 'ai-summary') return 'students'
-  return 'activities'
+  if (!classroomId) return <Navigate to="/teacher/classes" replace />
+  return <TeacherClassroomDetailPage classroomId={classroomId} />
 }
 
 function LegacyTeacherRedirect({ section }: { section: string }) {
   const location = useLocation()
   const query = new URLSearchParams(location.search)
   const requested = query.get('classroomSubjectId')
-  const context = getTeacherSubjectContext(requested ?? assignedSubjects[0]?.id)
-  if (requested && !context) return <Navigate to="/teacher/classes" replace />
   if (section === 'schedule') return <Navigate to={`/teacher/calendar${location.search}`} replace />
+  if (!requested) return <Navigate to="/teacher/classes" replace />
+  return <LegacyTeacherContextRedirect requestedId={requested} section={section} query={query} />
+}
+
+function LegacyTeacherContextRedirect({ requestedId, section, query }: { requestedId: string; section: string; query: URLSearchParams }) {
+  const [context, setContext] = useState<TeacherClassroomSubjectContext | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    teacherWorkspaceApi.getClassroomSubject(requestedId)
+      .then((nextContext) => {
+        if (!cancelled) setContext(nextContext)
+      })
+      .catch(() => {
+        if (!cancelled) setContext(null)
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [requestedId])
+
+  if (isLoading) return <div className="page-content"><p>Đang mở không gian môn học...</p></div>
   if (!context) return <Navigate to="/teacher/classes" replace />
+
   const tab: TeacherWorkspaceTab = getWorkspaceTabFromSection(section)
-  query.set('tab', tab)
-  query.set('classroomSubjectId', context.subject.id)
-  const base = teacherSubjectPath(context.subject.id, tab).split('?')[0]
-  return <Navigate to={`${base}?${query}`} replace />
+  const nextQuery = new URLSearchParams(query)
+  nextQuery.set('tab', tab)
+  nextQuery.set('classroomSubjectId', context.classroomSubjectId)
+  const base = teacherSubjectPath(context.classroomId, context.classroomSubjectId, tab).split('?')[0]
+  return <Navigate to={`${base}?${nextQuery}`} replace />
 }
 
 export const teacherRouteElements = <>
   <Route path="classes" element={<><TeacherBackButton fallbackTo="/teacher" /><AssignedClassesPage /></>} />
   <Route path="classes/:classroomId" element={<TeacherClassRoute />} />
   <Route path="classes/:classroomId/subjects/:classroomSubjectId" element={<TeacherWorkspaceRoute />} />
-  <Route path="classes/:classroomId/subjects/:classroomSubjectId/lessons/:lessonId" element={<TeacherContextRoute><LessonsPage /></TeacherContextRoute>} />
+  <Route path="classes/:classroomId/subjects/:classroomSubjectId/lessons/:lessonId" element={<TeacherContextRoute><TeacherLessonPage /></TeacherContextRoute>} />
   <Route path="classes/:classroomId/subjects/:classroomSubjectId/activities/:activityId" element={<TeacherContextRoute tab="activities"><ActivitiesPage /></TeacherContextRoute>} />
   <Route path="classes/:classroomId/subjects/:classroomSubjectId/students/:studentId" element={<TeacherContextRoute tab="students"><StudentDetailPage /></TeacherContextRoute>} />
   <Route path="ai-summary" element={<PromptSummaryPage />} />

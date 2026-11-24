@@ -1,48 +1,385 @@
-import { useState } from 'react'
-import { assignedActivities, assignedSubjects, criterionLabels, notebookCriteria, studentsByClass, type Criterion } from '../insights/fixtures'
-import { EmptyState, PreviewNotice, SubjectPicker, TeacherHeading } from '../insights/TeacherUI'
-import { exerciseResults, notebookRecords, type CriterionDraft } from './submissions.mock'
+import { useEffect, useMemo, useState } from 'react'
+import { AlertCircle, Archive, FileCheck2, FileText, RotateCcw } from 'lucide-react'
+import { useSearchParams } from 'react-router'
+import { ApiError } from '../../../lib/api/client'
+import { teacherActivitiesApi } from '../../../lib/api/teacher/activities'
+import {
+  teacherResultsApi,
+  type TeacherExerciseResult,
+  type TeacherNotebookResult,
+  type TeacherSubmissionKind,
+  type TeacherSubmissionStatus,
+  type TeacherSubmissionSummary,
+} from '../../../lib/api/teacher/results'
+import { teacherNotebookChecksApi, type TeacherNotebookPeriod } from '../../../lib/api/teacher/notebookChecks'
+import './submissions.css'
 
-function draftFor(studentId: string): CriterionDraft[] {
-  const record = notebookRecords.find((item) => item.studentId === studentId)
-  return notebookCriteria.map((criterion) => ({ id: criterion.id, content: criterion.content, status: record?.aiStatus === 'READY' ? criterion.suggested : 'UNDETERMINED', note: record?.aiStatus === 'READY' ? criterion.note : '' }))
+type Props = {
+  classroomSubjectId: string
+  classroomName?: string
+  subjectName?: string
+  readOnly?: boolean
 }
 
-const statusLabels = { LOCKED: 'Đã khóa để chấm', MISSING: 'Chưa nộp', GRADED: 'Đã chấm', PROCESSING: 'Đang chấm', FAILED: 'Chấm thất bại' } as const
+const exerciseStatuses: TeacherSubmissionStatus[] = ['PENDING', 'PROCESSING', 'GRADED', 'FAILED']
+const notebookStatuses: TeacherSubmissionStatus[] = ['CURRENT', 'LOCKED', 'FINALIZED']
 
-export function SubmissionsPage({ classroomSubjectId, selectedActivityId }: { classroomSubjectId?: string; selectedActivityId?: string } = {}) {
-  const [subjectId, setSubjectId] = useState(classroomSubjectId ?? 'history-11a2')
-  const subject = assignedSubjects.find((item) => item.id === subjectId)!
-  const activities = assignedActivities.filter((item) => item.subjectId === subjectId)
-  const [activityId, setActivityId] = useState(selectedActivityId ?? 'notebook-11a2')
-  const currentActivityId = activities.some((item) => item.id === activityId) ? activityId : activities[0]?.id
-  const activity = activities.find((item) => item.id === currentActivityId)
-  const students = studentsByClass[subject.classroom]
-  const [studentId, setStudentId] = useState('phuc')
-  const currentStudentId = students.some((item) => item.id === studentId) ? studentId : students[0]?.id
-  const student = students.find((item) => item.id === currentStudentId)
-  const record = notebookRecords.find((item) => item.studentId === currentStudentId)
-  const result = exerciseResults[currentActivityId]?.find((item) => item.studentId === currentStudentId)
-  const [draft, setDraft] = useState<CriterionDraft[]>(() => draftFor('phuc'))
-  const [teacherComment, setTeacherComment] = useState('')
-  const [preview, setPreview] = useState(false)
+const statusLabels: Record<TeacherSubmissionStatus, string> = {
+  MISSING: 'ChÆ°a ná»™p',
+  PENDING: 'Chờ chấm',
+  PROCESSING: 'Đang chấm',
+  GRADED: 'Đã chấm',
+  FAILED: 'Chấm thất bại',
+  CURRENT: 'Đang xử lý',
+  LOCKED: 'Chờ giáo viên chốt',
+  FINALIZED: 'Đã chốt',
+}
 
-  function resetReview(nextStudentId: string) {
-    setDraft(draftFor(nextStudentId))
-    setTeacherComment('')
-    setPreview(false)
+function errorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 403) return 'Bạn không có quyền xem bài nộp của môn này.'
+    if (error.status === 404) return 'Không tìm thấy môn học hoặc bài nộp được yêu cầu.'
+    return error.message
+  }
+  return 'Không thể tải bài nộp. Hãy thử lại.'
+}
+
+function formatDate(value: string): string {
+  return new Date(value).toLocaleString('vi-VN')
+}
+
+function getStatusOptions(kind: TeacherSubmissionKind | '', hasActivity: boolean): TeacherSubmissionStatus[] {
+  const values = kind === 'EXERCISE'
+    ? exerciseStatuses
+    : kind === 'NOTEBOOK_CHECK'
+      ? notebookStatuses
+      : [...exerciseStatuses, ...notebookStatuses]
+  return hasActivity ? [...values, 'MISSING'] : values
+}
+
+export function SubmissionsPage({ classroomSubjectId, classroomName, subjectName, readOnly = false }: Props) {
+  const [params, setParams] = useSearchParams()
+  const [items, setItems] = useState<TeacherSubmissionSummary[]>([])
+  const [meta, setMeta] = useState({ page: 1, pageSize: 20, totalItems: 0, totalPages: 0, hasNextPage: false, hasPrevPage: false })
+  const [selectedResult, setSelectedResult] = useState<TeacherExerciseResult | TeacherNotebookResult | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingDetail, setIsLoadingDetail] = useState(Boolean(params.get('submissionId')))
+  const [loadError, setLoadError] = useState('')
+  const [detailError, setDetailError] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
+  const [notebookPeriods, setNotebookPeriods] = useState<TeacherNotebookPeriod[]>([])
+  const [isLoadingPeriods, setIsLoadingPeriods] = useState(false)
+  const [availableActivities, setAvailableActivities] = useState<Array<{ id: string; title: string; kind: TeacherSubmissionKind }>>([])
+
+  const kind = params.get('submissionKind') as TeacherSubmissionKind | null
+  const status = params.get('submissionStatus') as TeacherSubmissionStatus | null
+  const activityId = params.get('submissionActivityId') ?? ''
+  const periodId = params.get('submissionPeriodId') ?? ''
+  const studentSearch = params.get('submissionSearch') ?? ''
+  const selectedId = params.get('submissionId') ?? ''
+  const page = Number(params.get('submissionPage') ?? '1') || 1
+
+  useEffect(() => {
+    let cancelled = false
+
+    teacherResultsApi.listSubmissions(classroomSubjectId, {
+      activityId: activityId || undefined,
+      periodId: periodId || undefined,
+      kind: kind ?? undefined,
+      status: status ?? undefined,
+      page,
+      pageSize: 20,
+    })
+      .then((result) => {
+        if (cancelled) return
+        setItems(result.items)
+        setMeta(result.meta)
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setItems([])
+          setMeta((current) => ({ ...current, totalItems: 0, totalPages: 0, hasNextPage: false, hasPrevPage: false }))
+          setLoadError(errorMessage(error))
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activityId, classroomSubjectId, kind, page, periodId, reloadKey, status])
+
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([
+      teacherActivitiesApi.list(classroomSubjectId),
+      teacherNotebookChecksApi.list(classroomSubjectId),
+    ])
+      .then(([exercises, notebooks]) => {
+        if (cancelled) return
+        setAvailableActivities([
+          ...exercises.map((activity) => ({ id: activity.id, title: activity.title, kind: 'EXERCISE' as const })),
+          ...notebooks.map((activity) => ({ id: activity.id, title: activity.title, kind: 'NOTEBOOK_CHECK' as const })),
+        ])
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableActivities([])
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [classroomSubjectId])
+
+  useEffect(() => {
+    let cancelled = false
+    if (kind !== 'NOTEBOOK_CHECK' || !activityId) {
+      setNotebookPeriods([])
+      return
+    }
+
+    setIsLoadingPeriods(true)
+    teacherNotebookChecksApi.getDetail(activityId)
+      .then((detail) => {
+        if (cancelled) return
+        setNotebookPeriods(detail.periods)
+        if (!periodId && detail.periods[0]) {
+          const next = new URLSearchParams(params)
+          next.set('submissionPeriodId', detail.periods[0].id)
+          next.delete('submissionPage')
+          next.delete('submissionId')
+          setParams(next)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setNotebookPeriods([])
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingPeriods(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activityId, kind, params, periodId, setParams])
+
+  const visibleItems = useMemo(() => {
+    const normalized = studentSearch.trim().toLocaleLowerCase('vi')
+    if (!normalized) return items
+    return items.filter((item) => `${item.student.fullName} ${item.student.username}`.toLocaleLowerCase('vi').includes(normalized))
+  }, [items, studentSearch])
+
+  const activityOptions = useMemo(() => {
+    if (availableActivities.length > 0) return availableActivities
+    const values = new Map<string, string>()
+    for (const item of items) values.set(item.activityId, item.activityTitle)
+    return Array.from(values, ([id, title]) => ({ id, title, kind: 'EXERCISE' as const }))
+  }, [availableActivities, items])
+
+  const selectedSummary = items.find((item) => item.id === selectedId) ?? null
+
+  useEffect(() => {
+    let cancelled = false
+    if (!selectedSummary) {
+      return
+    }
+
+    if (!selectedSummary.submissionId) {
+      setSelectedResult(null)
+      setIsLoadingDetail(false)
+      return
+    }
+
+    const load = selectedSummary.kind === 'EXERCISE'
+      ? teacherResultsApi.getExerciseResult(selectedSummary.submissionId)
+      : teacherResultsApi.getNotebookResult(selectedSummary.submissionId)
+
+    load
+      .then((result) => {
+        if (!cancelled) setSelectedResult(result)
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setSelectedResult(null)
+          setDetailError(errorMessage(error))
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingDetail(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedSummary])
+
+  function updateQuery(values: Record<string, string | null>) {
+    const isListChange = Object.keys(values).some((key) => key !== 'submissionId')
+    if (isListChange) {
+      setIsLoading(true)
+      setLoadError('')
+      setSelectedResult(null)
+      setIsLoadingDetail(false)
+      setDetailError('')
+    }
+    const next = new URLSearchParams(params)
+    for (const [key, value] of Object.entries(values)) {
+      if (value) next.set(key, value)
+      else next.delete(key)
+    }
+    if ('submissionKind' in values || 'submissionStatus' in values || 'submissionActivityId' in values || 'submissionPeriodId' in values || 'submissionSearch' in values) {
+      next.delete('submissionPage')
+      next.delete('submissionId')
+    }
+    setParams(next)
   }
 
-  function updateCriterion(id: string, patch: Partial<CriterionDraft>) {
-    setDraft((current) => current.map((item) => item.id === id ? { ...item, ...patch } : item))
-    setPreview(false)
+  function selectItem(item: TeacherSubmissionSummary) {
+    setSelectedResult(null)
+    setIsLoadingDetail(true)
+    setDetailError('')
+    updateQuery({ submissionId: item.id })
   }
 
-  const isNotebook = activity?.kind === 'NOTEBOOK'
-  const studentStatus = isNotebook ? record?.status ?? 'MISSING' : result?.status ?? 'MISSING'
-  const submittedCount = isNotebook ? notebookRecords.filter((item) => item.status === 'LOCKED').length : (exerciseResults[currentActivityId] ?? []).filter((item) => item.status !== 'MISSING').length
+  function changeKind(value: string) {
+    const nextKind = value as TeacherSubmissionKind | ''
+    const allowedStatuses = getStatusOptions(nextKind, false)
+    const nextStatus = status && allowedStatuses.includes(status) ? status : ''
+    updateQuery({ submissionKind: nextKind || null, submissionStatus: nextStatus || null, submissionActivityId: null, submissionPeriodId: null })
+  }
 
-  return <div className="page-content"><TeacherHeading title="Bài nộp & kết quả" description="Theo dõi học sinh đã nộp bài và xem kết quả trong môn mình phụ trách." /><PreviewNotice>Đây là bài nộp mẫu. Các chỉnh sửa tiêu chí chỉ nằm trên màn hình; bấm xem trước không chốt hoặc ghi kết quả.</PreviewNotice>{!selectedActivityId && <div className="ti-heading"><SubjectPicker value={subjectId} onChange={(id) => { const nextSubject = assignedSubjects.find((item) => item.id === id)!; const firstStudent = studentsByClass[nextSubject.classroom][0].id; setSubjectId(id); setActivityId(''); setStudentId(firstStudent); resetReview(firstStudent) }} /><label className="ti-picker">Hoạt động<select value={currentActivityId} onChange={(event) => { setActivityId(event.target.value); resetReview(currentStudentId) }}>{activities.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label></div>}<div className="ti-stats"><div className="ti-stat"><strong>{students.length}</strong><span>Học sinh trong {subject.classroom}</span></div><div className="ti-stat"><strong>{submittedCount}</strong><span>Đã nộp bài</span></div><div className="ti-stat"><strong>{students.length - submittedCount}</strong><span>Chưa nộp bài</span></div></div><div className="ti-grid"><section className="ti-card"><h2>Danh sách học sinh · {activity?.title}</h2>{students.map((item) => { const itemStatus = isNotebook ? notebookRecords.find((entry) => entry.studentId === item.id)?.status ?? 'MISSING' : exerciseResults[currentActivityId]?.find((entry) => entry.studentId === item.id)?.status ?? 'MISSING'; return <button type="button" className={`ti-list-button ${item.id === currentStudentId ? 'active' : ''}`} key={item.id} onClick={() => { setStudentId(item.id); resetReview(item.id) }}><strong>{item.name}</strong><small>{statusLabels[itemStatus]}</small></button> })}</section><section className="ti-card"><h2>{student?.name}</h2><div className="ti-detail-list"><div><strong>Hoạt động</strong>{activity?.title}</div><div><strong>Trạng thái</strong><span className={`ti-chip ${studentStatus === 'MISSING' ? 'warn' : ''}`}>{statusLabels[studentStatus]}</span></div>{isNotebook && record?.submittedAt && <div><strong>Nộp lúc</strong>{record.submittedAt}</div>}</div>{studentStatus === 'MISSING' && <div className="ti-margin-top"><EmptyState title="Chưa có bài nộp" detail="Học sinh chưa nộp hoạt động này. Không có kết quả để giáo viên xem." /></div>}{!isNotebook && studentStatus !== 'MISSING' && <div className="ti-evidence"><strong>{result?.status === 'GRADED' ? `Kết quả đã chấm: ${result.score}/10` : result?.status === 'FAILED' ? 'Chấm thất bại · chưa có điểm' : 'Bài đang được chấm'}</strong><p>Câu trả lời đã lưu trong dữ liệu mẫu: {result?.answer ?? 'Chưa có bản trả lời minh họa.'}</p>{result?.status === 'FAILED' && <p role="alert">Bài làm được giữ nguyên để chấm lại. Không quy đổi lỗi thành điểm 0.</p>}<p>Quiz và tự luận đã chấm thành công hiển thị kết quả cho học sinh; giáo viên không cần chốt lại như kiểm tra vở.</p></div>}</section></div>
-    {isNotebook && record?.status === 'LOCKED' && <div className="ti-review-grid ti-margin-top"><section className="ti-card"><h2>Ảnh bài nộp và căn cứ</h2><div className="ti-image-placeholder">Ảnh vở của {student?.name}<br />Bản xem trước không chứa ảnh học sinh thật</div>{record.aiStatus === 'READY' ? <div className="ti-evidence"><strong>Phân tích AI tạm · chỉ giáo viên thấy</strong><p>OCR trích đoạn: “{record.ocrExcerpt}”</p><p>Gợi ý AI ở bên phải có thể được giáo viên sửa trước khi chốt.</p></div> : <div className="ti-evidence"><strong>AI xử lý thất bại</strong><p>Giáo viên xem ảnh gốc và tự đánh giá từng tiêu chí. Hệ thống không tự đặt kết quả thay AI.</p></div>}{record.finalizedHistory.length > 0 && <><hr className="ti-separator" /><h3>Lịch sử đã chốt trước đó</h3>{record.finalizedHistory.map((history) => <div className="ti-row" key={history.date}><div><strong>{history.date} · {history.evaluator}</strong><small>{history.summary}</small></div><span className="ti-chip neutral">Giữ nguyên</span></div>)}</>}</section><section className="ti-card"><h2>Đánh giá theo tiêu chí</h2><p className="ti-muted">Giáo viên có thể đổi gợi ý AI hoặc tự chọn khi AI lỗi. Không có điểm tổng hay đạt/không đạt.</p><div className="ti-stack ti-margin-top">{draft.map((item, index) => <div className="ti-card" key={item.id}><h3>Tiêu chí {index + 1}: {item.content}</h3><label className="ti-field">Kết quả<select value={item.status} onChange={(event) => updateCriterion(item.id, { status: event.target.value as Criterion['suggested'] })}>{Object.entries(criterionLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label className="ti-field ti-margin-top">Ghi chú (không bắt buộc)<textarea value={item.note} onChange={(event) => updateCriterion(item.id, { note: event.target.value })} /></label></div>)}</div><label className="ti-field ti-margin-top">Nhận xét giáo viên (không bắt buộc)<textarea value={teacherComment} onChange={(event) => { setTeacherComment(event.target.value); setPreview(false) }} /></label><div className="ti-actions ti-margin-top"><button type="button" className="ti-button primary" onClick={() => setPreview(true)}>Xem trước kết quả</button><button type="button" className="ti-button" disabled title="Chỉ chốt sau khi kết nối API">Chốt kết quả · chưa kết nối</button></div>{preview && <div className="ti-evidence" role="status"><strong>Xem trước chốt kết quả · giáo viên đánh giá: Cô Nguyễn Minh Anh</strong>{draft.map((item) => <div key={item.id}>{item.content}: {criterionLabels[item.status]}</div>)}<p>Nhận xét: {teacherComment || 'Không có'}</p><p>Kết quả này chưa được lưu và học sinh chưa nhìn thấy.</p></div>}</section></div>}
-  </div>
+  return (
+    <div className="page-content ts-page">
+      <div className="page-heading">
+        <span className="section-kicker">BÀI NỘP & KẾT QUẢ</span>
+        <h1>{subjectName ? `${subjectName} · Bài nộp` : 'Bài nộp & kết quả'}</h1>
+        <p>{classroomName ? `${classroomName} · ` : ''}Theo dõi bài học sinh đã nộp và xem kết quả từ backend.</p>
+      </div>
+
+      {readOnly && <div className="ts-notice"><Archive size={16} /> Lớp đã lưu trữ. Dữ liệu chỉ được xem, không có thao tác thay đổi.</div>}
+
+      <section className="ts-filters" aria-label="Bộ lọc bài nộp">
+        <label>Loại bài
+          <select value={kind ?? ''} onChange={(event) => changeKind(event.target.value)}>
+            <option value="">Tất cả</option>
+            <option value="EXERCISE">Quiz / Tự luận</option>
+            <option value="NOTEBOOK_CHECK">Kiểm tra vở</option>
+          </select>
+        </label>
+        <label>Hoạt động
+          <select value={activityId} onChange={(event) => updateQuery({ submissionActivityId: event.target.value || null, submissionPeriodId: null })}>
+            <option value="">Tất cả hoạt động</option>
+            {activityOptions.map((activity) => <option value={activity.id} key={activity.id}>{activity.kind === 'NOTEBOOK_CHECK' ? 'Kiểm tra vở · ' : 'Bài tập · '}{activity.title}</option>)}
+          </select>
+        </label>
+        <label>Trạng thái
+          <select value={status ?? ''} onChange={(event) => updateQuery({ submissionStatus: event.target.value || null })}>
+            <option value="">Tất cả</option>
+            {getStatusOptions(kind ?? '', Boolean(activityId)).map((value) => <option value={value} key={value}>{statusLabels[value]}</option>)}
+          </select>
+        </label>
+        {kind === 'NOTEBOOK_CHECK' && activityId && <label>Đợt kiểm tra vở
+          <select value={periodId} onChange={(event) => updateQuery({ submissionPeriodId: event.target.value || null })} disabled={isLoadingPeriods}>
+            <option value="">{isLoadingPeriods ? 'Đang tải đợt...' : 'Chọn đợt'}</option>
+            {notebookPeriods.map((period) => <option value={period.id} key={period.id}>Đợt {period.periodNo} · hạn {formatDate(period.dueAt)}</option>)}
+          </select>
+        </label>}
+        <label>Tìm học sinh
+          <input value={studentSearch} onChange={(event) => updateQuery({ submissionSearch: event.target.value || null })} placeholder="Tên hoặc tài khoản" />
+        </label>
+      </section>
+
+      <div className="ts-stats">
+        <div><strong>{meta.totalItems}</strong><span>Tổng bài nộp</span></div>
+        <div><strong>{visibleItems.filter((item) => item.kind === 'EXERCISE').length}</strong><span>Quiz / Tự luận trong trang</span></div>
+        <div><strong>{visibleItems.filter((item) => item.kind === 'NOTEBOOK_CHECK').length}</strong><span>Kiểm tra vở trong trang</span></div>
+      </div>
+
+      {isLoading && <div className="ts-state" role="status">Đang tải danh sách bài nộp...</div>}
+      {!isLoading && loadError && (
+        <div className="ts-state ts-error" role="alert">
+          <AlertCircle size={20} /><span>{loadError}</span>
+          <button type="button" onClick={() => { setIsLoading(true); setLoadError(''); setReloadKey((value) => value + 1) }}><RotateCcw size={14} /> Thử lại</button>
+        </div>
+      )}
+      {!isLoading && !loadError && visibleItems.length === 0 && (
+        <div className="ts-state"><FileCheck2 size={24} /><h2>Chưa có bài nộp phù hợp</h2><p>Thử đổi bộ lọc hoặc đợi học sinh nộp bài.</p></div>
+      )}
+
+      {!isLoading && !loadError && visibleItems.length > 0 && (
+        <div className="ts-layout">
+          <section className="ts-card" aria-label="Danh sách bài nộp">
+            <div className="ts-card-head"><h2>Danh sách bài nộp</h2><span>{visibleItems.length} bài trên trang</span></div>
+            <div className="ts-list">
+              {visibleItems.map((item) => (
+                <button type="button" key={item.id} className={`ts-list-item ${item.id === selectedId ? 'is-selected' : ''}`} onClick={() => selectItem(item)}>
+                  <span className={`ts-kind ${item.kind === 'EXERCISE' ? 'exercise' : 'notebook'}`}>{item.kind === 'EXERCISE' ? <FileText size={17} /> : <FileCheck2 size={17} />}</span>
+                  <span className="ts-item-main"><strong>{item.activityTitle}</strong><small>{item.student.fullName} · {item.submittedAt ? formatDate(item.submittedAt) : 'Chưa nộp'}{!item.isCurrentMember && ' · Đã rời lớp'}</small></span>
+                  <span className="ts-item-status">{statusLabels[item.status]}</span>
+                </button>
+              ))}
+            </div>
+            <div className="ts-pagination">
+              <button type="button" disabled={!meta.hasPrevPage} onClick={() => updateQuery({ submissionPage: String(Math.max(1, page - 1)) })}>Trang trước</button>
+              <span>Trang {meta.page} / {Math.max(meta.totalPages, 1)}</span>
+              <button type="button" disabled={!meta.hasNextPage} onClick={() => updateQuery({ submissionPage: String(page + 1) })}>Trang sau</button>
+            </div>
+          </section>
+
+          <section className="ts-card" aria-label="Chi tiết bài nộp">
+            {!selectedSummary && <div className="ts-detail-empty"><FileCheck2 size={28} /><h2>Chọn một bài nộp</h2><p>Chọn trong danh sách để xem kết quả chi tiết.</p></div>}
+            {selectedSummary && isLoadingDetail && <div className="ts-detail-empty" role="status">Đang tải chi tiết bài nộp...</div>}
+            {selectedSummary && !selectedSummary.submissionId && !isLoadingDetail && <div className="ts-detail-empty"><FileCheck2 size={28} /><h2>Học sinh chưa nộp</h2><p>Học sinh này đang thuộc lớp hiện tại và chưa có bài nộp cho hoạt động này.</p></div>}
+            {selectedSummary && !isLoadingDetail && detailError && <div className="ts-detail-empty ts-error" role="alert"><AlertCircle size={20} /><p>{detailError}</p></div>}
+            {selectedSummary && selectedResult?.kind === 'EXERCISE' && <ExerciseResultDetail result={selectedResult} />}
+            {selectedSummary && selectedResult?.kind === 'NOTEBOOK_CHECK' && <NotebookResultDetail result={selectedResult} />}
+          </section>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ExerciseResultDetail({ result }: { result: TeacherExerciseResult }) {
+  return (
+    <div className="ts-detail">
+      <span className="section-kicker">{result.activity.exerciseType === 'QUIZ' ? 'QUIZ' : 'TỰ LUẬN'}</span>
+      <h2>{result.activity.title}</h2>
+      <p className="ts-muted">{result.student.fullName} · Nộp lúc {formatDate(result.submittedAt)}</p>
+      <div className="ts-result-summary"><strong>{result.totalScore === null ? 'Chưa có điểm' : `${result.totalScore} điểm`}</strong><span>{statusLabels[result.gradingStatus]}</span></div>
+      <h3>Câu trả lời</h3>
+      <div className="ts-answer-list">
+        {result.answers.length === 0 && <p>Chưa có câu trả lời chi tiết.</p>}
+        {result.answers.map((answer, index) => (
+          <article key={answer.id}>
+            <strong>Câu {index + 1}. {answer.question.prompt}</strong>
+            <p>{answer.answer || 'Không có câu trả lời.'}</p>
+            <small>{answer.earnedPoints === null ? 'Chưa có điểm câu này' : `${answer.earnedPoints}/${answer.question.maxPoints ?? '?'} điểm`}</small>
+          </article>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function NotebookResultDetail({ result }: { result: TeacherNotebookResult }) {
+  return (
+    <div className="ts-detail">
+      <span className="section-kicker">KIỂM TRA VỞ</span>
+      <h2>{result.activity.title}</h2>
+      <p className="ts-muted">{result.student.fullName} · Đợt {result.period.periodNo} · Nộp lúc {formatDate(result.submittedAt)}</p>
+      <div className="ts-result-summary"><strong>Không tính điểm tổng</strong><span>{statusLabels[result.status]}</span></div>
+      <h3>Tiêu chí kiểm tra</h3>
+      <div className="ts-criteria-list">
+        {result.criteria.map((criterion) => {
+          const assessment = result.assessment?.results.find((item) => item.criterionId === criterion.id)
+          return <article key={criterion.id}><strong>{criterion.orderIndex + 1}. {criterion.content}</strong><span>{assessment?.status ?? 'Chưa đánh giá'}</span>{assessment?.note && <small>{assessment.note}</small>}</article>
+        })}
+      </div>
+      {result.assessment?.teacherComment && <p className="ts-comment"><strong>Nhận xét giáo viên:</strong> {result.assessment.teacherComment}</p>}
+      {!result.assessment && <p className="ts-muted">Chưa có kết quả chốt chính thức.</p>}
+    </div>
+  )
 }

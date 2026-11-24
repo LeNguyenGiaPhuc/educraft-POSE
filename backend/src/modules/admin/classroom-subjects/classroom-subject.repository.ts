@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../../../lib/prisma.js';
-import { BadRequestError, NotFoundError } from '../../../shared/errors/app-error.js';
+import { BadRequestError, ConflictError, NotFoundError } from '../../../shared/errors/app-error.js';
 
 async function lockClassroom(tx: Prisma.TransactionClient, classroomId: string): Promise<void> {
   await tx.$queryRaw`SELECT id FROM classrooms WHERE id = ${classroomId}::uuid FOR UPDATE`;
@@ -56,7 +56,8 @@ export const classroomSubjectRepository = {
   async assignTeacherAtomically(
     classroomId: string,
     subjectId: string,
-    teacherId: string | null
+    teacherId: string | null,
+    expectedTeacherId?: string | null
   ) {
     return prisma.$transaction(async (tx) => {
       // Classroom is always locked first so assignment operations use one lock order.
@@ -90,6 +91,10 @@ export const classroomSubjectRepository = {
 
       if (!classroomSubject) {
         throw new NotFoundError('Không tìm thấy môn học trong lớp này');
+      }
+
+      if (expectedTeacherId !== undefined && classroomSubject.teacher_id !== expectedTeacherId) {
+        throw new ConflictError('Phân công giáo viên vừa thay đổi. Vui lòng tải lại rồi thử lại.');
       }
 
       // 3. If assigning teacher, verify eligibility inside transaction

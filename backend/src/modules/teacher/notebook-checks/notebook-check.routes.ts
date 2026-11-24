@@ -4,6 +4,7 @@ import { requireRole } from '../../../middleware/require-role.js';
 import {
   notebookCheckController,
   uploadReferenceFileMiddleware,
+  uploadReferenceFilesMiddleware,
 } from './notebook-check.controller.js';
 
 const router = Router();
@@ -19,6 +20,16 @@ router.get(
 router.post(
   '/classroom-subjects/:classroomSubjectId/notebook-checks',
   notebookCheckController.create
+);
+router.post(
+  '/classroom-subjects/:classroomSubjectId/notebook-checks/publish',
+  uploadReferenceFilesMiddleware,
+  notebookCheckController.createAndPublish
+);
+router.post(
+  '/classroom-subjects/:classroomSubjectId/notebook-checks/criteria-suggestions',
+  uploadReferenceFilesMiddleware,
+  notebookCheckController.suggestCriteria
 );
 
 // Individual notebook check endpoints

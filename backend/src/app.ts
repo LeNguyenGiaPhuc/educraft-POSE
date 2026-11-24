@@ -11,13 +11,98 @@ import { adminAccountRouter } from './modules/admin/accounts/account.routes.js';
 import { adminSubjectRouter } from './modules/admin/subjects/subject.routes.js';
 import { adminClassroomRouter } from './modules/admin/classrooms/classroom.routes.js';
 import { adminEnrollmentRouter } from './modules/admin/enrollments/enrollment.routes.js';
+import { adminDashboardRouter } from './modules/admin/dashboard/dashboard.routes.js';
+import { teacherDashboardRouter } from './modules/teacher/dashboard/dashboard.routes.js';
 import { teacherWorkspaceRouter } from './modules/teacher/workspace/workspace.routes.js';
 import { teacherLessonRouter } from './modules/teacher/lessons/lesson.routes.js';
 import { teacherCalendarRouter } from './modules/teacher/calendar/calendar.routes.js';
 import { teacherActivityRouter } from './modules/teacher/activities/activity.routes.js';
 import { teacherNotebookCheckRouter } from './modules/teacher/notebook-checks/notebook-check.routes.js';
+import { teacherResultsRouter } from './modules/teacher/results/results.routes.js';
+import {
+  DefaultNotebookAiAnalysisProvider,
+  setNotebookAiProvider,
+} from './modules/teacher/notebook-checks/notebook-ai-analysis.provider.js';
+import { createGeminiNotebookAiProvider } from './modules/teacher/notebook-checks/gemini-notebook-ai.provider.js';
+import {
+  DefaultNotebookCriteriaSuggestionProvider,
+  setNotebookCriteriaSuggestionProvider,
+} from './modules/teacher/notebook-checks/notebook-criteria-suggestion.provider.js';
+import { createGeminiNotebookCriteriaProvider } from './modules/teacher/notebook-checks/gemini-notebook-criteria.provider.js';
+import {
+  DefaultAiProcessingProvider,
+  setAiProcessingProvider,
+} from './modules/teacher/materials/ai-processing.provider.js';
+import { createGeminiAiProcessingProvider } from './modules/teacher/materials/gemini-ai-processing.provider.js';
+import { DefaultActivityAiDraftProvider, setAiDraftProvider } from './modules/teacher/activities/activity-ai-draft.provider.js';
+import { createGeminiActivityAiProvider } from './modules/teacher/activities/gemini-activity-ai.provider.js';
+
+function configureNotebookAiProvider(): void {
+  if (env.AI_PROVIDER !== 'gemini') {
+    setNotebookAiProvider(new DefaultNotebookAiAnalysisProvider());
+    return;
+  }
+
+  setNotebookAiProvider(createGeminiNotebookAiProvider({
+    apiKey: env.GEMINI_API_KEY,
+    model: env.GEMINI_MODEL,
+    timeoutMs: env.AI_TIMEOUT_MS,
+    maxRetries: env.AI_MAX_RETRIES,
+    maxReferenceImages: env.AI_MAX_REFERENCE_IMAGES,
+    maxSubmissionImages: env.AI_MAX_SUBMISSION_IMAGES,
+    maxTotalBytes: env.AI_MAX_TOTAL_BYTES,
+  }));
+}
+
+function configureNotebookCriteriaProvider(): void {
+  if (env.AI_PROVIDER !== 'gemini') {
+    setNotebookCriteriaSuggestionProvider(new DefaultNotebookCriteriaSuggestionProvider());
+    return;
+  }
+
+  setNotebookCriteriaSuggestionProvider(createGeminiNotebookCriteriaProvider({
+    apiKey: env.GEMINI_API_KEY,
+    model: env.GEMINI_MODEL,
+    timeoutMs: env.AI_TIMEOUT_MS,
+    maxRetries: env.AI_MAX_RETRIES,
+    maxTotalBytes: env.AI_MAX_TOTAL_BYTES,
+  }));
+}
+
+function configureMaterialAiProvider(): void {
+  if (env.AI_PROVIDER !== 'gemini') {
+    setAiProcessingProvider(new DefaultAiProcessingProvider());
+    return;
+  }
+
+  setAiProcessingProvider(createGeminiAiProcessingProvider({
+    apiKey: env.GEMINI_API_KEY,
+    model: env.GEMINI_MODEL,
+    timeoutMs: env.AI_TIMEOUT_MS,
+    maxRetries: env.AI_MAX_RETRIES,
+  }));
+}
+
+function configureActivityAiProvider(): void {
+  if (env.AI_PROVIDER !== 'gemini') {
+    setAiDraftProvider(new DefaultActivityAiDraftProvider());
+    return;
+  }
+
+  setAiDraftProvider(createGeminiActivityAiProvider({
+    apiKey: env.GEMINI_API_KEY,
+    model: env.GEMINI_MODEL,
+    timeoutMs: env.AI_TIMEOUT_MS,
+    maxRetries: env.AI_MAX_RETRIES,
+    maxContextBytes: env.AI_MAX_TEXT_CONTEXT_BYTES,
+  }));
+}
 
 export function createApp(): Express {
+  configureNotebookAiProvider();
+  configureNotebookCriteriaProvider();
+  configureMaterialAiProvider();
+  configureActivityAiProvider();
   const app = express();
 
   // 1. Security & request identification
@@ -64,11 +149,14 @@ export function createApp(): Express {
   app.use('/api/v1/admin/subjects', adminSubjectRouter);
   app.use('/api/v1/admin/classrooms', adminClassroomRouter);
   app.use('/api/v1/admin/enrollments', adminEnrollmentRouter);
+  app.use('/api/v1/admin/dashboard', adminDashboardRouter);
+  app.use('/api/v1/teacher/dashboard', teacherDashboardRouter);
   app.use('/api/v1/teacher', teacherWorkspaceRouter);
   app.use('/api/v1/teacher', teacherLessonRouter);
   app.use('/api/v1/teacher', teacherCalendarRouter);
   app.use('/api/v1/teacher', teacherActivityRouter);
   app.use('/api/v1/teacher', teacherNotebookCheckRouter);
+  app.use('/api/v1/teacher', teacherResultsRouter);
 
   // 6. 404 & Centralized error handler
   app.use(notFoundHandler);

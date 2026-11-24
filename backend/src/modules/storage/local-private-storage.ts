@@ -57,5 +57,3 @@ export class LocalPrivateStorage implements StorageProvider {
     }
   }
 }
-
-export const defaultStorageProvider = new LocalPrivateStorage();

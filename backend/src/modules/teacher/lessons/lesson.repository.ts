@@ -12,6 +12,14 @@ export const lessonRepository = {
         materials: {
           where: { status: { not: 'ARCHIVED' } },
           include: {
+            activeVersion: {
+              include: {
+                segments: {
+                  orderBy: { ordinal: 'asc' },
+                  take: 1,
+                },
+              },
+            },
             versions: {
               orderBy: { version_no: 'desc' },
               take: 1,
@@ -49,6 +57,7 @@ export const lessonRepository = {
           where: { status: { not: 'ARCHIVED' } },
           orderBy: { created_at: 'asc' },
           include: {
+            activeVersion: true,
             versions: {
               orderBy: { version_no: 'desc' },
               include: {
@@ -117,17 +126,23 @@ export const lessonRepository = {
         lessonContext.classroom_subject_id
       );
 
-      const processedMaterial = await tx.learningMaterial.findFirst({
+      const activeMaterials = await tx.learningMaterial.findMany({
         where: {
           lesson_id: id,
           status: { not: 'ARCHIVED' },
-          versions: { some: { processing_status: 'PROCESSED' } },
         },
-        select: { id: true },
+        select: {
+          id: true,
+          activeVersion: { select: { processing_status: true } },
+        },
       });
-      if (!processedMaterial) {
+      const allMaterialsProcessed =
+        activeMaterials.length > 0 &&
+        activeMaterials.every((material) => material.activeVersion?.processing_status === 'PROCESSED');
+
+      if (!allMaterialsProcessed) {
         throw new BadRequestError(
-          'Bài học cần ít nhất một học liệu đã được xử lý thành công để công bố'
+          'Tất cả học liệu đang giữ lại phải được xử lý thành công trước khi công bố'
         );
       }
 

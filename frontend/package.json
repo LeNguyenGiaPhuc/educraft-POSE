@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "oxlint",
+    "lint": "cd .. && oxlint frontend/src tests/frontend",
+    "test": "npm run test:unit && npm run test:node",
+    "test:unit": "vitest run --exclude \"**/*.test.mjs\"",
+    "test:node": "node --test ../tests/frontend/src/features/admin/classrooms/studentImport.test.mjs ../tests/frontend/src/features/teacher/activities/activitiesPermission.test.mjs ../tests/frontend/src/features/teacher/schedule/calendarDate.test.mjs ../tests/frontend/test/vite-config.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -26,6 +29,7 @@
     "@vitejs/plugin-react": "^6.1.2",
     "oxlint": "^1.90.0",
     "typescript": "~7.0.2",
-    "vite": "^8.3.6"
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
   }
 }

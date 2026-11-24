@@ -386,6 +386,12 @@
 .cls-modal-overlay {
   position: fixed;
   inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
   background: rgba(18, 38, 29, 0.45);
   backdrop-filter: blur(4px);
   display: grid;
@@ -405,6 +411,13 @@
   flex-direction: column;
   overflow: hidden;
   max-height: 90vh;
+}
+
+.cls-modal > form {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
 }
 
 .cls-modal-head {

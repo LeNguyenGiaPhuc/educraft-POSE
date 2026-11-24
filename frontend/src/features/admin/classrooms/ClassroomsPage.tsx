@@ -1,50 +1,46 @@
-import { useMemo, useState, type FormEvent, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ChangeEvent } from 'react'
 import { useSearchParams } from 'react-router'
 import {
-  AlertCircle,
   Archive,
-  ArrowRight,
-  BookOpen,
   Check,
   CheckCircle2,
-  Download,
-  FileSpreadsheet,
-  FileUp,
-  Plus,
-  RotateCcw,
   School,
-  Search,
   Users,
-  X,
 } from 'lucide-react'
-import { accounts, classrooms, subjects, type Classroom, type ClassroomStatus } from '../fixtures'
-import {
-  activeStudents,
-  createNewClassroom,
-  emptyClassroomDraft,
-  getSubjectAssignmentStats,
-  validateClassroomDraft,
-  type ClassroomDraft,
-} from './classrooms.mock'
+import { emptyClassroomDraft, validateClassroomDraft, type ClassroomDraft } from './classroomForm'
 import {
   downloadStudentTemplateXlsx,
   readStudentWorkbook,
-  validateStudentImport,
   type StudentImportIssue,
   type StudentImportRow,
 } from './studentImport'
 import { ClassroomDetailPage } from './ClassroomDetailPage'
+import { ClassroomCreateDialog } from './ClassroomCreateDialog'
+import { ClassroomPreviewDialog } from './ClassroomPreviewDialog'
+import { ClassroomFilters } from './ClassroomFilters'
+import { ClassroomsTable } from './ClassroomsTable'
+import { ApiError } from '../../../lib/api/client'
+import { validatePassword } from '../../../lib/accountIdentity'
+import { adminApi, type AdminClassroomSummary } from '../../../lib/api/admin'
 import './classrooms.css'
 
-function getProgressStatusClass(isComplete: boolean, assigned: number): string {
-  if (isComplete) return 'is-complete'
-  if (assigned > 0) return 'is-partial'
-  return ''
+type ClassroomStatus = AdminClassroomSummary['status']
+type ClassroomCreatePreview = {
+  draft: ClassroomDraft
+  includeRoster: boolean
+  excelFileName: string
+  excelPassword: string
+  excelRows: StudentImportRow[]
+  validationToken: string | null
+  normalizationNotices: StudentImportIssue[]
 }
 
 export function ClassroomsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const [classList, setClassList] = useState<Classroom[]>(() => [...classrooms])
+  const [classList, setClassList] = useState<AdminClassroomSummary[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
 
   // Filters
   const [search, setSearch] = useState('')
@@ -62,8 +58,11 @@ export function ClassroomsPage() {
   const [excelPassword, setExcelPassword] = useState('')
   const [excelRows, setExcelRows] = useState<StudentImportRow[]>([])
   const [excelIssues, setExcelIssues] = useState<StudentImportIssue[]>([])
+  const [excelNormalizationNotices, setExcelNormalizationNotices] = useState<StudentImportIssue[]>([])
+  const [excelValidationToken, setExcelValidationToken] = useState<string | null>(null)
   const [excelError, setExcelError] = useState('')
   const [isReadingFile, setIsReadingFile] = useState(false)
+  const [classroomPreview, setClassroomPreview] = useState<ClassroomCreatePreview | null>(null)
 
   // Success Feedback
   const [successInfo, setSuccessInfo] = useState<{
@@ -78,9 +77,7 @@ export function ClassroomsPage() {
   // Metrics
   const activeClassesCount = useMemo(() => classList.filter((c) => c.status === 'ACTIVE').length, [classList])
   const archivedClassesCount = useMemo(() => classList.filter((c) => c.status === 'ARCHIVED').length, [classList])
-  const totalStudentsCount = useMemo(() => {
-    return classList.reduce((acc, c) => acc + activeStudents(c.id).length, 0)
-  }, [classList])
+  const totalStudentsCount = useMemo(() => classList.reduce((acc, c) => acc + c.studentCount, 0), [classList])
 
   // Filtered List
   const visibleClassrooms = useMemo(() => {
@@ -96,18 +93,34 @@ export function ClassroomsPage() {
     })
   }, [classList, search, gradeFilter, statusFilter])
 
-  // Excel Validation Metrics
-  const excelSummary = useMemo(() => {
-    if (!excelRows.length) return null
-    return {
-      total: excelRows.length,
-      errorsCount: excelIssues.length,
-      validCount: excelRows.length - excelIssues.length,
+  useEffect(() => {
+    if (selectedClassId) return
+
+    let cancelled = false
+    setIsLoading(true)
+    setLoadError('')
+
+    adminApi.listClassrooms({ limit: 100 })
+      .then((response) => {
+        if (!cancelled) setClassList(response.items)
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setLoadError(error instanceof ApiError ? error.message : 'Không thể tải danh sách lớp học.')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
     }
-  }, [excelRows, excelIssues])
+  }, [selectedClassId])
 
   // Handlers
   function openCreateModal() {
+    setClassroomPreview(null)
     setDraft({ ...emptyClassroomDraft, gradeLevel: 10, academicYear: '2026–2027' })
     setFormErrors([])
     setEnableExcel(false)
@@ -115,15 +128,20 @@ export function ClassroomsPage() {
     setExcelPassword('')
     setExcelRows([])
     setExcelIssues([])
+    setExcelNormalizationNotices([])
+    setExcelValidationToken(null)
     setExcelError('')
     setIsCreateOpen(true)
   }
 
   function closeCreateModal() {
+    setClassroomPreview(null)
     setIsCreateOpen(false)
     setFormErrors([])
     setExcelRows([])
     setExcelIssues([])
+    setExcelNormalizationNotices([])
+    setExcelValidationToken(null)
     setExcelFileName('')
     setExcelPassword('')
     setExcelError('')
@@ -140,23 +158,33 @@ export function ClassroomsPage() {
 
     setExcelPassword('')
     setExcelFileName(file.name)
+    setExcelValidationToken(null)
+    setExcelNormalizationNotices([])
+    setFormErrors([])
     setIsReadingFile(true)
     try {
-      const { rows, issues } = await readStudentWorkbook(file)
+      const { rows, issues, normalizationNotices } = await readStudentWorkbook(file)
       if (issues.length > 0) {
         setExcelError(issues[0].message)
-        setExcelRows([])
-        setExcelIssues(issues)
-      } else {
         setExcelRows(rows)
-        const existingUsernames = new Set(accounts.map((a) => a.username.toLowerCase()))
-        const validationIssues = validateStudentImport(rows, existingUsernames)
-        setExcelIssues(validationIssues)
+        setExcelIssues(issues)
+        setExcelNormalizationNotices(normalizationNotices ?? [])
+      } else {
+        const preview = await adminApi.previewNewClassroomRoster(file)
+        setExcelRows(preview.rows)
+        setExcelIssues(preview.issues)
+        setExcelNormalizationNotices(preview.normalizationNotices)
+        setExcelValidationToken(preview.validationToken)
+        if (!preview.isValid) {
+          setExcelError('File chưa hợp lệ theo dữ liệu hiện tại. Vui lòng sửa các dòng báo lỗi rồi tải lại.')
+        }
       }
-    } catch {
-      setExcelError('Không thể đọc file. Vui lòng chọn file .xlsx đúng định dạng.')
+    } catch (error) {
+      setExcelError(error instanceof ApiError ? error.message : 'Không thể đọc file. Vui lòng chọn file .xlsx đúng định dạng.')
       setExcelRows([])
       setExcelIssues([])
+      setExcelNormalizationNotices([])
+      setExcelValidationToken(null)
     } finally {
       setIsReadingFile(false)
     }
@@ -167,10 +195,12 @@ export function ClassroomsPage() {
     setExcelPassword('')
     setExcelRows([])
     setExcelIssues([])
+    setExcelNormalizationNotices([])
+    setExcelValidationToken(null)
     setExcelError('')
   }
 
-  function handleSubmitCreate(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmitCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
 
     // 1. Validate basic class info
@@ -180,44 +210,78 @@ export function ClassroomsPage() {
       return
     }
 
-    // 2. If excel is enabled, check file and password
+    // 2. Validate the optional roster before showing the final confirmation.
     if (enableExcel) {
-      if (!excelFileName || excelRows.length === 0) {
-        setFormErrors(['Vui lòng chọn file danh sách học sinh (.xlsx) hoặc tắt tùy chọn import Excel.'])
-        return
-      }
-      if (!excelPassword.trim()) {
-        setFormErrors(['Vui lòng nhập mật khẩu khởi tạo chung cho danh sách học sinh import.'])
-        return
-      }
-      if (excelError) {
-        setFormErrors([`Lỗi file Excel: ${excelError}`])
-        return
-      }
-      const existingUsernames = new Set(accounts.map((a) => a.username.toLowerCase()))
-      const issues = validateStudentImport(excelRows, existingUsernames)
-      if (issues.length > 0) {
-        setExcelIssues(issues)
-        setFormErrors([`Không thể tạo lớp: File Excel có ${issues.length} dòng lỗi. Vui lòng sửa hết lỗi trước khi xác nhận.`])
+      const rosterErrors: string[] = []
+      if (!excelFileName) rosterErrors.push('Hãy chọn file Excel danh sách học sinh.')
+      if (excelError) rosterErrors.push(excelError)
+      if (excelIssues.length > 0) rosterErrors.push('File Excel còn dòng chưa hợp lệ.')
+      if (excelRows.length === 0) rosterErrors.push('File Excel phải có ít nhất một học sinh.')
+      if (!excelValidationToken) rosterErrors.push('File Excel chưa được máy chủ xác nhận. Vui lòng tải lại file.')
+      const excelPasswordError = validatePassword(excelPassword)
+      if (excelPasswordError || !excelPassword.trim()) rosterErrors.push(excelPasswordError ?? 'Mật khẩu khởi tạo không được để trống.')
+      if (rosterErrors.length > 0) {
+        setFormErrors(rosterErrors)
         return
       }
     }
 
-    // 3. Create classroom
-    try {
-      const created = createNewClassroom(draft, enableExcel ? excelRows : undefined)
+    setFormErrors([])
+    setClassroomPreview({
+      draft: { ...draft },
+      includeRoster: enableExcel,
+      excelFileName,
+      excelPassword,
+      excelRows: [...excelRows],
+      validationToken: excelValidationToken,
+      normalizationNotices: [...excelNormalizationNotices],
+    })
+    setIsCreateOpen(false)
+  }
 
-      // 4. Update local state
-      setClassList([...classrooms])
+  async function confirmCreateClassroom() {
+    setIsSaving(true)
+    try {
+      if (!classroomPreview) return
+      let createdName = classroomPreview.draft.name
+      let subjectsCreated = 0
+      let studentsAdded = 0
+
+      if (classroomPreview.includeRoster) {
+        if (!classroomPreview.validationToken) {
+          setFormErrors(['File Excel chưa được máy chủ xác nhận. Vui lòng quay lại và tải lại file.'])
+          return
+        }
+        const result = await adminApi.commitNewClassroomRoster({
+          validationToken: classroomPreview.validationToken,
+          ...classroomPreview.draft,
+          initialStudentPassword: classroomPreview.excelPassword.trim(),
+          rows: classroomPreview.excelRows,
+        })
+        studentsAdded = result.importedCount
+        const refreshed = await adminApi.listClassrooms({ limit: 100 })
+        setClassList(refreshed.items)
+        const created = refreshed.items.find((classroom) => classroom.id === result.classroomId)
+        createdName = created?.name ?? classroomPreview.draft.name
+        subjectsCreated = created?.subjectCount ?? 0
+      } else {
+        const created = await adminApi.createClassroom(classroomPreview.draft)
+        createdName = created.name
+        subjectsCreated = created.subjectCount
+        const refreshed = await adminApi.listClassrooms({ limit: 100 })
+        setClassList(refreshed.items)
+      }
       setSuccessInfo({
-        classroomName: created.classroom.name,
-        subjectsCreated: created.subjectsCreated,
-        studentsAdded: created.studentsAdded,
+        classroomName: createdName,
+        subjectsCreated,
+        studentsAdded,
       })
 
       closeCreateModal()
     } catch (err) {
-      setFormErrors([(err as Error).message || 'Có lỗi xảy ra khi tạo lớp.'])
+      setFormErrors([err instanceof ApiError ? err.message : 'Có lỗi xảy ra khi tạo lớp.'])
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -248,11 +312,11 @@ export function ClassroomsPage() {
         </p>
       </div>
 
-      {/* Demo Notice */}
+      {/* System notice */}
       <div className="adm-notice">
         <School size={17} />
         <span>
-          Dữ liệu mẫu trên giao diện. Các thay đổi được mô phỏng chính xác theo nghiệp vụ hệ thống trước khi nối API backend.
+          Dữ liệu lớp học được tải từ hệ thống. Mỗi lớp mới sẽ tự động nhận các môn đang hoạt động trong danh mục chung.
         </span>
       </div>
 
@@ -261,10 +325,10 @@ export function ClassroomsPage() {
         <div className="cls-success-banner" role="status">
           <CheckCircle2 size={19} />
           <div style={{ flex: 1 }}>
-            <strong>Đã tạo lớp “{successInfo.classroomName}” trong dữ liệu mẫu của phiên này.</strong>
+            <strong>Đã tạo lớp “{successInfo.classroomName}” trên hệ thống.</strong>
             <p style={{ margin: '4px 0 0', fontSize: '12px' }}>
               Đã tự động khởi tạo {successInfo.subjectsCreated} môn học từ danh mục chung với giáo viên “Chưa phân công”.
-              {successInfo.studentsAdded > 0 && ` Đã thêm ${successInfo.studentsAdded} học sinh mẫu vào lớp; chưa tạo tài khoản thật.`}
+              {successInfo.studentsAdded > 0 && ` Đã thêm ${successInfo.studentsAdded} học sinh vào lớp.`}
             </p>
           </div>
           <button
@@ -321,428 +385,81 @@ export function ClassroomsPage() {
         </div>
       </div>
 
-      {/* Toolbar & Filters */}
-      <div className="cls-toolbar">
-        <div className="cls-filters-group">
-          {/* Search */}
-          <label className="cls-search-input">
-            <Search size={16} />
-            <span className="sr-only">Tìm tên lớp hoặc năm học</span>
-            <input
-              placeholder="Tìm theo tên lớp hoặc năm học..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </label>
+      <ClassroomFilters
+        search={search}
+        gradeFilter={gradeFilter}
+        statusFilter={statusFilter}
+        onSearchChange={setSearch}
+        onGradeChange={setGradeFilter}
+        onStatusChange={setStatusFilter}
+        onCreate={openCreateModal}
+      />
 
-          {/* Grade filter */}
-          <div className="cls-filter-select">
-            <span className="sr-only">Lọc theo khối</span>
-            <select
-              aria-label="Lọc theo khối"
-              value={gradeFilter}
-              onChange={(e) => setGradeFilter(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
-            >
-              <option value="ALL">Tất cả các khối</option>
-              <option value="10">Khối 10</option>
-              <option value="11">Khối 11</option>
-              <option value="12">Khối 12</option>
-            </select>
-          </div>
+      <ClassroomsTable
+        classrooms={visibleClassrooms}
+        isLoading={isLoading}
+        loadError={loadError}
+        onRetry={() => {
+          setIsLoading(true)
+          setLoadError('')
+          adminApi.listClassrooms({ limit: 100 })
+            .then((response) => setClassList(response.items))
+            .catch((error) => setLoadError(error instanceof ApiError ? error.message : 'Không thể tải danh sách lớp học.'))
+            .finally(() => setIsLoading(false))
+        }}
+        onResetFilters={() => {
+          setSearch('')
+          setGradeFilter('ALL')
+          setStatusFilter('ALL')
+        }}
+        onSelect={handleSelectClassroom}
+      />
 
-          {/* Status filter */}
-          <div className="cls-filter-select">
-            <span className="sr-only">Lọc theo trạng thái</span>
-            <select
-              aria-label="Lọc theo trạng thái"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as ClassroomStatus | 'ALL')}
-            >
-              <option value="ALL">Tất cả trạng thái</option>
-              <option value="ACTIVE">Đang học</option>
-              <option value="ARCHIVED">Lưu trữ</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Action Button */}
-        <button type="button" className="cls-btn-create" onClick={openCreateModal}>
-          <Plus size={16} /> Tạo lớp học
-        </button>
-      </div>
-
-      {/* Classroom Catalog Table */}
-      <div className="cls-card-wrapper">
-        {visibleClassrooms.length === 0 ? (
-          <div className="cls-empty-box">
-            <div className="cls-empty-icon">
-              <School size={28} />
-            </div>
-            <strong>Không có lớp học phù hợp</strong>
-            <p>Hãy thử thay đổi từ khóa tìm kiếm hoặc điều chỉnh các bộ lọc khối và trạng thái.</p>
-            <button
-              type="button"
-              className="cls-btn-detail"
-              onClick={() => {
-                setSearch('')
-                setGradeFilter('ALL')
-                setStatusFilter('ALL')
-              }}
-            >
-              <RotateCcw size={14} /> Đặt lại bộ lọc
-            </button>
-          </div>
-        ) : (
-          <table className="cls-table">
-            <thead>
-              <tr>
-                <th>Tên lớp</th>
-                <th>Khối & Năm học</th>
-                <th>Sĩ số hiện tại</th>
-                <th>Phân công môn học</th>
-                <th>Trạng thái</th>
-                <th style={{ textAlign: 'right' }}>Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleClassrooms.map((item) => {
-                const students = activeStudents(item.id)
-                const stats = getSubjectAssignmentStats(item.id)
-
-                return (
-                  <tr key={item.id}>
-                    {/* Class name badge */}
-                    <td>
-                      <span className="cls-badge-name">{item.name}</span>
-                    </td>
-
-                    {/* Grade and year */}
-                    <td>
-                      <div className="cls-grade-year">
-                        <strong>Khối {item.gradeLevel}</strong>
-                        <small>Năm học: {item.academicYear}</small>
-                      </div>
-                    </td>
-
-                    {/* Student count */}
-                    <td>
-                      <span className="cls-student-count">
-                        <Users size={14} />
-                        {students.length} học sinh
-                      </span>
-                    </td>
-
-                    {/* Subject ratio and mini progress bar */}
-                    <td>
-                      <div className="cls-subject-progress">
-                        <div
-                          className={`cls-ratio-text ${getProgressStatusClass(
-                            stats.isComplete,
-                            stats.assigned
-                          )}`}
-                        >
-                          <span>{stats.ratioText}</span>
-                          <span>{stats.percentage}%</span>
-                        </div>
-                        <div className="cls-progress-bar">
-                          <div
-                            className={`cls-progress-fill ${getProgressStatusClass(
-                              stats.isComplete,
-                              stats.assigned
-                            )}`}
-                            style={{ width: `${stats.percentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Status badge */}
-                    <td>
-                      <span
-                        className={`cls-status-pill ${
-                          item.status === 'ACTIVE' ? 'is-active' : 'is-archived'
-                        }`}
-                      >
-                        {item.status === 'ACTIVE' ? 'Đang học' : 'Lưu trữ'}
-                      </span>
-                    </td>
-
-                    {/* Action */}
-                    <td style={{ textAlign: 'right' }}>
-                      <button
-                        type="button"
-                        className="cls-btn-detail"
-                        onClick={() => handleSelectClassroom(item.id)}
-                      >
-                        Xem chi tiết lớp <ArrowRight size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* Modal Tạo Lớp Học */}
       {isCreateOpen && (
-        <div className="cls-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="create-class-title">
-          <div className="cls-modal">
-            {/* Modal Header */}
-            <div className="cls-modal-head">
-              <h3 id="create-class-title">Tạo lớp học mới</h3>
-              <button
-                type="button"
-                className="cls-modal-close"
-                onClick={closeCreateModal}
-                aria-label="Đóng modal"
-              >
-                <X size={18} />
-              </button>
-            </div>
+        <ClassroomCreateDialog
+          draft={draft}
+          enableExcel={enableExcel}
+          excelFileName={excelFileName}
+          excelPassword={excelPassword}
+          excelRows={excelRows}
+          excelIssues={excelIssues}
+          excelNormalizationNotices={excelNormalizationNotices}
+          excelError={excelError}
+          isReadingFile={isReadingFile}
+          formErrors={formErrors}
+          isSaving={isSaving}
+          onClose={closeCreateModal}
+          onSubmit={handleSubmitCreate}
+          onDraftChange={setDraft}
+          onPasswordChange={setExcelPassword}
+          onEnableExcelChange={setEnableExcel}
+          onFileUpload={handleFileUpload}
+          onRemoveFile={handleRemoveFile}
+          onDownloadTemplate={handleDownloadTemplate}
+        />
+      )}
 
-            {/* Modal Form */}
-            <form onSubmit={handleSubmitCreate} noValidate>
-              <div className="cls-modal-body">
-                {/* Basic inputs */}
-                <div className="cls-field-group">
-                  <div className="cls-field">
-                    <label htmlFor="create-name">Tên lớp *</label>
-                    <input
-                      id="create-name"
-                      required
-                      placeholder="Ví dụ: 11A3"
-                      value={draft.name}
-                      onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="cls-field">
-                    <label htmlFor="create-grade">Khối lớp *</label>
-                    <select
-                      id="create-grade"
-                      value={draft.gradeLevel}
-                      onChange={(e) => setDraft({ ...draft, gradeLevel: Number(e.target.value) })}
-                    >
-                      <option value={10}>Khối 10</option>
-                      <option value={11}>Khối 11</option>
-                      <option value={12}>Khối 12</option>
-                    </select>
-                  </div>
-
-                  <div className="cls-field cls-field-full">
-                    <label htmlFor="create-year">Năm học *</label>
-                    <input
-                      id="create-year"
-                      required
-                      placeholder="Ví dụ: 2026–2027"
-                      value={draft.academicYear}
-                      onChange={(e) => setDraft({ ...draft, academicYear: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                {/* Auto-Subject Assignment Notice */}
-                <div className="adm-notice" style={{ margin: 0, padding: '10px 14px' }}>
-                  <BookOpen size={16} />
-                  <span>
-                    Hệ thống sẽ tự động gán toàn bộ <strong>{subjects.length} môn học</strong> trong danh mục cho lớp mới
-                    với trạng thái <em>Chưa phân công</em> giáo viên.
-                  </span>
-                </div>
-
-                {/* Excel Student Import Option */}
-                <div className="cls-excel-card">
-                  <div className="cls-excel-header">
-                    <label
-                      htmlFor="excel-toggle"
-                      className="cls-excel-title"
-                      style={{ cursor: 'pointer', userSelect: 'none' }}
-                    >
-                      <input
-                        type="checkbox"
-                        id="excel-toggle"
-                        checked={enableExcel}
-                        onChange={(e) => {
-                          setEnableExcel(e.target.checked)
-                          if (!e.target.checked) {
-                            handleRemoveFile()
-                            setExcelPassword('')
-                          }
-                        }}
-                        style={{ accentColor: '#286449', width: 16, height: 16 }}
-                      />
-                      <span>Thêm danh sách học sinh bằng Excel (.xlsx) ngay khi tạo</span>
-                    </label>
-
-                    <button
-                      type="button"
-                      className="cls-btn-template"
-                      onClick={handleDownloadTemplate}
-                      title="Tải file mẫu Excel (.xlsx)"
-                    >
-                      <Download size={13} /> Tải file mẫu Excel
-                    </button>
-                  </div>
-
-                  <p className="cls-excel-help">
-                    File Excel (.xlsx) gồm 3 cột theo thứ tự: <strong>Họ và tên</strong>, <strong>Tên đăng nhập</strong>, <strong>Thông tin liên hệ</strong>.
-                    Hệ thống sẽ kiểm tra từng dòng theo nguyên tắc toàn vẹn (tất cả hợp lệ mới tạo tài khoản và gán vào lớp).
-                  </p>
-
-                  {enableExcel && (
-                    <>
-                      <div className="cls-field" style={{ margin: '8px 0 12px' }}>
-                        <label htmlFor="create-excel-password">
-                          Mật khẩu khởi tạo chung cho học sinh *
-                        </label>
-                        <input
-                          id="create-excel-password"
-                          type="password"
-                          autoComplete="new-password"
-                          required={enableExcel}
-                          placeholder="Nhập mật khẩu ban đầu cấp cho toàn bộ học sinh trong file"
-                          value={excelPassword}
-                          onChange={(e) => setExcelPassword(e.target.value)}
-                        />
-                        <span style={{ fontSize: '12px', color: '#6b7280', marginTop: 3 }}>
-                          Bản giao diện mẫu chỉ kiểm tra mật khẩu; chưa tạo tài khoản hoặc cấp mật khẩu thật.
-                        </span>
-                      </div>
-
-                      {!excelFileName ? (
-                        <div className="cls-excel-actions">
-                          <label className="cls-file-dropzone">
-                            <FileUp size={15} /> {isReadingFile ? 'Đang đọc file...' : 'Chọn file danh sách (.xlsx)'}
-                            <input
-                              type="file"
-                              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                              onChange={handleFileUpload}
-                              disabled={isReadingFile}
-                            />
-                          </label>
-                        </div>
-                      ) : (
-                        <div className="cls-file-chosen">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <FileSpreadsheet size={16} />
-                            <strong>{excelFileName}</strong>
-                          </div>
-                          <button
-                            type="button"
-                            className="cls-btn-remove-file"
-                            onClick={handleRemoveFile}
-                          >
-                            Xóa file
-                          </button>
-                        </div>
-                      )}
-
-                      {/* File Reading Error */}
-                      {excelError && (
-                        <div className="cls-error-container">
-                          <div className="cls-error-title">
-                            <AlertCircle size={15} /> Lỗi đọc file
-                          </div>
-                          <p style={{ margin: 0, fontSize: '12px', color: '#b72727' }}>{excelError}</p>
-                        </div>
-                      )}
-
-                      {/* Summary Metrics */}
-                      {excelSummary && !excelError && (
-                        <div className="cls-summary-chips">
-                          <div className="cls-summary-chip cls-chip-total">
-                            <strong>{excelSummary.total}</strong>
-                            <span>Tổng số dòng</span>
-                          </div>
-                          <div className="cls-summary-chip cls-chip-new">
-                            <strong>{excelSummary.validCount}</strong>
-                            <span>Hợp lệ</span>
-                          </div>
-                          <div className="cls-summary-chip cls-chip-error">
-                            <strong>{excelSummary.errorsCount}</strong>
-                            <span>Dòng lỗi</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Detailed Error Breakdown (if errors exist) */}
-                      {excelIssues.length > 0 && (
-                        <div className="cls-error-container">
-                          <div className="cls-error-title">
-                            <AlertCircle size={15} />
-                            Có {excelIssues.length} dòng dữ liệu không hợp lệ (Không thể tạo lớp kèm file):
-                          </div>
-                          <div className="cls-error-list">
-                            {excelIssues.map((err, idx) => (
-                              <div key={`${err.line}-${idx}`} className="cls-error-item">
-                                <span className="cls-error-line">Dòng {err.line}</span>
-                                <div>
-                                  <span style={{ color: '#b72727' }}>{err.message}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* All Valid Banner */}
-                      {excelSummary && excelSummary.total > 0 && excelIssues.length === 0 && !excelError && (
-                        <div
-                          className="adm-inline-note"
-                          style={{
-                            margin: 0,
-                            background: '#e8f6e8',
-                            color: '#216235',
-                            border: '1px solid #c2e6c4',
-                          }}
-                        >
-                          <CheckCircle2 size={15} style={{ verticalAlign: 'middle', marginRight: 6 }} />
-                          Toàn bộ {excelSummary.total} dòng đều hợp lệ để tạo tài khoản và phân vào lớp mới.
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                {/* Form General Errors */}
-                {formErrors.length > 0 && (
-                  <div className="adm-errors" role="alert" style={{ margin: 0 }}>
-                    <strong>Vui lòng kiểm tra lại:</strong>
-                    <ul>
-                      {formErrors.map((err) => (
-                        <li key={err}>{err}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-
-              {/* Modal Footer */}
-              <div className="cls-modal-foot">
-                <button type="button" className="cls-btn-cancel" onClick={closeCreateModal}>
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="cls-btn-submit"
-                  disabled={
-                    enableExcel &&
-                    (!excelFileName || excelIssues.length > 0 || !excelPassword.trim() || Boolean(excelError))
-                  }
-                  title={
-                    enableExcel && excelIssues.length > 0
-                      ? 'Vui lòng sửa các dòng lỗi trong file trước khi xác nhận tạo lớp'
-                      : undefined
-                  }
-                >
-                  Xác nhận tạo lớp
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {classroomPreview && (
+        <ClassroomPreviewDialog
+          draft={classroomPreview.draft}
+          excelFileName={classroomPreview.includeRoster ? classroomPreview.excelFileName : ''}
+          studentCount={classroomPreview.includeRoster ? classroomPreview.excelRows.length : 0}
+          studentRows={classroomPreview.includeRoster ? classroomPreview.excelRows : []}
+          normalizationNotices={classroomPreview.normalizationNotices}
+          errors={formErrors}
+          isSaving={isSaving}
+          onBack={() => {
+            setClassroomPreview(null)
+            setEnableExcel(classroomPreview.includeRoster)
+            setExcelFileName(classroomPreview.excelFileName)
+            setExcelPassword(classroomPreview.excelPassword)
+            setExcelRows(classroomPreview.excelRows)
+            setExcelValidationToken(classroomPreview.validationToken)
+            setExcelNormalizationNotices(classroomPreview.normalizationNotices)
+            setIsCreateOpen(true)
+          }}
+          onConfirm={confirmCreateClassroom}
+        />
       )}
     </div>
   )

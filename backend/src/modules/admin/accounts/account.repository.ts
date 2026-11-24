@@ -92,8 +92,8 @@ export class AccountRepository {
     });
   }
 
-  async createStudentOrAdmin(data: {
-    role: UserRole;
+  async createStudent(data: {
+    role: Extract<UserRole, 'STUDENT'>;
     username: string;
     fullName: string;
     contact?: string | null;
@@ -107,7 +107,7 @@ export class AccountRepository {
         contact: data.contact?.trim() || null,
         password_hash: data.passwordHash,
         status: 'ACTIVE',
-        must_change_password: true,
+        must_change_password: false,
       },
       include: {
         enrollments: {
@@ -135,7 +135,7 @@ export class AccountRepository {
           contact: data.contact?.trim() || null,
           password_hash: data.passwordHash,
           status: 'ACTIVE',
-          must_change_password: true,
+          must_change_password: false,
         },
       });
 
@@ -234,7 +234,7 @@ export class AccountRepository {
         where: { id },
         data: {
           password_hash: passwordHash,
-          must_change_password: true,
+          must_change_password: false,
           password_changed_at: changedAt,
         },
       });

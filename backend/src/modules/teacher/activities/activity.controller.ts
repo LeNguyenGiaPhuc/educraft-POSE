@@ -5,9 +5,11 @@ import {
   activityIdParamSchema,
   aiDraftSchema,
   classroomSubjectIdParamSchema,
-  createActivitySchema,
+  exerciseDraftSchema,
+  publishExerciseActivitySchema,
   putQuestionsSchema,
   reopenActivitySchema,
+  updateExerciseContentSchema,
   updateActivitySchema,
 } from './activity.schemas.js';
 import { activityService } from './activity.service.js';
@@ -24,12 +26,12 @@ export const activityController = {
     }
   },
 
-  async create(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async publishExerciseActivity(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       if (!req.user) throw new UnauthorizedError();
       const { classroomSubjectId } = classroomSubjectIdParamSchema.parse(req.params);
-      const data = createActivitySchema.parse(req.body);
-      const activity = await activityService.createActivity(req.user.id, classroomSubjectId, data);
+      const data = publishExerciseActivitySchema.parse(req.body);
+      const activity = await activityService.publishExerciseActivity(req.user.id, classroomSubjectId, data);
       sendSuccess(res, activity, undefined, 201);
     } catch (err) {
       next(err);
@@ -59,6 +61,18 @@ export const activityController = {
     }
   },
 
+  async updateExerciseContent(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) throw new UnauthorizedError();
+      const { activityId } = activityIdParamSchema.parse(req.params);
+      const data = updateExerciseContentSchema.parse(req.body);
+      const activity = await activityService.updateExerciseContent(req.user.id, activityId, data);
+      sendSuccess(res, activity);
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       if (!req.user) throw new UnauthorizedError();
@@ -76,6 +90,18 @@ export const activityController = {
       const { activityId } = activityIdParamSchema.parse(req.params);
       const data = aiDraftSchema.parse(req.body);
       const result = await activityService.generateAiDraft(req.user.id, activityId, data);
+      sendSuccess(res, result);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async exerciseDraft(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) throw new UnauthorizedError();
+      const { classroomSubjectId } = classroomSubjectIdParamSchema.parse(req.params);
+      const data = exerciseDraftSchema.parse(req.body);
+      const result = await activityService.generateExerciseDraft(req.user.id, classroomSubjectId, data);
       sendSuccess(res, result);
     } catch (err) {
       next(err);

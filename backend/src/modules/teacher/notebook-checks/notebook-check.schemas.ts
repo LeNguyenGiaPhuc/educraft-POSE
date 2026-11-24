@@ -14,6 +14,19 @@ export const createNotebookCheckSchema = z.object({
     .optional(),
 });
 
+export const createAndPublishNotebookCheckSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(1, 'TiÃªu Ä‘á» hoáº¡t Ä‘á»™ng khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng')
+    .max(250, 'TiÃªu Ä‘á» khÃ´ng quÃ¡ 250 kÃ½ tá»±'),
+  description: z.string().trim().default(''),
+  dueAt: z
+    .string()
+    .datetime({ message: 'Háº¡n ná»™p bÃ i pháº£i lÃ  Ä‘á»‹nh dáº¡ng ISO 8601 há»£p lá»‡' }),
+  criteria: z.string().min(1, 'Cáº§n truyá»n danh sÃ¡ch tiÃªu chÃ­'),
+});
+
 export const updateNotebookCheckSchema = z.object({
   title: z
     .string()
@@ -30,7 +43,11 @@ export const updateNotebookCheckSchema = z.object({
 });
 
 export const criterionItemSchema = z.object({
-  content: z.string().trim().min(1, 'Nội dung tiêu chí không được để trống'),
+  content: z
+    .string()
+    .trim()
+    .min(1, 'Nội dung tiêu chí không được để trống')
+    .max(500, 'Nội dung tiêu chí không quá 500 ký tự'),
 });
 
 export const putCriteriaSchema = z.object({
@@ -89,8 +106,8 @@ export const submissionFileIdParamSchema = z.object({
 });
 
 export type CreateNotebookCheckInput = z.infer<typeof createNotebookCheckSchema>;
+export type CreateAndPublishNotebookCheckInput = z.infer<typeof createAndPublishNotebookCheckSchema>;
 export type UpdateNotebookCheckInput = z.infer<typeof updateNotebookCheckSchema>;
 export type PutCriteriaInput = z.infer<typeof putCriteriaSchema>;
 export type CreatePeriodInput = z.infer<typeof createPeriodSchema>;
-export type FinalizeCriterionResultInput = z.infer<typeof finalizeCriterionResultInputSchema>;
 export type FinalizeSubmissionInput = z.infer<typeof finalizeSubmissionSchema>;

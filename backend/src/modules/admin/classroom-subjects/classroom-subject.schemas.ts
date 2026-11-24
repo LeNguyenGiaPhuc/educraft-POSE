@@ -7,6 +7,7 @@ export const classroomSubjectParamsSchema = z.object({
 
 export const assignTeacherSchema = z.object({
   teacherId: z.string().uuid('ID giáo viên không hợp lệ').nullable(),
+  expectedTeacherId: z.string().uuid('ID giáo viên hiện tại không hợp lệ').nullable().optional(),
 });
 
 export type AssignTeacherInput = z.infer<typeof assignTeacherSchema>;

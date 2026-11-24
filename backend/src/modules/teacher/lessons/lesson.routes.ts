@@ -26,4 +26,5 @@ teacherLessonRouter.post(
   materialController.newVersion
 );
 teacherLessonRouter.delete('/materials/:id', materialController.archive);
+teacherLessonRouter.post('/materials/:id/process', materialController.retryProcessing);
 teacherLessonRouter.get('/materials/:id/download', materialController.download);

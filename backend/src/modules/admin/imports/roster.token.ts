@@ -1,18 +1,18 @@
-import { createHmac, timingSafeEqual, createHash } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { env } from '../../../config/env.js';
 import { BadRequestError } from '../../../shared/errors/app-error.js';
 import type { ValidationTokenPayload } from './roster.types.js';
 
 function getSigningKey(): Buffer {
-  const secret = process.env.SESSION_SECRET || env.DATABASE_URL || 'educraft-roster-token-signing-key';
-  return createHash('sha256').update(secret).digest();
+  return Buffer.from(env.ROSTER_TOKEN_SECRET, 'utf8');
 }
 
 export const rosterTokenService = {
   generateToken(
     params: {
       adminId: string;
-      classroomId: string;
+      classroomId?: string;
+      operation?: ValidationTokenPayload['operation'];
       rowCount: number;
       rowsHash: string;
     },
@@ -20,6 +20,7 @@ export const rosterTokenService = {
   ): string {
     const payload: ValidationTokenPayload = {
       adminId: params.adminId,
+      operation: params.operation ?? 'EXISTING_CLASSROOM',
       classroomId: params.classroomId,
       rowCount: params.rowCount,
       rowsHash: params.rowsHash,

@@ -261,16 +261,18 @@ model Lesson {
 }
 
 model LearningMaterial {
-  id            String            @id @default(uuid()) @db.Uuid
-  lesson_id     String            @db.Uuid
-  file_name     String
-  status        PublicationStatus @default(DRAFT)
-  created_by_id String            @db.Uuid
-  created_at    DateTime          @default(now()) @db.Timestamptz(6)
-  updated_at    DateTime          @updatedAt @db.Timestamptz(6)
-  lesson        Lesson            @relation(fields: [lesson_id], references: [id], onDelete: Restrict)
-  createdBy     User              @relation(fields: [created_by_id], references: [id], onDelete: Restrict)
-  versions      MaterialVersion[]
+  id               String            @id @default(uuid()) @db.Uuid
+  lesson_id        String            @db.Uuid
+  file_name        String
+  status           PublicationStatus @default(DRAFT)
+  created_by_id    String            @db.Uuid
+  active_version_id String?          @unique @db.Uuid
+  created_at       DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime          @updatedAt @db.Timestamptz(6)
+  lesson           Lesson            @relation(fields: [lesson_id], references: [id], onDelete: Restrict)
+  createdBy        User              @relation(fields: [created_by_id], references: [id], onDelete: Restrict)
+  versions         MaterialVersion[] @relation("MaterialVersions")
+  activeVersion    MaterialVersion?  @relation("ActiveMaterialVersion", fields: [active_version_id], references: [id], onDelete: Restrict)
 
   @@index([lesson_id, status])
   @@map("learning_materials")
@@ -284,12 +286,16 @@ model MaterialVersion {
   mime_type         String            @db.VarChar(100)
   byte_size         BigInt
   processing_status ProcessingStatus  @default(PENDING)
+  processing_attempt_id String?        @db.Uuid
+  processing_started_at DateTime?      @db.Timestamptz(6)
   uploaded_at       DateTime          @default(now()) @db.Timestamptz(6)
   published_at      DateTime?         @db.Timestamptz(6)
-  material          LearningMaterial  @relation(fields: [material_id], references: [id], onDelete: Restrict)
+  material          LearningMaterial  @relation("MaterialVersions", fields: [material_id], references: [id], onDelete: Restrict)
+  activeMaterial    LearningMaterial? @relation("ActiveMaterialVersion")
   segments          MaterialSegment[]
 
   @@unique([material_id, version_no])
+  @@index([processing_status, processing_started_at])
   @@map("material_versions")
 }
 
@@ -604,6 +610,7 @@ model ScheduleEvent {
   starts_at            DateTime         @db.Timestamptz(6)
   published_at         DateTime?        @db.Timestamptz(6)
   created_at           DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime         @updatedAt @db.Timestamptz(6)
   classroomSubject     ClassroomSubject @relation(fields: [classroom_subject_id], references: [id], onDelete: Restrict)
   createdBy            User             @relation(fields: [created_by_id], references: [id], onDelete: Restrict)
   lesson               Lesson?          @relation(fields: [lesson_id], references: [id], onDelete: SetNull)

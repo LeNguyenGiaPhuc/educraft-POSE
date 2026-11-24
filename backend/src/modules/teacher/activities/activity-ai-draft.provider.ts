@@ -14,6 +14,7 @@ export interface GenerateAiDraftParams {
   difficulty: 'BASIC' | 'INTERMEDIATE' | 'ADVANCED';
   questionCount: number;
   lessonIds: string[];
+  teacherInstructions: string;
   segments: Array<{
     id: string;
     content: string;

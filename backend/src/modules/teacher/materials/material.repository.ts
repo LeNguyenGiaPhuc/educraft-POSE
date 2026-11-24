@@ -1,7 +1,14 @@
+import { randomUUID } from 'node:crypto';
 import { prisma } from '../../../lib/prisma.js';
-import { BadRequestError, NotFoundError } from '../../../shared/errors/app-error.js';
+import {
+  BadRequestError,
+  ConflictError,
+  NotFoundError,
+} from '../../../shared/errors/app-error.js';
 import { requireAssignedSubjectForMutation } from '../access/teacher-subject.policy.js';
 import type { ProcessedSegment } from './ai-processing.provider.js';
+
+const PROCESSING_CLAIM_TIMEOUT_MS = 10 * 60 * 1000;
 
 export const materialRepository = {
   async findLessonWithClassroomSubject(lessonId: string) {
@@ -22,6 +29,7 @@ export const materialRepository = {
             classroomSubject: true,
           },
         },
+        activeVersion: true,
         versions: {
           orderBy: { version_no: 'desc' },
         },
@@ -147,6 +155,31 @@ export const materialRepository = {
     });
   },
 
+  async claimProcessingAttempt(versionId: string): Promise<string | null> {
+    const attemptId = randomUUID();
+    const now = new Date();
+    const staleBefore = new Date(now.getTime() - PROCESSING_CLAIM_TIMEOUT_MS);
+    const claimed = await prisma.materialVersion.updateMany({
+      where: {
+        id: versionId,
+        OR: [
+          { processing_status: { in: ['PENDING', 'FAILED'] } },
+          {
+            processing_status: 'PROCESSING',
+            processing_started_at: { lt: staleBefore },
+          },
+        ],
+      },
+      data: {
+        processing_status: 'PROCESSING',
+        processing_attempt_id: attemptId,
+        processing_started_at: now,
+      },
+    });
+
+    return claimed.count === 1 ? attemptId : null;
+  },
+
   async updateVersionProcessing(
     versionId: string,
     status: 'PROCESSED' | 'FAILED' | 'PENDING',
@@ -156,6 +189,11 @@ export const materialRepository = {
       const updated = await tx.materialVersion.update({
         where: { id: versionId },
         data: { processing_status: status },
+      });
+
+      // A retry must not leave stale segments from an earlier attempt.
+      await tx.materialSegment.deleteMany({
+        where: { material_version_id: versionId },
       });
 
       if (segments && segments.length > 0) {
@@ -172,7 +210,96 @@ export const materialRepository = {
         });
       }
 
+      if (status === 'PROCESSED') {
+        await tx.learningMaterial.update({
+          where: { id: updated.material_id },
+          data: { active_version_id: updated.id },
+        });
+      }
+
       return updated;
+    });
+  },
+
+  async updateClaimedVersionProcessing(
+    versionId: string,
+    attemptId: string,
+    status: 'PROCESSED' | 'FAILED' | 'PENDING',
+    segments?: ProcessedSegment[]
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const version = await tx.materialVersion.findUnique({
+        where: { id: versionId },
+        select: { material_id: true },
+      });
+      if (!version) {
+        throw new NotFoundError('Không tìm thấy phiên bản học liệu');
+      }
+
+      const updated = await tx.materialVersion.updateMany({
+        where: {
+          id: versionId,
+          processing_status: 'PROCESSING',
+          processing_attempt_id: attemptId,
+        },
+        data: {
+          processing_status: status,
+          processing_attempt_id: null,
+          processing_started_at: null,
+        },
+      });
+      if (updated.count !== 1) {
+        throw new ConflictError('Quyền xử lý học liệu đã hết hiệu lực');
+      }
+
+      // A retry must not leave stale segments from an earlier attempt.
+      await tx.materialSegment.deleteMany({
+        where: { material_version_id: versionId },
+      });
+
+      if (segments && segments.length > 0) {
+        await tx.materialSegment.createMany({
+          data: segments.map((segment) => ({
+            material_version_id: versionId,
+            position_type: segment.positionType,
+            position_index: segment.positionIndex,
+            position_label: segment.positionLabel,
+            ordinal: segment.ordinal,
+            content: segment.content,
+            processing_status: 'PROCESSED',
+          })),
+        });
+      }
+
+      if (status === 'PROCESSED') {
+        await tx.learningMaterial.update({
+          where: { id: version.material_id },
+          data: { active_version_id: versionId },
+        });
+      }
+
+      return { applied: true };
+    });
+  },
+
+  async promoteMaterialVersion(versionId: string) {
+    return prisma.$transaction(async (tx) => {
+      const version = await tx.materialVersion.findUnique({
+        where: { id: versionId },
+        select: { id: true, material_id: true, processing_status: true },
+      });
+
+      if (!version) {
+        throw new NotFoundError('Không tìm thấy phiên bản học liệu');
+      }
+      if (version.processing_status !== 'PROCESSED') {
+        throw new BadRequestError('Chỉ có thể chọn phiên bản đã xử lý thành công');
+      }
+
+      return tx.learningMaterial.update({
+        where: { id: version.material_id },
+        data: { active_version_id: version.id },
+      });
     });
   },
 };

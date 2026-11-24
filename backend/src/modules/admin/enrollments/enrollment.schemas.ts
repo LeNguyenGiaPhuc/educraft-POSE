@@ -22,5 +22,10 @@ export const classroomIdParamSchema = z.object({
   id: z.string().uuid('ID lớp học không hợp lệ'),
 });
 
+export const classroomStudentParamsSchema = z.object({
+  id: z.string().uuid('ID lớp học không hợp lệ'),
+  studentId: z.string().uuid('ID học sinh không hợp lệ'),
+});
+
 export type EnrollStudentInput = z.infer<typeof enrollStudentSchema>;
 export type TransferStudentInput = z.infer<typeof transferStudentSchema>;

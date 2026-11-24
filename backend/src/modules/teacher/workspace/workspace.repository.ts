@@ -24,18 +24,16 @@ export const workspaceRepository = {
             },
           },
         },
-        _count: {
+        enrollments: {
           select: {
-            enrollments: {
-              where: {
-                left_at: null,
-              },
-            },
+            student_id: true,
+            left_at: true,
           },
         },
       },
       orderBy: [
         { status: 'asc' }, // ACTIVE first
+        { academic_year: 'desc' },
         { name: 'asc' },
       ],
     });
@@ -66,9 +64,6 @@ export const workspaceRepository = {
           },
         },
         enrollments: {
-          where: {
-            left_at: null,
-          },
           orderBy: {
             joined_at: 'asc',
           },
@@ -99,11 +94,10 @@ export const workspaceRepository = {
         },
         classroom: {
           include: {
-            _count: {
+            enrollments: {
               select: {
-                enrollments: {
-                  where: { left_at: null },
-                },
+                student_id: true,
+                left_at: true,
               },
             },
           },
@@ -112,12 +106,13 @@ export const workspaceRepository = {
     });
   },
 
-  async findClassroomStudents(classroomId: string) {
+  async findClassroomStudents(classroomId: string, includeHistorical: boolean) {
+    const where = includeHistorical
+      ? { classroom_id: classroomId }
+      : { classroom_id: classroomId, left_at: null };
+
     return prisma.classroomEnrollment.findMany({
-      where: {
-        classroom_id: classroomId,
-        left_at: null,
-      },
+      where,
       orderBy: {
         joined_at: 'asc',
       },

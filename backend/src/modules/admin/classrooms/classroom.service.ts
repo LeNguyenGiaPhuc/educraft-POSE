@@ -13,6 +13,20 @@ export const classroomService = {
       throw new NotFoundError('Không tìm thấy lớp học');
     }
 
+    const mapStudent = (enr: (typeof classroom.enrollments)[number]) => ({
+      id: enr.student.id,
+      enrollmentId: enr.id,
+      fullName: enr.student.full_name,
+      username: enr.student.username,
+      contact: enr.student.contact,
+      joinedAt: enr.joined_at.toISOString(),
+      leftAt: enr.left_at ? enr.left_at.toISOString() : null,
+      mustChangePassword: enr.student.must_change_password,
+      passwordChangedAt: enr.student.password_changed_at
+        ? enr.student.password_changed_at.toISOString()
+        : null,
+    });
+
     return {
       id: classroom.id,
       name: classroom.name,
@@ -21,14 +35,8 @@ export const classroomService = {
       status: classroom.status,
       createdAt: classroom.created_at.toISOString(),
       updatedAt: classroom.updated_at.toISOString(),
-      students: classroom.enrollments.map((enr) => ({
-        id: enr.student.id,
-        enrollmentId: enr.id,
-        fullName: enr.student.full_name,
-        username: enr.student.username,
-        contact: enr.student.contact,
-        joinedAt: enr.joined_at.toISOString(),
-      })),
+      students: classroom.enrollments.filter((enr) => !enr.left_at).map(mapStudent),
+      studentHistory: classroom.enrollments.filter((enr) => Boolean(enr.left_at)).map(mapStudent),
       subjects: classroom.classroomSubjects.map((cs) => ({
         id: cs.id,
         subjectId: cs.subject.id,
@@ -39,6 +47,8 @@ export const classroomService = {
               id: cs.teacher.id,
               fullName: cs.teacher.full_name,
               username: cs.teacher.username,
+              contact: cs.teacher.contact,
+              qualification: cs.teacher.teacherProfile?.qualification ?? '',
             }
           : null,
         lessonCount: cs._count.lessons,
@@ -65,6 +75,9 @@ export const classroomService = {
         gradeLevel: created.grade_level,
         academicYear: created.academic_year,
         status: created.status,
+        studentCount: created._count?.enrollments ?? 0,
+        subjectCount: created._count?.classroomSubjects ?? 0,
+        assignedTeacherCount: created.classroomSubjects?.length ?? 0,
         createdAt: created.created_at.toISOString(),
         updatedAt: created.updated_at.toISOString(),
       };

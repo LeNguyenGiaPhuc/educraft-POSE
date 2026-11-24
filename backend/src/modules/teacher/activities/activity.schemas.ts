@@ -40,11 +40,66 @@ export const putQuestionsSchema = z.object({
     .max(20, 'Danh sách không được vượt quá 20 câu hỏi'),
 });
 
+export const updateExerciseContentSchema = z.object({
+  title: z.string().trim().min(1, 'Tiêu đề hoạt động không được để trống').max(250, 'Tiêu đề không quá 250 ký tự'),
+  description: z.string().trim().default(''),
+  difficulty: z.enum(['BASIC', 'INTERMEDIATE', 'ADVANCED']),
+  lessonIds: z.array(z.string().uuid({ message: 'ID bài học phải là UUID hợp lệ' })).default([]),
+  closesAt: z.string().datetime({ message: 'Hạn nộp bài phải là định dạng ISO 8601 hợp lệ' }).nullable().optional(),
+  questions: putQuestionsSchema.shape.questions,
+});
+
 export const aiDraftSchema = z.object({
   lessonIds: z.array(z.string().uuid({ message: 'ID bài học phải là UUID hợp lệ' })).min(1, 'Cần chọn ít nhất 1 bài học làm nguồn sinh câu hỏi'),
   questionCount: z.number().int().min(1).max(20).default(5),
   difficulty: z.enum(['BASIC', 'INTERMEDIATE', 'ADVANCED']).default('BASIC'),
+  instructions: z.string().trim().max(1000, 'Yêu cầu cho AI không quá 1000 ký tự').default(''),
 });
+
+export const exerciseDraftSchema = aiDraftSchema.extend({
+  exerciseType: z.enum(['QUIZ', 'WRITTEN'], { message: 'Loại bài tập phải là QUIZ hoặc WRITTEN' }),
+});
+
+export const publishExerciseActivitySchema = createActivitySchema
+  .extend({
+    questions: putQuestionsSchema.shape.questions,
+  })
+  .superRefine((input, context) => {
+    input.questions.forEach((question, index) => {
+      if (input.exerciseType === 'QUIZ') {
+        const options = question.options ?? [];
+        if (options.length !== 4) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['questions', index, 'options'],
+            message: 'Quiz phải có đúng 4 lựa chọn.',
+          });
+        }
+        if (!question.answerKey || !options.includes(question.answerKey)) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['questions', index, 'answerKey'],
+            message: 'Đáp án đúng phải nằm trong 4 lựa chọn.',
+          });
+        }
+      } else {
+        if (!question.answerKey?.trim()) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['questions', index, 'answerKey'],
+            message: 'Tự luận cần đáp án tham khảo.',
+          });
+        }
+        if (!question.markingCriteria?.trim()) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['questions', index, 'markingCriteria'],
+            message: 'Tự luận cần tiêu chí chấm.',
+          });
+        }
+      }
+    });
+  });
 
 export const reopenActivitySchema = z.object({
   closesAt: z.string().datetime({ message: 'Hạn nộp bài mới phải là định dạng ISO 8601 hợp lệ' }).nullable().optional(),
@@ -62,5 +117,8 @@ export type CreateActivityInput = z.infer<typeof createActivitySchema>;
 export type UpdateActivityInput = z.infer<typeof updateActivitySchema>;
 export type QuestionInput = z.infer<typeof questionInputSchema>;
 export type PutQuestionsInput = z.infer<typeof putQuestionsSchema>;
+export type UpdateExerciseContentInput = z.infer<typeof updateExerciseContentSchema>;
 export type AiDraftInput = z.infer<typeof aiDraftSchema>;
+export type ExerciseDraftInput = z.infer<typeof exerciseDraftSchema>;
+export type PublishExerciseActivityInput = z.infer<typeof publishExerciseActivitySchema>;
 export type ReopenActivityInput = z.infer<typeof reopenActivitySchema>;
