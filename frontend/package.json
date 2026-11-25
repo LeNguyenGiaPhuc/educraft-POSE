@@ -9,7 +9,7 @@
     "lint": "cd .. && oxlint frontend/src tests/frontend",
     "test": "npm run test:unit && npm run test:node",
     "test:unit": "vitest run --exclude \"**/*.test.mjs\"",
-    "test:node": "node --test ../tests/frontend/src/features/admin/classrooms/studentImport.test.mjs ../tests/frontend/src/features/teacher/activities/activitiesPermission.test.mjs ../tests/frontend/src/features/teacher/schedule/calendarDate.test.mjs ../tests/frontend/test/vite-config.test.mjs",
+    "test:node": "node --test ../tests/frontend/src/features/admin/classrooms/studentImport.test.mjs ../tests/frontend/src/features/teacher/activities/activitiesPermission.test.mjs ../tests/frontend/src/features/teacher/schedule/calendarDate.test.mjs ../tests/frontend/test/design-foundation.test.mjs ../tests/frontend/test/vite-config.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

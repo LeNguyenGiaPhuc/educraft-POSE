@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EduCraft Design Foundation</title>
+    <link rel="icon" href="/src/assets/educraft/brand/favicon.svg" />
+    <link rel="stylesheet" href="/src/index.css" />
+    <link rel="stylesheet" href="/src/role-refinement.css" />
+    <link rel="stylesheet" href="/src/design-system/foundation.css" />
+    <style>
+      *{box-sizing:border-box}
+      html{background:#f5f2eb}
+      body{margin:0;min-width:0}
+      button{font:inherit;cursor:pointer}
+      .ec-foundation-preview{min-height:100vh;padding:48px clamp(16px,5vw,80px) 80px;background:var(--ec-paper)}
+      .preview-shell{width:min(1180px,100%);margin:0 auto}
+      .preview-header{display:flex;align-items:flex-start;justify-content:space-between;gap:32px;margin-bottom:48px}
+      .preview-brand{width:220px;height:56px}
+      .preview-title{max-width:720px;margin:0 0 12px;font-size:var(--ec-text-display);line-height:1.2;letter-spacing:-.03em}
+      .preview-intro{max-width:70ch;margin:0;color:var(--ec-text-secondary);font-size:var(--ec-text-md);line-height:1.7}
+      .preview-section{margin-top:48px}
+      .preview-section h2{margin:0 0 8px;font-size:var(--ec-text-xl);line-height:1.35}
+      .preview-section>p{max-width:70ch;margin:0 0 24px;color:var(--ec-text-secondary);line-height:1.65}
+      .color-grid{display:grid;grid-template-columns:repeat(7,minmax(120px,1fr));gap:12px}
+      .color-swatch{min-height:150px;padding:18px;border:1px solid var(--ec-border);border-radius:var(--ec-radius-panel);background:var(--swatch);box-shadow:var(--ec-shadow-card)}
+      .color-swatch strong,.color-swatch span{display:block}
+      .color-swatch span{margin-top:5px;color:var(--ec-text-secondary);font-size:var(--ec-text-xs)}
+      .color-swatch:not(.swatch-dark) span{color:var(--ec-ink)}
+      .swatch-dark{color:#fff}.swatch-dark span{color:#e4defa}
+      .type-board,.token-board{padding:32px;border:1px solid var(--ec-border);border-radius:var(--ec-radius-card);background:var(--ec-surface)}
+      .type-display{margin:0 0 28px;font-size:var(--ec-text-display);font-weight:800;line-height:1.2;letter-spacing:-.03em}
+      .type-page{margin:0 0 24px;font-size:var(--ec-text-2xl);font-weight:800;line-height:1.25;letter-spacing:-.025em}
+      .type-section{margin:0 0 20px;font-size:var(--ec-text-xl);font-weight:700;line-height:1.35}
+      .type-body{max-width:70ch;margin:0;color:var(--ec-text-secondary);font-size:var(--ec-text-md);line-height:1.6}
+      .semantic-row{display:flex;flex-wrap:wrap;gap:12px}
+      .geometry-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
+      .geometry-grid h3{margin:0 0 8px;font-size:var(--ec-text-lg)}
+      .geometry-grid p{margin:0;color:var(--ec-ink);font-size:var(--ec-text-base);line-height:1.6}
+      .ec-ticket{min-height:150px}
+      .action-row{display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-top:24px}
+      .preview-input{min-height:var(--ec-control-height);padding:0 14px;border:1px solid var(--ec-input-border);border-radius:var(--ec-radius-input);color:var(--ec-text);background:var(--ec-surface)}
+      .asset-strip{display:grid;grid-template-columns:repeat(7,minmax(100px,1fr));gap:12px}
+      .asset-card{display:grid;min-height:150px;place-items:center;padding:16px;border:1px solid var(--ec-border);border-radius:var(--ec-radius-panel);background:var(--ec-surface)}
+      .asset-card img{display:block;width:100%;max-width:130px;height:96px;object-fit:contain}
+      .asset-card span{font-size:var(--ec-text-xs);font-weight:700}
+      .token-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+      .token-sample{padding:18px;border-radius:var(--ec-radius-panel);background:var(--ec-surface-muted)}
+      .token-sample strong,.token-sample span{display:block}
+      .token-sample span{margin-top:6px;color:var(--ec-text-secondary);font-size:var(--ec-text-sm)}
+      .preview-note{margin-top:48px;padding:24px;border-radius:var(--ec-radius-panel);color:var(--ec-info-text);background:var(--ec-info-bg);line-height:1.65}
+      .preview-note code{overflow-wrap:anywhere}
+      @media(max-width:1023px){.preview-header{display:grid}.color-grid{grid-template-columns:repeat(4,1fr)}.geometry-grid{grid-template-columns:repeat(2,1fr)}.asset-strip{grid-template-columns:repeat(4,1fr)}.token-grid{grid-template-columns:repeat(2,1fr)}}
+      @media(max-width:767px){.ec-foundation-preview{padding-top:28px}.preview-title{font-size:34px}.color-grid,.geometry-grid,.asset-strip,.token-grid{grid-template-columns:1fr}.type-board,.token-board{padding:24px}.preview-brand{width:190px}.asset-card{min-height:132px}}
+    </style>
+  </head>
+  <body>
+    <main class="ec-foundation-preview">
+      <div class="preview-shell">
+        <header class="preview-header">
+          <img class="preview-brand" src="/src/assets/educraft/brand/wordmark.svg" alt="EduCraft" />
+          <div>
+            <h1 class="preview-title">The Shape of Learning.</h1>
+            <p class="preview-intro">Design Foundation dành cho Shared Auth, Admin và Teacher. Hình khối khác biệt nhưng tương tác quen thuộc, dễ đọc và phù hợp với công việc hằng ngày.</p>
+          </div>
+        </header>
+
+        <section class="preview-section" aria-labelledby="palette-title">
+          <h2 id="palette-title">Bảng màu nhận diện</h2>
+          <p>Màu thương hiệu tạo bản sắc; trạng thái nghiệp vụ dùng hệ màu semantic riêng.</p>
+          <div class="color-grid">
+            <div class="color-swatch swatch-dark" style="--swatch:var(--ec-ink)"><strong>Ink</strong><span>#29264F</span></div>
+            <div class="color-swatch swatch-dark" style="--swatch:var(--ec-iris)"><strong>Iris</strong><span>#5850BE</span></div>
+            <div class="color-swatch" style="--swatch:var(--ec-lavender)"><strong>Lavender</strong><span>#DCD9FA</span></div>
+            <div class="color-swatch" style="--swatch:var(--ec-matcha)"><strong>Matcha</strong><span>#C6D8A1</span></div>
+            <div class="color-swatch" style="--swatch:var(--ec-butter)"><strong>Butter</strong><span>#F4D476</span></div>
+            <div class="color-swatch" style="--swatch:var(--ec-clay)"><strong>Clay</strong><span>#EBAF99</span></div>
+            <div class="color-swatch" style="--swatch:var(--ec-paper)"><strong>Paper</strong><span>#F5F2EB</span></div>
+          </div>
+        </section>
+
+        <section class="preview-section" aria-labelledby="type-title">
+          <h2 id="type-title">Typography</h2>
+          <p>Be Vietnam Pro là font chính thức. Preview dùng system fallback khi máy chưa có font; không cần kết nối Google Fonts.</p>
+          <div class="type-board">
+            <p class="type-display">Dạy sáng tạo. Học chủ động.</p>
+            <p class="type-page">Không gian lớp học</p>
+            <p class="type-section">Bài học, hoạt động và tiến bộ</p>
+            <p class="type-body">Nhịp chữ ưu tiên tiếng Việt rõ ràng, độ dài dòng vừa phải và phân cấp chặt chẽ cho bảng dữ liệu, biểu mẫu và không gian làm việc của giáo viên.</p>
+          </div>
+        </section>
+
+        <section class="preview-section" aria-labelledby="semantic-title">
+          <h2 id="semantic-title">Màu semantic</h2>
+          <p>Mỗi trạng thái có cả nhãn chữ và màu riêng, không dùng Iris để thay thế ý nghĩa nghiệp vụ.</p>
+          <div class="semantic-row">
+            <span class="ec-status ec-status-success">Hoàn tất</span>
+            <span class="ec-status ec-status-warning">Cần chú ý</span>
+            <span class="ec-status ec-status-info">Thông tin</span>
+            <span class="ec-status ec-status-danger">Có lỗi</span>
+            <span class="ec-status ec-status-neutral">Chỉ đọc</span>
+          </div>
+        </section>
+
+        <section class="preview-section" aria-labelledby="geometry-title">
+          <h2 id="geometry-title">Playful Geometry</h2>
+          <p>Decoration nằm ở pseudo-element phía sau nội dung, không cắt vùng tương tác hoặc focus ring.</p>
+          <div class="geometry-grid">
+            <article class="ec-geometry ec-nest"><h3>Nest</h3><p>Hero, metric và điểm nhấn chính có khoảng thở riêng cho khối tròn.</p></article>
+            <article class="ec-geometry ec-folder"><h3>Folder</h3><p>Bài học, học liệu và luồng import có tab nhận diện.</p></article>
+            <article class="ec-geometry ec-ticket"><h3>Ticket</h3><p>Sự kiện và tiết học dùng đường xé cùng vùng thông tin rõ ràng.</p></article>
+            <article class="ec-geometry ec-plaque"><h3>Classroom Plaque</h3><p>Tên lớp dài vẫn được wrap và đọc đầy đủ.</p></article>
+            <article class="ec-geometry ec-spine"><h3>Subject Spine</h3><p>Gáy sách tạo nhịp ổn định cho danh sách môn học.</p></article>
+            <article class="ec-geometry ec-note"><h3>Curiosity Note</h3><p>Chủ đề gợi mở được tách khỏi trạng thái và đánh giá.</p></article>
+          </div>
+          <div class="ec-match preview-section" aria-label="Craft Match">
+            <div class="ec-match-piece"><strong>Lớp 11A2</strong><p>Nguồn phân công</p></div>
+            <div class="ec-match-piece"><strong>Cô Minh Anh</strong><p>Giáo viên phù hợp</p></div>
+          </div>
+          <div class="action-row">
+            <button type="button" class="ec-connected-action"><span class="ec-connected-action-mark" aria-hidden="true"></span>Thêm hoạt động</button>
+            <label for="preview-search">Kiểm tra focus</label>
+            <input id="preview-search" class="preview-input" value="Nội dung tiếng Việt" />
+          </div>
+        </section>
+
+        <section class="preview-section" aria-labelledby="assets-title">
+          <h2 id="assets-title">Minh họa SVG phẳng</h2>
+          <p>Asset nội bộ, không phụ thuộc mạng, không dùng làm nguồn dữ liệu nghiệp vụ.</p>
+          <div class="asset-strip">
+            <div class="asset-card"><img src="/src/assets/educraft/illustrations/books.svg" alt="" /><span>Sách</span></div>
+            <div class="asset-card"><img src="/src/assets/educraft/illustrations/classroom.svg" alt="" /><span>Lớp học</span></div>
+            <div class="asset-card"><img src="/src/assets/educraft/illustrations/people.svg" alt="" /><span>Tài khoản</span></div>
+            <div class="asset-card"><img src="/src/assets/educraft/illustrations/excel.svg" alt="" /><span>Excel</span></div>
+            <div class="asset-card"><img src="/src/assets/educraft/illustrations/notebook.svg" alt="" /><span>Kiểm tra vở</span></div>
+            <div class="asset-card"><img src="/src/assets/educraft/illustrations/calendar.svg" alt="" /><span>Lịch</span></div>
+            <div class="asset-card"><img src="/src/assets/educraft/illustrations/curiosity.svg" alt="" /><span>AI chủ đề</span></div>
+          </div>
+        </section>
+
+        <section class="preview-section" aria-labelledby="source-assets-title">
+          <h2 id="source-assets-title">Brand và shape assets</h2>
+          <p>Logo, Craft Spark và các shape SVG gốc được giữ như nguồn tham chiếu phẳng; geometry co giãn trong UI dùng lớp CSS phía trên để không làm méo góc.</p>
+          <div class="asset-strip">
+            <div class="asset-card"><img src="/src/assets/educraft/brand/logomark.svg" alt="" /><span>Logomark</span></div>
+            <div class="asset-card"><img src="/src/assets/educraft/brand/craft-spark.svg" alt="" /><span>Craft Spark</span></div>
+            <div class="asset-card"><img src="/src/assets/educraft/shapes/nest.svg" alt="" /><span>Nest</span></div>
+            <div class="asset-card"><img src="/src/assets/educraft/shapes/folder.svg" alt="" /><span>Folder</span></div>
+            <div class="asset-card"><img src="/src/assets/educraft/shapes/ticket.svg" alt="" /><span>Ticket</span></div>
+            <div class="asset-card"><img src="/src/assets/educraft/shapes/plaque.svg" alt="" /><span>Plaque</span></div>
+            <div class="asset-card"><img src="/src/assets/educraft/shapes/spine.svg" alt="" /><span>Spine</span></div>
+            <div class="asset-card"><img src="/src/assets/educraft/shapes/note.svg" alt="" /><span>Note</span></div>
+            <div class="asset-card"><img src="/src/assets/educraft/shapes/match.svg" alt="" /><span>Match</span></div>
+            <div class="asset-card"><img src="/src/assets/educraft/shapes/step.svg" alt="" /><span>Step</span></div>
+            <div class="asset-card"><img src="/src/assets/educraft/shapes/connected-action.svg" alt="" /><span>Connected Action</span></div>
+          </div>
+        </section>
+
+        <section class="preview-section" aria-labelledby="tokens-title">
+          <h2 id="tokens-title">Nhịp hệ thống</h2>
+          <p>Spacing, radius, elevation và motion được dùng như từ vựng chung, không tạo biến thể tùy tiện.</p>
+          <div class="token-board token-grid">
+            <div class="token-sample"><strong>Spacing</strong><span>4 · 8 · 12 · 16 · 20 · 24 · 32 · 40 · 48 · 64</span></div>
+            <div class="token-sample"><strong>Radius</strong><span>8 · 12 · 16 · 24 · 32 · pill</span></div>
+            <div class="token-sample"><strong>Elevation</strong><span>Card 4/12 · Modal 16/48</span></div>
+            <div class="token-sample"><strong>Motion</strong><span>150 · 200 · 240 ms · ease-out</span></div>
+          </div>
+        </section>
+
+        <p class="preview-note"><strong>Development preview:</strong> mở <code>/design-foundation-preview.html</code> bằng Vite. File này không được đăng ký trong production router và không thay đổi backend/API.</p>
+        <div id="core-preview"></div>
+      </div>
+    </main>
+    <script type="module" src="/src/design-system/core-preview.tsx"></script>
+  </body>
+</html>

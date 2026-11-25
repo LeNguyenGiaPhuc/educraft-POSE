@@ -1,16 +1,20 @@
-import { useEffect, useState } from 'react'
-import { ArrowRight, KeyRound, LogOut, Menu, X } from 'lucide-react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { ArrowRight, KeyRound, LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import type { DemoUser } from '../data/demo'
 import { teacherWorkspaceApi } from '../lib/api/teacher/workspace'
 import type { TeacherClassroomSubjectContext } from '../lib/api/teacher/types'
 import { navigation, roleNames } from '../data/navigation'
 import { ChangePasswordDialog } from './ChangePasswordDialog'
+import logomark from '../assets/educraft/brand/logomark.svg'
 
 type Props = { user: DemoUser; onSignOut: () => void }
 
 export function RoleLayout({ user, onSignOut }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const sidebarRef = useRef<HTMLElement>(null)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false)
   const { pathname, search } = useLocation()
   const items = navigation[user.role]
@@ -50,18 +54,46 @@ export function RoleLayout({ user, onSignOut }: Props) {
   const isManagedWorkspace = user.role === 'admin' || user.role === 'teacher'
 
   useEffect(() => {
+    if (!isManagedWorkspace || !menuOpen) return
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : menuButtonRef.current
+    sidebarRef.current?.querySelector<HTMLButtonElement>('.mobile-close')?.focus()
+    return () => previousFocus?.focus()
+  }, [isManagedWorkspace, menuOpen])
+
+  function handleDrawerKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (!isManagedWorkspace || !menuOpen) return
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      setMenuOpen(false)
+    }
+    if (event.key !== 'Tab') return
+    const controls = sidebarRef.current?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled)')
+    if (!controls?.length) return
+    const first = controls[0]
+    const last = controls[controls.length - 1]
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
+
+  useEffect(() => {
     if (isManagedWorkspace) window.scrollTo(0, 0)
   }, [isManagedWorkspace, pathname])
 
   return (
-    <div className={`app-shell role-${user.role}`}>
+    <div className={`app-shell role-${user.role}${isManagedWorkspace ? ` managed-shell${sidebarCollapsed ? ' sidebar-collapsed' : ''}` : ''}`}>
       {menuOpen && <button className="mobile-overlay" aria-label="Đóng menu" onClick={() => setMenuOpen(false)} />}
-      <aside className={`sidebar ${menuOpen ? 'sidebar-open' : ''}`}>
+      <aside ref={sidebarRef} onKeyDown={handleDrawerKeyDown} aria-label={isManagedWorkspace ? `Không gian ${roleNames[user.role]}` : undefined} className={`sidebar ${menuOpen ? 'sidebar-open' : ''}`}>
         <div className="brand-row">
           <NavLink to={`/${user.role}${scenarioQuery}`} className="brand" onClick={() => setMenuOpen(false)}>
-            <span className="brand-mark">e<span>.</span></span><span>educraft<small>LEARNING SPACE</small></span>
+            {isManagedWorkspace ? <img className="managed-logomark" src={logomark} alt="" /> : <span className="brand-mark">e<span>.</span></span>}<span>educraft<small>LEARNING SPACE</small></span>
           </NavLink>
           <button className="icon-button mobile-close" aria-label="Đóng menu" onClick={() => setMenuOpen(false)}><X size={20} /></button>
+          {isManagedWorkspace && <button type="button" className="icon-button sidebar-collapse" aria-label={sidebarCollapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'} aria-expanded={!sidebarCollapsed} onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>{sidebarCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}</button>}
         </div>
         <div className="workspace-label"><span className="workspace-dot" /> {user.role === 'student' ? scenario === 'unassigned' ? 'Chưa được xếp lớp' : isViewingHistory ? 'Lớp 10A1 · chỉ đọc' : 'Lớp 11A2' : roleNames[user.role]} <span className="workspace-arrow">⌄</span></div>
         <p className="nav-caption">KHÔNG GIAN LÀM VIỆC</p>
@@ -71,6 +103,8 @@ export function RoleLayout({ user, onSignOut }: Props) {
               key={path}
               to={`/${user.role}${path ? `/${path}` : ''}${scenarioQuery}`}
               end={path === ''}
+              title={isManagedWorkspace && sidebarCollapsed ? label : undefined}
+              aria-label={isManagedWorkspace && sidebarCollapsed ? label : undefined}
               onClick={() => setMenuOpen(false)}
               className={({ isActive }) => {
                 const isStudentLesson = user.role === 'student' && path === 'subjects' && pathname.startsWith('/student/lessons/')
@@ -87,7 +121,7 @@ export function RoleLayout({ user, onSignOut }: Props) {
       </aside>
       <div className="app-main">
         <header className="topbar">
-          <button className="icon-button mobile-menu" aria-label="Mở menu" onClick={() => setMenuOpen(true)}><Menu size={22} /></button>
+          <button ref={menuButtonRef} className="icon-button mobile-menu" aria-label="Mở menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Menu size={22} /></button>
           <div className="breadcrumb"><span>Không gian học tập</span><span className="slash">/</span><strong>{current.label}{visibleTeacherContext && ` / ${visibleTeacherContext.classroomName} · ${visibleTeacherContext.subjectName}`}</strong></div>
           <span className="topbar-right">{!isManagedWorkspace && <><span className="live-dot" /> Giao diện mẫu</>}<span className="topbar-avatar">{user.initials}</span></span>
         </header>

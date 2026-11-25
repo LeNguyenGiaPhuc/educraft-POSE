@@ -1,0 +1,83 @@
+/* Phase 02 shell: only the managed workspaces. */
+body:has(.managed-shell){min-width:0}
+.managed-shell{background:var(--ec-paper);color:var(--ec-ink)}
+.managed-shell .sidebar{
+  width:var(--ec-sidebar-width);padding:24px 0 18px;
+  border:0;background:var(--ec-ink);color:#fff;
+  transition:width var(--ec-motion-slow) var(--ec-motion-ease),transform var(--ec-motion-slow) var(--ec-motion-ease);
+}
+.managed-shell .app-main{margin-left:var(--ec-sidebar-width);min-width:0;transition:margin-left var(--ec-motion-slow) var(--ec-motion-ease)}
+.managed-shell .brand-row{display:flex;align-items:center;gap:8px;min-height:52px;padding:0 16px}
+.managed-shell .brand{min-width:0;gap:10px;color:#fff}
+.managed-shell .managed-logomark{width:42px;height:42px;flex:none}
+.managed-shell .brand>span:last-child{min-width:0;font-size:20px;line-height:1.1}
+.managed-shell .brand small{font-family:var(--ec-font);font-size:8px;color:#ddd9fa;line-height:1.5}
+.managed-shell .sidebar-collapse{width:40px;height:40px;flex:none;margin-left:auto;color:#e4defa}
+.managed-shell .sidebar-collapse:hover,.managed-shell .sidebar .icon-button:hover{background:#403b73;color:#fff}
+.managed-shell .workspace-label{min-height:44px;margin:24px 16px 22px;padding:8px 12px;border:1px solid #77709c;border-radius:var(--ec-radius-input);color:#fff;font-size:13px}
+.managed-shell .workspace-dot{background:var(--ec-butter)}
+.managed-shell .workspace-arrow{color:#dcd9fa}
+.managed-shell .nav-caption{margin:0 24px 12px;color:#c9c5df;font-size:10px}
+.managed-shell .main-nav{gap:4px;padding:0 0 4px 12px;overflow-x:visible}
+.managed-shell .nav-link{position:relative;min-height:48px;gap:12px;padding:10px 14px;border-radius:12px 0 0 12px;color:#e7e4f4;font-size:14px;line-height:1.4;font-weight:600;white-space:normal}
+.managed-shell .nav-link svg{flex:none}
+.managed-shell .nav-link:hover{background:#403b73;color:#fff}
+.managed-shell .nav-link.active{z-index:1;border-radius:16px 0 0 16px;background:var(--ec-paper);color:var(--ec-ink);font-weight:700}
+.managed-shell .nav-link.active::before,.managed-shell .nav-link.active::after{position:absolute;right:0;width:18px;height:18px;content:"";pointer-events:none;background:radial-gradient(circle at 0 0,transparent 18px,var(--ec-paper) 18.5px)}
+.managed-shell .nav-link.active::before{bottom:100%;transform:rotate(90deg)}
+.managed-shell .nav-link.active::after{top:100%;transform:rotate(180deg)}
+.managed-shell .nav-end{display:none}
+.managed-shell .sidebar-bottom{padding:14px 16px 0}
+.managed-shell .account-password-link{min-height:44px;margin:0 0 8px;padding:8px 10px;color:#e7e4f4;font-size:13px}
+.managed-shell .account-password-link:hover{background:#403b73;color:#fff}
+.managed-shell .sidebar-user{border-top:1px solid #77709c;padding:16px 0 0}
+.managed-shell .avatar{width:40px;height:40px;flex:none;background:var(--ec-butter);color:var(--ec-ink)}
+.managed-shell .user-copy strong{color:#fff;font-size:13px}
+.managed-shell .user-copy small{color:#dcd9fa;font-size:11px}
+.managed-shell .logout{width:44px;height:44px;color:#fff}
+.managed-shell .topbar{height:var(--ec-topbar-height);padding:0 32px;border-bottom:1px solid var(--ec-border);background:var(--ec-paper)}
+.managed-shell .breadcrumb{min-width:0;color:var(--ec-text-secondary);font-size:13px}
+.managed-shell .breadcrumb strong{min-width:0;overflow-wrap:anywhere;color:var(--ec-ink);font-weight:700}
+.managed-shell .topbar-avatar{width:40px;height:40px;background:var(--ec-lavender);color:var(--ec-ink)}
+.managed-shell .content{width:100%;max-width:1540px;padding:32px 32px 80px}
+.managed-shell :is(a,button):focus-visible{outline:3px solid var(--ec-butter);outline-offset:2px}
+.managed-shell .app-main :is(a,button):focus-visible{outline-color:var(--ec-iris)}
+.managed-shell .nav-link.active:focus-visible{outline-color:var(--ec-iris);outline-offset:-4px}
+.managed-shell.sidebar-collapsed .sidebar{width:var(--ec-sidebar-collapsed)}
+.managed-shell.sidebar-collapsed .app-main{margin-left:var(--ec-sidebar-collapsed)}
+.managed-shell.sidebar-collapsed .brand-row{flex-direction:column;padding:0 10px}
+.managed-shell.sidebar-collapsed .brand>span:last-child,.managed-shell.sidebar-collapsed :is(.workspace-label,.nav-caption,.nav-link span,.nav-end,.account-password-link,.user-copy){display:none}
+.managed-shell.sidebar-collapsed .sidebar-collapse{margin:8px auto 0}
+.managed-shell.sidebar-collapsed .main-nav{padding:20px 0;gap:8px}
+.managed-shell.sidebar-collapsed .nav-link{justify-content:center;padding:10px}
+.managed-shell.sidebar-collapsed .nav-link.active{border-radius:0}
+.managed-shell.sidebar-collapsed .sidebar-bottom{padding:8px}
+.managed-shell.sidebar-collapsed .sidebar-user{flex-direction:column;gap:8px}
+@media(max-width:1023px) and (min-width:761px){
+  .managed-shell .sidebar{width:var(--ec-sidebar-collapsed)}
+  .managed-shell .app-main{margin-left:var(--ec-sidebar-collapsed)}
+  .managed-shell .brand-row{flex-direction:column;padding:0 10px}
+  .managed-shell .brand>span:last-child,.managed-shell :is(.workspace-label,.nav-caption,.nav-link span,.nav-end,.account-password-link,.user-copy,.sidebar-collapse){display:none}
+  .managed-shell .main-nav{padding:20px 0;gap:8px}
+  .managed-shell .nav-link{justify-content:center;padding:10px}
+  .managed-shell .nav-link.active{border-radius:0}
+  .managed-shell .sidebar-bottom{padding:8px}
+  .managed-shell .sidebar-user{flex-direction:column;gap:8px}
+  .managed-shell .content{padding:32px 24px 72px}
+}
+@media(max-width:760px){
+  .managed-shell .sidebar,.managed-shell.sidebar-collapsed .sidebar{width:min(320px,calc(100vw - 32px));transform:translateX(-100%)}
+  .managed-shell .sidebar.sidebar-open{transform:translateX(0)}
+  .managed-shell .app-main,.managed-shell.sidebar-collapsed .app-main{margin-left:0}
+  .managed-shell .brand-row,.managed-shell.sidebar-collapsed .brand-row{flex-direction:row;padding:0 16px}
+  .managed-shell .brand>span:last-child,.managed-shell :is(.workspace-label,.nav-caption,.nav-link span,.account-password-link,.user-copy){display:block}
+  .managed-shell .main-nav{padding-left:12px}
+  .managed-shell .nav-link{justify-content:flex-start;padding:10px 14px}
+  .managed-shell .nav-link.active{border-radius:16px 0 0 16px}
+  .managed-shell .sidebar-bottom{padding:14px 16px 0}
+  .managed-shell .sidebar-user{flex-direction:row}
+  .managed-shell .mobile-close,.managed-shell .mobile-menu{display:grid;width:44px;height:44px}
+  .managed-shell .sidebar-collapse{display:none}
+  .managed-shell .topbar{height:64px;padding:0 16px}
+  .managed-shell .content{padding:24px 16px 64px}
+}
