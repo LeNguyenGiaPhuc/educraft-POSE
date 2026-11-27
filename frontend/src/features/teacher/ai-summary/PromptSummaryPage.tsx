@@ -5,12 +5,12 @@ import { ApiError } from '../../../lib/api/client'
 import { teacherResultsApi, type TeacherPromptTopicItem } from '../../../lib/api/teacher/results'
 import type { TeacherClassroomSummary, TeacherSubjectStudent } from '../../../lib/api/teacher/types'
 import { teacherWorkspaceApi } from '../../../lib/api/teacher/workspace'
-import { InfoNotice } from '../insights/TeacherUI'
 import { PromptSummaryDetail } from './PromptSummaryDetail'
 import { PromptSummaryFilters } from './PromptSummaryFilters'
 import { PromptSummaryList } from './PromptSummaryList'
 import { getPromptEligibleClassrooms } from './promptSummaryEligibility'
-import type { PromptSummaryStats, PromptSummaryStudent, PromptSummaryTopic } from './promptSummaryTypes'
+import type { PromptSummaryStudent } from './promptSummaryTypes'
+import { buildTopicStats, flattenTopics } from './promptSummaryModel'
 import './ai-summary.css'
 
 function errorMessage(error: unknown): string {
@@ -36,36 +36,6 @@ function buildStudent(
     subjectId,
     subjectName,
   }
-}
-
-function buildTopicStats(items: TeacherPromptTopicItem[]): Map<string, PromptSummaryStats> {
-  const stats = new Map<string, PromptSummaryStats>()
-  for (const item of items) {
-    const current = stats.get(item.student.id)
-    const topicCount = item.topics.length
-    stats.set(item.student.id, {
-      count: (current?.count ?? 0) + topicCount,
-      latestDate: current && current.latestDate > item.periodEnd ? current.latestDate : item.periodEnd,
-    })
-  }
-  return stats
-}
-
-function flattenTopics(items: TeacherPromptTopicItem[]): PromptSummaryTopic[] {
-  const topics: PromptSummaryTopic[] = []
-  for (const summary of items) {
-    for (let index = 0; index < summary.topics.length; index += 1) {
-      const topic = summary.topics[index]
-      topics.push({
-        id: `${summary.id}-${index}`,
-        label: topic.label,
-        count: topic.count,
-        periodStart: summary.periodStart,
-        periodEnd: summary.periodEnd,
-      })
-    }
-  }
-  return topics
 }
 
 export function PromptSummaryPage() {
@@ -221,15 +191,9 @@ export function PromptSummaryPage() {
 
   return (
     <div className="page-content tc-page">
-      <div className="page-heading">
-        <span className="eyebrow"><span className="eyebrow-line" /> THEO DÕI HỌC TẬP</span>
+      <div className="page-heading ai-page-heading">
         <h1>Chủ đề học sinh hỏi AI</h1>
-        <p>Danh sách chủ đề tổng hợp theo môn và lớp bạn đang giảng dạy. Hệ thống không hiển thị nguyên văn hội thoại.</p>
       </div>
-
-      <InfoNotice>
-        Dữ liệu được tải từ backend theo phạm vi phân công hiện tại. Học sinh chưa có chủ đề vẫn xuất hiện với số lượng 0.
-      </InfoNotice>
 
       <PromptSummaryFilters
         searchTerm={searchTerm}

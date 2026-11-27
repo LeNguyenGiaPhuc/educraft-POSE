@@ -1,144 +1,38 @@
-/* AI Summary Styles */
-.ai-filter-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin: 20px 0;
-  flex-wrap: wrap;
-}
-
-.ai-search-box {
-  flex: 1;
-  min-width: 240px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #fff;
-  border: 1px solid #dce7db;
-  border-radius: 8px;
-  padding: 8px 12px;
-}
-
-.ai-search-box input {
-  border: 0;
-  outline: none;
-  width: 100%;
-  font-size: 13px;
-  color: #274636;
-}
-
-.ai-class-selector {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: #365442;
-}
-
-.ai-class-selector select {
-  padding: 8px 12px;
-  border: 1px solid #dce7db;
-  border-radius: 8px;
-  background: #fff;
-  color: #365442;
-  font-size: 13px;
-}
-
-.ai-badge-class {
-  display: inline-block;
-  background: #ecf6e8;
-  color: #245d49;
-  font-weight: 700;
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 6px;
-}
-
-.ai-chip-topics {
-  display: inline-block;
-  background: #e6f3eb;
-  color: #1f6448;
-  font-weight: 700;
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 12px;
-}
-
-.ai-chip-none {
-  display: inline-block;
-  background: #f3f4f6;
-  color: #8c9b91;
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 12px;
-}
-
-.ai-btn-view {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: #245d49;
-  font-weight: 600;
-  font-size: 12px;
-  text-decoration: none;
-  padding: 5px 10px;
-  border-radius: 6px;
-  border: 1px solid #d4e5d2;
-  background: #f7faf5;
-  transition: all 0.15s ease;
-}
-
-.ai-btn-view:hover {
-  background: #ecf5e8;
-  border-color: #bcd4b9;
-}
-
-.ai-topic-list {
-  display: grid;
-  gap: 12px;
-  margin-top: 14px;
-}
-
-.ai-topic-card {
-  padding: 16px;
-  border: 1px solid #e1ebe0;
-  border-radius: 10px;
-  background: #fbfdfa;
-}
-
-.ai-topic-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.ai-topic-badge {
-  background: #e2f0dc;
-  color: #295c43;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 2px 7px;
-  border-radius: 4px;
-}
-
-.ai-topic-date {
-  font-size: 11px;
-  color: #799182;
-}
-
-.ai-topic-title {
-  margin: 0 0 10px;
-  font-size: 16px;
-  color: #1e3b2e;
-}
-
-.ai-topic-footer {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: #557563;
-}
+/* Curiosity Studio — compact, private-by-design and distinctly EduCraft. */
+.role-teacher .ai-page-heading{position:relative;isolation:isolate;min-height:122px;max-width:none;margin-bottom:0;padding:27px 132px 27px 30px;border-radius:30px 76px 30px 30px;background:var(--ec-lavender);overflow:hidden}
+.role-teacher .ai-page-heading::before{position:absolute;z-index:-1;right:34px;top:50%;width:58px;height:58px;transform:translateY(-50%) rotate(7deg);background:var(--ec-asset-craft-spark) center/contain no-repeat;content:""}
+.role-teacher .ai-page-heading::after{position:absolute;z-index:-2;right:-20px;bottom:-28px;width:106px;height:86px;border-radius:48px 0 0 0;background:color-mix(in srgb,var(--ec-butter) 78%,transparent);content:""}
+.role-teacher .ai-page-heading h1{max-width:720px;margin:0;font-size:clamp(30px,3.2vw,42px)}
+.role-teacher .ai-filter-toolbar{display:grid;grid-template-columns:minmax(260px,1fr) repeat(2,minmax(180px,auto));align-items:end;gap:12px;min-width:0;margin:20px 0;padding:14px;border:1px solid var(--ec-border);border-radius:var(--ec-radius-card);background:var(--ec-surface-muted)}
+.role-teacher .ai-page-heading+.ai-filter-toolbar{position:relative;z-index:2;margin:-14px 18px 24px;padding:16px 18px;border:0;border-radius:18px 28px 18px 18px;background:var(--ec-surface);box-shadow:0 12px 28px rgb(41 38 79 / 8%)}
+.role-teacher .ai-search-box{display:flex;align-items:center;gap:8px;min-width:0;min-height:42px;padding:8px 12px;border:1px solid var(--ec-input-border);border-radius:var(--ec-radius-input);background:var(--ec-surface);color:var(--ec-text-secondary)}
+.role-teacher .ai-search-box:focus-within{border-color:var(--ec-iris);outline:3px solid var(--ec-focus);outline-offset:1px}
+.role-teacher .ai-search-box input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:var(--ec-ink);font:inherit;font-size:13px}
+.role-teacher .ai-class-selector{display:grid;gap:6px;min-width:0;color:var(--ec-ink);font-size:13px;font-weight:600}
+.role-teacher .ai-class-selector select{width:100%;min-width:0;min-height:42px;padding:8px 34px 8px 11px;border:1px solid var(--ec-input-border);border-radius:var(--ec-radius-input);background:var(--ec-surface);color:var(--ec-ink);font:inherit;font-size:13px}
+.role-teacher .ai-summary-table{position:relative;min-width:0;padding:7px 0 0;border-radius:14px 36px 14px 14px;overflow:hidden}
+.role-teacher .ai-summary-table::before{position:absolute;z-index:2;top:0;right:42px;width:72px;height:9px;border-radius:0 0 10px 10px;background:var(--ec-butter);content:"";pointer-events:none}
+.role-teacher :is(.ai-badge-class,.ai-chip-topics,.ai-chip-none){display:inline-flex;align-items:center;min-height:26px;padding:3px 9px;border-radius:999px;font-size:11px;line-height:1.25}
+.role-teacher .ai-badge-class{background:var(--ec-matcha);color:var(--ec-ink);font-weight:700}
+.role-teacher .ai-chip-topics{background:var(--ec-lavender);color:var(--ec-info-text);font-weight:700}
+.role-teacher .ai-chip-none{background:var(--ec-neutral-bg);color:var(--ec-neutral-text)}
+.role-teacher .ai-btn-view{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:7px 11px;border:1px solid var(--ec-border);border-radius:var(--ec-radius-input);background:var(--ec-surface);color:var(--ec-iris);font-size:12px;font-weight:600;text-decoration:none;transition:background var(--ec-motion-fast),border-color var(--ec-motion-fast)}
+.role-teacher .ai-btn-view:hover{border-color:var(--ec-iris);background:var(--ec-lavender)}
+.role-teacher .ai-btn-view:focus-visible{outline:3px solid var(--ec-focus);outline-offset:2px}
+.role-teacher .ai-period-end{color:var(--ec-text-secondary);font-size:12px}
+.role-teacher .ai-summary-empty{min-height:180px;padding:32px 20px}
+.role-teacher .ai-topic-section{margin-top:20px;padding:22px;background:var(--ec-lavender)}
+.role-teacher .ai-topic-section .tc-section-title svg{width:30px;height:30px;padding:6px;border-radius:50%;background:var(--ec-iris);color:var(--ec-butter)}
+.role-teacher .ai-topic-empty{min-height:160px;padding:28px 20px;border:1px solid color-mix(in srgb,var(--ec-iris) 22%,var(--ec-border));border-radius:var(--ec-radius-card);background:color-mix(in srgb,var(--ec-surface) 88%,var(--ec-lavender))}
+.role-teacher .ai-topic-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px}
+.role-teacher .ai-topic-card{position:relative;min-width:0;padding:18px 20px 17px;border:1px solid color-mix(in srgb,var(--ec-iris) 20%,var(--ec-border));border-radius:6px 18px 18px 18px;background:var(--ec-surface);color:var(--ec-ink)}
+.role-teacher .ai-topic-card::after{position:absolute;top:-1px;right:-1px;width:28px;height:28px;border-bottom:1px solid color-mix(in srgb,var(--ec-iris) 20%,var(--ec-border));border-left:1px solid color-mix(in srgb,var(--ec-iris) 20%,var(--ec-border));border-radius:0 16px 0 12px;background:var(--ec-butter);content:'';pointer-events:none}
+.role-teacher .ai-topic-header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding-right:24px;margin-bottom:12px}
+.role-teacher .ai-topic-badge{color:var(--ec-iris);font-size:11px;font-weight:700}
+.role-teacher .ai-topic-date{color:var(--ec-text-secondary);font-size:11px;text-align:right}
+.role-teacher .ai-topic-title{margin:0 0 14px;color:var(--ec-ink);font-size:17px;font-weight:700;line-height:1.4;overflow-wrap:anywhere}
+.role-teacher .ai-topic-footer{display:flex;align-items:flex-start;gap:7px;color:var(--ec-text-secondary);font-size:12px;line-height:1.5}
+.role-teacher .ai-topic-footer svg{flex:0 0 auto;margin-top:2px;color:var(--ec-iris)}
+@media(max-width:900px){.role-teacher .ai-filter-toolbar{grid-template-columns:minmax(0,1fr) minmax(180px,.7fr)}.role-teacher .ai-search-box{grid-column:1/-1}}
+@media(max-width:600px){.role-teacher .ai-page-heading{min-height:104px;padding:24px 82px 24px 22px;border-radius:24px 54px 24px 24px}.role-teacher .ai-page-heading::before{right:22px;width:42px;height:42px}.role-teacher .ai-page-heading+.ai-filter-toolbar{margin:-10px 10px 20px}.role-teacher :is(.ai-filter-toolbar,.ai-topic-list){grid-template-columns:minmax(0,1fr)}.role-teacher .ai-search-box{grid-column:auto}.role-teacher .ai-topic-section{padding:16px}.role-teacher .ai-topic-header{display:grid;gap:6px}.role-teacher .ai-topic-date{text-align:left}}
+@media(prefers-reduced-motion:reduce){.role-teacher .ai-btn-view{transition:none}}

@@ -1,0 +1,14 @@
+.ti-bar.unavailable {
+  background: #d9d5e5;
+}
+
+.ti-chart-data {
+  margin-top: 16px;
+}
+
+.ti-chart-data caption {
+  padding-bottom: 8px;
+  color: #6d6884;
+  font-size: 12px;
+  text-align: left;
+}

@@ -8,13 +8,10 @@ import { teacherResultsApi, type TeacherStatisticsResult } from '../../../lib/ap
 import type { TeacherSubjectStudent } from '../../../lib/api/teacher/types'
 import { teacherWorkspaceApi, teacherWorkspacePath } from '../../../lib/api/teacher/workspace'
 import { TeacherBackButton } from '../components/TeacherBackButton'
-import { EmptyState, InfoNotice } from '../insights/TeacherUI'
+import { EmptyState } from '../insights/TeacherUI'
+import { formatRate } from '../insights/insightSemantics'
 import { getEligibleStatisticsActivities, getStatisticsActivityId, getStatisticsPeriodId, type StatisticsActivityOption } from './statisticsFilters'
 import { createStatisticsSubmissionsPath } from './statisticsNavigation'
-
-function percentage(value: number | null): string {
-  return value === null ? 'Chưa có dữ liệu' : `${Math.round(value * 100)}%`
-}
 
 function statisticsError(error: unknown): string {
   if (error instanceof ApiError) {
@@ -206,37 +203,38 @@ export function ClassStatisticsPage({ classroomSubjectId, embedded = false }: { 
   return (
     <div className={embedded ? 'tw-statistics' : 'page-content'}>
       {!embedded && <TeacherBackButton fallbackTo={workspacePath} />}
-      <div className="page-heading"><h1>Thống kê học tập</h1><p>{context.classroom.name} · {context.subject.name} — dữ liệu tổng hợp từ backend.</p></div>
-      <InfoNotice>Quiz và tự luận được tổng hợp điểm riêng. Kiểm tra vở chỉ tổng hợp tình trạng nộp/chốt, không tính vào điểm.</InfoNotice>
-
-      <section className="ti-card" aria-label="Phạm vi thống kê">
-        <label htmlFor="statistics-activity">Phạm vi hoạt động</label>
-        <select id="statistics-activity" value={selectedActivityId} onChange={(event) => changeActivity(event.target.value)}>
-          <option value="">Tất cả hoạt động</option>
-          {activityOptions.map((activity) => (
-            <option value={activity.id} key={activity.id}>
-              {activity.title} · {activity.kind === 'EXERCISE' ? 'Quiz / tự luận' : 'Kiểm tra vở'}
-            </option>
-          ))}
-        </select>
-        {selectedActivity?.kind === 'NOTEBOOK_CHECK' && periodsActivityId === selectedActivityId && <label htmlFor="statistics-period">Đợt kiểm tra<select id="statistics-period" value={selectedPeriodId} onChange={(event) => changePeriod(event.target.value)}><option value="">Tất cả đợt</option>{notebookPeriods.map((period) => <option value={period.id} key={period.id}>Đợt {period.periodNo}</option>)}</select></label>}
-        <p className="ti-muted">
-          {selectedActivity ? `Đang xem riêng: ${selectedActivity.title}.` : 'Đang xem số liệu tổng hợp của môn học.'}
-        </p>
-        <Link className="ti-button" to={submissionsPath}>Xem bài nộp{selectedActivity ? ' của hoạt động này' : ''}</Link>
+      <div className="page-heading"><h1>Thống kê học tập</h1><p>{context.classroom.name} · {context.subject.name} — tổng hợp theo các hoạt động đã ghi nhận.</p></div>
+      <section className="ti-card ti-scope-card" aria-label="Phạm vi thống kê">
+        <div className="ti-scope-controls">
+          <label className="ti-field" htmlFor="statistics-activity">Phạm vi hoạt động<select id="statistics-activity" value={selectedActivityId} onChange={(event) => changeActivity(event.target.value)}>
+            <option value="">Tất cả hoạt động</option>
+            {activityOptions.map((activity) => (
+              <option value={activity.id} key={activity.id}>
+                {activity.title} · {activity.kind === 'EXERCISE' ? 'Quiz / tự luận' : 'Kiểm tra vở'}
+              </option>
+            ))}
+          </select></label>
+          {selectedActivity?.kind === 'NOTEBOOK_CHECK' && periodsActivityId === selectedActivityId && <label className="ti-field" htmlFor="statistics-period">Đợt kiểm tra<select id="statistics-period" value={selectedPeriodId} onChange={(event) => changePeriod(event.target.value)}><option value="">Tất cả đợt</option>{notebookPeriods.map((period) => <option value={period.id} key={period.id}>Đợt {period.periodNo}</option>)}</select></label>}
+        </div>
+        <div className="ti-scope-summary">
+          <p className="ti-muted">
+            {selectedActivity ? `Đang xem riêng: ${selectedActivity.title}.` : 'Đang xem số liệu tổng hợp của môn học.'}
+          </p>
+          <Link className="ti-button" to={submissionsPath}>Xem bài nộp{selectedActivity ? ' của hoạt động này' : ''}</Link>
+        </div>
       </section>
 
       <section className="ti-card">
         <h2>Quiz & tự luận</h2>
         <div className="ti-table-wrap">
-          <table className="ti-table"><thead><tr><th>Hoạt động</th><th>Đã nộp / cần nộp</th><th>Trạng thái chấm</th><th>Điểm trung bình</th><th>Tỷ lệ nộp</th></tr></thead><tbody><tr><td>{statistics.exercise.activityCount}</td><td>{statistics.exercise.submittedSubmissions}/{statistics.exercise.expectedSubmissions}</td><td>{statistics.exercise.gradedSubmissions} đã chấm · {statistics.exercise.pendingSubmissions} đang chấm · {statistics.exercise.failedSubmissions} lỗi</td><td>{statistics.exercise.averageScore === null ? 'Chưa có điểm' : statistics.exercise.averageScore.toFixed(1)}</td><td>{percentage(statistics.exercise.submissionRate)}</td></tr></tbody></table>
+          <table className="ti-table"><thead><tr><th>Hoạt động</th><th>Đã nộp / cần nộp</th><th>Trạng thái chấm</th><th>Điểm trung bình</th><th>Tỷ lệ nộp</th></tr></thead><tbody><tr><td>{statistics.exercise.activityCount}</td><td>{statistics.exercise.submittedSubmissions}/{statistics.exercise.expectedSubmissions}</td><td>{statistics.exercise.gradedSubmissions} đã chấm · {statistics.exercise.pendingSubmissions} đang chấm · {statistics.exercise.failedSubmissions} lỗi</td><td>{statistics.exercise.averageScore === null ? 'Chưa có điểm' : statistics.exercise.averageScore.toFixed(1)}</td><td>{formatRate(statistics.exercise.submissionRate)}</td></tr></tbody></table>
         </div>
       </section>
 
       <section className="ti-card">
-        <h2>Kiểm tra vở · không tính điểm tổng</h2>
+        <h2>Kiểm tra vở</h2>
         <p>{statistics.notebook.activityCount} hoạt động · {statistics.notebook.periodCount} đợt · {statistics.notebook.submittedSubmissions}/{statistics.notebook.expectedSubmissions} bài đã nộp · {statistics.notebook.finalizedSubmissions} bài đã chốt.</p>
-        <p className="ti-muted">Tỷ lệ nộp: {percentage(statistics.notebook.submissionRate)} · Tỷ lệ đã chốt: {percentage(statistics.notebook.finalizationRate)}</p>
+        <p className="ti-muted">Tỷ lệ nộp: {formatRate(statistics.notebook.submissionRate)} · Tỷ lệ đã chốt: {formatRate(statistics.notebook.finalizationRate)}</p>
         {statistics.notebook.criteria.length > 0 && <ul>{statistics.notebook.criteria.map((item) => <li key={item.criterionId}>{item.content}: {item.needsSupplementation} cần bổ sung · {item.undetermined} chưa xác định</li>)}</ul>}
       </section>
 

@@ -1,4 +1,4 @@
-import { Filter, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import type { TeacherAssignedSubject, TeacherClassroomSummary } from '../../../lib/api/teacher/types'
 
 type Props = {
@@ -36,7 +36,6 @@ export function PromptSummaryFilters({
       </div>
 
       <div className="ai-class-selector">
-        <Filter size={15} />
         <label htmlFor="ai-class-filter">Lớp giảng dạy:</label>
         <select id="ai-class-filter" value={selectedClassId} onChange={(event) => onClassChange(event.target.value)}>
           {classes.map((classroom) => (
