@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { BookOpen, CheckCircle2, GraduationCap, School, X } from 'lucide-react'
+import { CheckCircle2, X } from 'lucide-react'
 import type { AdminAccount, AdminSubject } from '../../../lib/api/admin'
 import { adminApi } from '../../../lib/api/admin'
 import { ApiError } from '../../../lib/api/client'
@@ -141,21 +141,8 @@ export function ClassroomSubjectsPage() {
     <div className="page-content adm-page sbj-page">
       {/* Page Heading */}
       <div className="page-heading">
-        <span className="eyebrow">
-          <span className="eyebrow-line" /> QUẢN TRỊ HỆ THỐNG
-        </span>
-        <h1>Danh mục môn học chung</h1>
-        <p>
-          Danh mục môn học áp dụng thống nhất cho toàn trường. Mọi lớp đang học (ACTIVE) đều tự động có đủ môn trong danh mục.
-        </p>
-      </div>
-
-      {/* Notice Banner */}
-      <div className="sbj-notice" role="region" aria-label="Thông báo danh mục">
-        <BookOpen size={19} className="sbj-notice-icon" />
-        <div>
-          <strong>Quy tắc danh mục chung:</strong> Môn học được quản lý tập trung và tự động mở cho tất cả lớp đang hoạt động với trạng thái <em>Chưa phân công giáo viên</em>. Việc chỉ định giáo viên phụ trách môn được thực hiện linh hoạt tại trang <strong>Chi tiết lớp học</strong>.
-        </div>
+        <h1>Danh mục môn học</h1>
+        <p>Quản lý môn học dùng chung và giáo viên chuyên môn.</p>
       </div>
 
       {/* Success Alert Banner */}
@@ -188,35 +175,23 @@ export function ClassroomSubjectsPage() {
       {/* Stats Cards */}
       <div className="sbj-stats-grid">
         <div className="sbj-stat-card">
-          <div className="sbj-stat-icon is-subjects">
-            <BookOpen size={24} />
-          </div>
           <div className="sbj-stat-info">
             <span className="sbj-stat-value">{subjectList.length}</span>
-            <span className="sbj-stat-label">Tổng số môn học</span>
-            <span className="sbj-stat-sublabel">Trong danh mục chung</span>
+            <span className="sbj-stat-label">Môn học</span>
           </div>
         </div>
 
         <div className="sbj-stat-card">
-          <div className="sbj-stat-icon is-teachers">
-            <GraduationCap size={24} />
-          </div>
           <div className="sbj-stat-info">
             <span className="sbj-stat-value">{totalEligibleTeachers}</span>
             <span className="sbj-stat-label">Giáo viên chuyên môn</span>
-            <span className="sbj-stat-sublabel">Sẵn sàng phân công</span>
           </div>
         </div>
 
         <div className="sbj-stat-card">
-          <div className="sbj-stat-icon is-classrooms">
-            <School size={24} />
-          </div>
           <div className="sbj-stat-info">
             <span className="sbj-stat-value">{activeClassroomCount}</span>
-            <span className="sbj-stat-label">Lớp học áp dụng</span>
-            <span className="sbj-stat-sublabel">Lớp đang hoạt động</span>
+            <span className="sbj-stat-label">Lớp đang áp dụng</span>
           </div>
         </div>
       </div>
@@ -239,7 +214,6 @@ export function ClassroomSubjectsPage() {
       {isModalOpen && (
         <SubjectCreateDialog
           name={newSubjectName}
-          activeClassroomCount={activeClassroomCount}
           formErrors={formErrors}
           isSaving={isSaving}
           onClose={closeAddModal}

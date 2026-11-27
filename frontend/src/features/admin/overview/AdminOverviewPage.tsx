@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AlertCircle, Archive, BookOpen, RotateCcw, School, Users } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { AlertCircle, RotateCcw } from 'lucide-react'
 import { ApiError } from '../../../lib/api/client'
 import { adminDashboardApi, type AdminDashboardSummary } from '../../../lib/api/adminDashboard'
 
@@ -29,7 +28,7 @@ export function AdminOverviewPage() {
     }
   }, [reloadKey])
 
-  if (!summary && !loadError) return <div className="page-content"><p>Đang tải tổng quan...</p></div>
+  if (!summary && !loadError) return <div className="page-content admin-campus"><div className="admin-campus-skeleton" role="status">Đang tải tổng quan...</div></div>
 
   if (loadError || !summary) {
     return (
@@ -47,37 +46,28 @@ export function AdminOverviewPage() {
   }
 
   return (
-    <div className="page-content">
-      <div className="page-heading">
-        <span className="eyebrow"><span className="eyebrow-line" /> KHÔNG GIAN QUẢN TRỊ</span>
-        <h1>Một nơi để tổ chức việc học.</h1>
-        <p>Số liệu được tải trực tiếp từ hệ thống quản trị.</p>
+    <div className="page-content admin-campus">
+      <div className="page-heading admin-campus-heading">
+        <h1>Không gian quản trị.</h1>
+        <p>Theo dõi lớp học, con người và danh mục môn học trong một nhịp vận hành thống nhất.</p>
       </div>
 
-      <div className="metrics">
-        <MetricCard icon={<School size={20} />} label="Lớp đang hoạt động" value={summary.classrooms.active} note={`${summary.classrooms.archived} lớp đã lưu trữ`} />
-        <MetricCard icon={<Users size={20} />} label="Giáo viên hoạt động" value={summary.accounts.activeTeachers} note={`${summary.accounts.inactiveAccounts} tài khoản đang tắt`} />
-        <MetricCard icon={<BookOpen size={20} />} label="Môn học hoạt động" value={summary.subjects.active} note={`${summary.unassignedActiveSubjects} môn chưa phân công`} />
-      </div>
-
-      <div className="overview-grid">
-        <section className="panel focus-panel">
-          <div className="panel-head"><div><span className="section-kicker">CẦN CHÚ Ý</span><h2>Việc cần chuẩn bị</h2></div><Archive size={19} /></div>
+      <div className="admin-campus-grid">
+        <MetricCard className="is-classrooms" label="Lớp học" value={summary.classrooms.active} title="Lớp đang hoạt động" note={`${summary.classrooms.archived} lớp đã lưu trữ`} />
+        <MetricCard className="is-people" label="Đội ngũ" value={summary.accounts.activeTeachers} title="Giáo viên hoạt động" note={`${summary.accounts.inactiveAccounts} tài khoản đang tắt`} />
+        <MetricCard className="is-subjects" label="Danh mục" value={summary.subjects.active} title="Môn học hoạt động" note={`${summary.unassignedActiveSubjects} môn chưa phân công`} />
+        <section className="admin-attention-board">
+          <div className="admin-attention-head"><h2>Cần xử lý</h2><span>{summary.unassignedActiveSubjects + summary.accounts.inactiveAccounts}</span></div>
           <div className="focus-list">
-            <div className="focus-item"><span className="focus-icon">!</span><div><strong>Môn chưa phân công</strong><p>Kiểm tra các môn đang thiếu giáo viên chuyên môn.</p></div><span className="focus-tag">{summary.unassignedActiveSubjects}</span></div>
-            <div className="focus-item"><span className="focus-icon">!</span><div><strong>Tài khoản không hoạt động</strong><p>Rà soát các tài khoản đã bị tắt.</p></div><span className="focus-tag">{summary.accounts.inactiveAccounts}</span></div>
+            <div className="focus-item"><div><strong>Môn chưa phân công</strong><p>Bổ sung giáo viên chuyên môn cho các lớp đang học.</p></div><span className="focus-tag">{summary.unassignedActiveSubjects}</span></div>
+            <div className="focus-item"><div><strong>Tài khoản đang tắt</strong><p>Kiểm tra trước khi kích hoạt lại tài khoản.</p></div><span className="focus-tag">{summary.accounts.inactiveAccounts}</span></div>
           </div>
-        </section>
-        <section className="panel explore-panel">
-          <span className="section-kicker">QUẢN LÝ HỆ THỐNG</span>
-          <h2>Đi tới công việc của bạn</h2>
-          <p>Chọn Tài khoản, Lớp học hoặc Môn học của lớp ở thanh điều hướng.</p>
         </section>
       </div>
     </div>
   )
 }
 
-function MetricCard({ icon, label, value, note }: { icon: ReactNode; label: string; value: number; note: string }) {
-  return <div className="metric-card"><span className="metric-icon">{icon}</span><p>{label}</p><strong>{String(value).padStart(2, '0')}</strong><small>{note}</small></div>
+function MetricCard({ className, label, value, title, note }: { className: string; label: string; value: number; title: string; note: string }) {
+  return <section className={`admin-campus-card ${className}`}><span>{label}</span><strong>{value}</strong><h2>{title}</h2><p>{note}</p></section>
 }

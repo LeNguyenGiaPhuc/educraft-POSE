@@ -1,0 +1,493 @@
+/* EduCraft Admin Studio — active presentation layer loaded after legacy feature CSS. */
+.role-admin{
+  --admin-primary:var(--ec-iris);
+  --admin-primary-hover:var(--ec-primary-hover);
+  --admin-ink:var(--ec-ink);
+  --admin-muted:var(--ec-text-secondary);
+  --admin-line:var(--ec-border);
+  --admin-surface:var(--ec-surface);
+  --admin-soft:var(--ec-surface-muted);
+}
+
+.role-admin .page-content.adm-page,
+.role-admin .page-content.admin-campus{
+  width:min(100%,1500px);
+  margin:0 auto;
+  padding:34px clamp(24px,3vw,52px) 56px;
+  color:var(--admin-ink);
+}
+
+.role-admin .page-heading{margin:0 0 28px;max-width:760px}
+.role-admin .page-heading .eyebrow{display:none}
+.role-admin .page-heading h1{
+  margin:0;
+  color:var(--admin-ink);
+  font-size:clamp(34px,3.3vw,52px);
+  line-height:1.05;
+  letter-spacing:-.035em;
+  font-weight:600;
+  text-wrap:balance;
+}
+.role-admin .page-heading p{
+  max-width:68ch;
+  margin:10px 0 0;
+  color:var(--admin-muted);
+  font-size:15px;
+  line-height:1.65;
+}
+
+/* Campus Studio */
+.role-admin .admin-campus-heading{margin-left:clamp(0px,4vw,72px);margin-bottom:26px}
+.role-admin .admin-campus-heading h1{font-size:clamp(40px,4.4vw,64px);font-weight:700}
+.role-admin .admin-campus-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1.45fr) minmax(270px,.85fr);
+  gap:18px;
+  max-width:1220px;
+  margin:0 auto;
+}
+.role-admin .admin-campus-card{
+  position:relative;
+  min-width:0;
+  min-height:220px;
+  padding:26px 30px;
+  overflow:visible;
+  border:0;
+  border-radius:28px;
+  color:var(--admin-ink);
+}
+.role-admin .admin-campus-card>span{
+  display:block;
+  margin-bottom:10px;
+  color:color-mix(in srgb,var(--admin-ink) 72%,transparent);
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.role-admin .admin-campus-card>strong{
+  display:block;
+  font-size:58px;
+  line-height:.95;
+  letter-spacing:-.05em;
+  font-variant-numeric:tabular-nums;
+}
+.role-admin .admin-campus-card h2{margin:14px 0 4px;font-size:22px;line-height:1.25}
+.role-admin .admin-campus-card p{margin:0;color:color-mix(in srgb,var(--admin-ink) 72%,transparent);font-size:13px}
+.role-admin .admin-campus-card::after{content:"";position:absolute;pointer-events:none}
+.role-admin .admin-campus-card.is-classrooms{
+  min-height:286px;
+  padding-right:min(35%,240px);
+  background:var(--ec-lavender);
+  border-radius:56px 56px 28px 56px;
+}
+.role-admin .admin-campus-card.is-classrooms::after{
+  right:34px;bottom:30px;width:112px;height:82px;
+  border:14px solid var(--ec-iris);border-bottom:0;border-radius:60px 60px 0 0;
+  box-shadow:inset 0 0 0 18px var(--ec-lavender);
+}
+.role-admin .admin-campus-card.is-people{background:var(--ec-matcha);border-radius:28px 64px 28px 28px}
+.role-admin .admin-campus-card.is-people::after{right:30px;top:30px;width:18px;height:18px;border-radius:50%;background:var(--ec-iris)}
+.role-admin .admin-campus-card.is-subjects{background:var(--ec-butter);min-height:190px;border-radius:28px 28px 56px 28px}
+.role-admin .admin-attention-board{
+  min-width:0;
+  padding:24px 28px;
+  background:var(--admin-surface);
+  border:1px solid var(--admin-line);
+  border-radius:16px;
+}
+.role-admin .admin-attention-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:14px;border-bottom:1px solid var(--admin-line)}
+.role-admin .admin-attention-head h2{margin:0;font-size:19px}
+.role-admin .admin-attention-head span{display:grid;place-items:center;min-width:32px;height:32px;padding:0 10px;border-radius:999px;background:var(--ec-clay);font-weight:800;font-variant-numeric:tabular-nums}
+.role-admin .admin-attention-board .focus-list{display:grid}
+.role-admin .admin-attention-board .focus-item{display:flex;align-items:center;gap:16px;padding:17px 0;border-bottom:1px solid var(--admin-line)}
+.role-admin .admin-attention-board .focus-item:last-child{border-bottom:0;padding-bottom:0}
+.role-admin .admin-attention-board .focus-item>div{min-width:0;flex:1}
+.role-admin .admin-attention-board .focus-item strong{font-size:14px}
+.role-admin .admin-attention-board .focus-item p{margin:4px 0 0;color:var(--admin-muted);font-size:12px;line-height:1.5}
+.role-admin .admin-attention-board .focus-tag{color:var(--admin-ink);font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
+.role-admin .admin-campus-skeleton{min-height:420px;border-radius:28px;background:linear-gradient(90deg,var(--ec-lavender),var(--ec-surface),var(--ec-lavender));background-size:200% 100%;animation:admin-skeleton 1.4s ease-in-out infinite;display:grid;place-items:center;color:var(--admin-muted)}
+@keyframes admin-skeleton{to{background-position:-200% 0}}
+
+/* Actions and controls */
+.role-admin :is(.adm-primary,.cls-btn-create,.cls-btn-submit,.cls-btn-assign,.sbj-btn-primary){
+  background:var(--admin-primary);
+  border-color:var(--admin-primary);
+  color:#fff;
+  box-shadow:none;
+}
+.role-admin :is(.adm-primary,.cls-btn-create,.cls-btn-submit,.cls-btn-assign,.sbj-btn-primary):hover:not(:disabled){background:var(--admin-primary-hover);border-color:var(--admin-primary-hover);transform:none}
+.role-admin .cls-btn-assign-confirm{
+  display:inline-flex;
+  align-items:center;
+  gap:9px;
+  min-height:44px;
+  padding:0 18px 0 8px;
+  border-radius:999px;
+}
+.role-admin .cls-btn-assign-confirm svg{
+  width:28px;
+  height:28px;
+  padding:7px;
+  border-radius:50%;
+  background:var(--ec-butter);
+  color:var(--admin-ink);
+  stroke-width:2.4;
+}
+.role-admin .cls-btn-assign-confirm:disabled svg{background:color-mix(in srgb,var(--ec-butter) 58%,white)}
+.role-admin :is(.adm-secondary,.cls-btn-detail,.cls-btn-action-outline,.cls-btn-edit-assign,.cls-btn-cancel,.sbj-btn-secondary,.sbj-row-action){
+  min-height:40px;
+  border:1px solid var(--admin-line);
+  border-radius:10px;
+  background:var(--admin-surface);
+  color:var(--admin-primary);
+  box-shadow:none;
+}
+.role-admin :is(.adm-secondary,.cls-btn-detail,.cls-btn-action-outline,.cls-btn-edit-assign,.cls-btn-cancel,.sbj-btn-secondary,.sbj-row-action):hover:not(:disabled){background:var(--ec-info-bg);border-color:color-mix(in srgb,var(--admin-primary) 32%,var(--admin-line))}
+.role-admin :is(.adm-primary,.adm-secondary,.cls-btn-create,.cls-btn-submit,.cls-btn-detail,.cls-btn-action-outline,.cls-btn-edit-assign,.cls-btn-cancel,.cls-btn-assign,.sbj-btn-primary,.sbj-btn-secondary,.sbj-row-action):focus-visible{outline:3px solid color-mix(in srgb,var(--admin-primary) 38%,transparent);outline-offset:2px}
+.role-admin :is(button,input,select,textarea):disabled{cursor:not-allowed;opacity:.58}
+.role-admin .adm-text-button{color:var(--admin-primary)}
+.role-admin .adm-text-button:hover{text-decoration-thickness:1px;text-underline-offset:3px}
+
+.role-admin :is(.adm-search,.adm-filter,.cls-search-input,.cls-filter-select,.sbj-search-box){
+  min-height:44px;
+  border:1px solid var(--ec-input-border);
+  border-radius:11px;
+  background:var(--admin-surface);
+  color:var(--admin-muted);
+}
+.role-admin :is(.adm-search,.adm-filter,.cls-search-input,.cls-filter-select,.sbj-search-box):focus-within{border-color:var(--admin-primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--admin-primary) 18%,transparent)}
+.role-admin :is(.adm-search input,.adm-filter select,.cls-search-input input,.cls-filter-select select,.sbj-search-box input){color:var(--admin-ink);font:inherit}
+.role-admin :is(.adm-search input,.cls-search-input input,.sbj-search-box input)::placeholder{color:color-mix(in srgb,var(--admin-muted) 72%,white)}
+
+/* People Directory */
+.role-admin .adm-toolbar{margin:0 0 14px}
+.role-admin .adm-toolbar-title{display:flex;align-items:center;gap:10px}
+.role-admin .adm-toolbar-title strong{font-size:14px}
+.role-admin .adm-toolbar-title span{display:grid;place-items:center;min-width:28px;height:28px;padding:0 8px;border-radius:999px;background:var(--ec-lavender);color:var(--admin-ink);font-size:12px;font-weight:800}
+.role-admin .adm-layout{grid-template-columns:minmax(0,1.35fr) minmax(330px,.65fr);gap:16px}
+.role-admin .adm-card{padding:20px;border:1px solid var(--admin-line);border-radius:16px;background:var(--admin-surface);box-shadow:none}
+.role-admin .adm-card-head{align-items:center;margin-bottom:16px}
+.role-admin .adm-card-head h2{margin:0;color:var(--admin-ink);font-size:18px;letter-spacing:-.015em}
+.role-admin .adm-filters{display:grid;grid-template-columns:minmax(200px,1fr) auto auto;gap:10px;padding:12px;margin-bottom:8px;border-radius:13px;background:var(--admin-soft)}
+.role-admin .adm-row{gap:12px;padding:13px 10px;border-color:var(--admin-line);color:var(--admin-ink)}
+.role-admin .adm-row:hover{background:var(--admin-soft)}
+.role-admin .adm-row.is-selected{background:var(--ec-info-bg);box-shadow:inset 3px 0 0 var(--admin-primary)}
+.role-admin .adm-row-copy strong{color:var(--admin-ink);font-size:13px}
+.role-admin .adm-row-copy small{color:var(--admin-muted);font-size:11px}
+.role-admin .adm-avatar{border-radius:10px;background:var(--ec-matcha);color:var(--admin-ink)}
+.role-admin .adm-avatar.is-teacher{background:var(--ec-lavender);color:var(--admin-ink)}
+.role-admin .adm-status.active{background:var(--ec-success-bg);color:var(--ec-success-text)}
+.role-admin .adm-status.inactive{background:var(--ec-neutral-bg);color:var(--ec-neutral-text)}
+.role-admin .adm-detail{position:sticky;top:calc(var(--ec-topbar-height) + 18px)}
+.role-admin .adm-facts>div{padding:12px 0;border-color:var(--admin-line);font-size:12px}
+.role-admin .adm-facts dt{color:var(--admin-muted)}
+.role-admin .adm-facts dd{color:var(--admin-ink)}
+.role-admin .adm-actions{padding-top:4px;border-top:1px solid var(--admin-line)}
+.role-admin .adm-feedback{margin:0 0 16px;padding:12px 14px;border-radius:10px;font-size:13px}
+.role-admin .adm-feedback.is-success{background:var(--ec-success-bg);color:var(--ec-success-text)}
+.role-admin .adm-notice{border-color:var(--admin-line);background:var(--ec-info-bg);color:var(--ec-info-text)}
+.role-admin .adm-inline-note{margin:14px 0 0;background:var(--ec-info-bg);color:var(--ec-info-text)}
+.role-admin .adm-inline-note.is-success{background:var(--ec-success-bg);color:var(--ec-success-text)}
+
+/* Classroom Collection */
+.role-admin .cls-stats-grid{display:grid;grid-template-columns:1.2fr repeat(3,1fr);gap:12px;margin:0 0 18px}
+.role-admin .cls-stat-card{min-height:94px;padding:17px 20px;border:0;border-radius:16px;box-shadow:none}
+.role-admin .cls-stat-card:nth-child(1){background:var(--ec-lavender)}
+.role-admin .cls-stat-card:nth-child(2){background:var(--ec-matcha)}
+.role-admin .cls-stat-card:nth-child(3){background:var(--ec-neutral-bg)}
+.role-admin .cls-stat-card:nth-child(4){background:var(--ec-butter)}
+.role-admin .cls-stat-info{gap:4px}
+.role-admin .cls-stat-value{color:var(--admin-ink);font-size:30px;line-height:1;font-weight:800}
+.role-admin .cls-stat-label{color:var(--admin-ink);font-size:12px}
+.role-admin .cls-toolbar{padding:12px;margin-bottom:14px;border:1px solid var(--admin-line);border-radius:14px;background:var(--admin-surface)}
+.role-admin .cls-card-wrapper{border:1px solid var(--admin-line);border-radius:16px;background:var(--admin-surface);box-shadow:none}
+.role-admin :is(.cls-table,.sbj-table){color:var(--admin-ink)}
+.role-admin :is(.cls-table,.sbj-table) th{padding:13px 16px;background:var(--admin-soft);border-color:var(--admin-line);color:var(--admin-muted);font-size:11px;letter-spacing:.04em}
+.role-admin :is(.cls-table,.sbj-table) td{padding:15px 16px;border-color:var(--admin-line);color:var(--admin-ink)}
+.role-admin :is(.cls-table,.sbj-table) tbody tr:hover{background:color-mix(in srgb,var(--ec-lavender) 22%,white)}
+.role-admin .cls-badge-name{display:inline-flex;min-width:88px;padding:8px 12px;border:0;border-radius:8px 18px 8px 8px;background:var(--ec-matcha);color:var(--admin-ink);font-weight:800}
+.role-admin .cls-grade-year strong{color:var(--admin-ink)}
+.role-admin .cls-grade-year small{color:var(--admin-muted)}
+.role-admin .cls-progress-fill{background:var(--ec-iris)}
+.role-admin .cls-progress-fill.is-partial{background:var(--ec-butter)}
+.role-admin .cls-progress-fill.is-complete{background:var(--ec-success-text)}
+.role-admin .cls-ratio-text{color:var(--admin-muted)}
+.role-admin .cls-status-pill.is-active{background:var(--ec-success-bg);color:var(--ec-success-text)}
+.role-admin .cls-status-pill.is-archived{background:var(--ec-neutral-bg);color:var(--ec-neutral-text)}
+.role-admin .cls-success-banner{border:0;background:var(--ec-success-bg);color:var(--ec-success-text)}
+
+/* Inside the Classroom */
+.role-admin .cls-btn-back{margin:0 0 14px;color:var(--admin-primary)}
+.role-admin .cls-breadcrumb{display:none}
+.role-admin .cls-detail-header-card{
+  position:relative;
+  min-height:150px;
+  padding:24px 28px;
+  border:0;
+  border-radius:16px 44px 16px 16px;
+  background:var(--ec-lavender);
+  box-shadow:none;
+}
+.role-admin .cls-detail-header-card::after{content:"";position:absolute;right:28px;bottom:22px;width:58px;height:44px;border:9px solid var(--ec-iris);border-bottom:0;border-radius:32px 32px 0 0;pointer-events:none}
+.role-admin .cls-detail-header-main{align-items:flex-start;gap:18px;min-width:0}
+.role-admin .cls-class-badge-lg{
+  position:relative;
+  display:grid;
+  place-items:center;
+  flex:0 0 78px;
+  width:78px;
+  height:58px;
+  min-height:58px;
+  max-width:78px;
+  padding:7px 8px 11px;
+  border:0;
+  border-radius:30px 30px 12px 12px;
+  background:var(--admin-ink);
+  color:#fff;
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:0;
+  line-height:1;
+  white-space:nowrap;
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,white 14%,transparent),inset 0 -7px 0 color-mix(in srgb,var(--ec-iris) 56%,var(--admin-ink));
+}
+.role-admin .cls-class-badge-lg::after{
+  content:"";
+  position:absolute;
+  left:15px;
+  right:15px;
+  bottom:-6px;
+  height:10px;
+  border-radius:0 0 12px 12px;
+  background:var(--ec-butter);
+}
+.role-admin .cls-detail-header-titles{min-width:0;padding-right:80px}
+.role-admin .cls-detail-header-titles h2{margin:0 0 10px;color:var(--admin-ink);font-size:27px;line-height:1.2;overflow-wrap:anywhere}
+.role-admin .cls-detail-header-meta{gap:8px}
+.role-admin .cls-meta-pill{border:0;background:color-mix(in srgb,white 52%,transparent);color:var(--admin-ink)}
+.role-admin .cls-detail-header-actions{align-self:center;padding-right:76px}
+.role-admin .cls-tabs-container{margin-top:18px;border-color:color-mix(in srgb,var(--admin-primary) 22%,transparent)}
+.role-admin .cls-tab-btn{min-height:46px;border-radius:12px 12px 0 0;color:var(--admin-muted)}
+.role-admin .cls-tab-btn.is-active{border-color:var(--admin-primary);background:var(--ec-info-bg);color:var(--admin-ink)}
+.role-admin .cls-tab-count{background:var(--admin-primary);color:#fff}
+.role-admin .cls-tab-section-head{padding:20px 20px 14px}
+.role-admin .cls-tab-section-head h3{color:var(--admin-ink)}
+.role-admin .cls-tab-section-head p{max-width:74ch;color:var(--admin-muted)}
+.role-admin .cls-subject-name-cell{position:relative;padding-left:13px}
+.role-admin .cls-subject-name-cell::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:4px;background:var(--ec-iris)}
+.role-admin .cls-sub-icon{display:none}
+.role-admin .cls-teacher-avatar{background:var(--ec-lavender);color:var(--admin-ink)}
+.role-admin .cls-teacher-name{color:var(--admin-ink)}
+.role-admin .cls-teacher-contact{color:var(--admin-muted)}
+.role-admin .cls-subtabs-toolbar{padding:14px 18px;border-color:var(--admin-line)}
+.role-admin .cls-subtab-btn.is-active{background:var(--ec-info-bg);color:var(--admin-ink)}
+.role-admin .cls-student-avatar{background:var(--ec-matcha);color:var(--admin-ink)}
+.role-admin .cls-username-pill{background:var(--admin-soft);border-color:var(--admin-line);color:var(--admin-ink);font-family:var(--ec-font)}
+.role-admin .cls-archived-banner{border:0;background:var(--ec-neutral-bg);color:var(--ec-neutral-text)}
+
+/* Knowledge Library */
+.role-admin .sbj-page{max-width:1500px}
+.role-admin .sbj-notice{display:none}
+.role-admin .sbj-stats-grid{grid-template-columns:1.1fr 1fr 1fr;gap:12px;margin:0 0 18px}
+.role-admin .sbj-stat-card{min-height:98px;padding:18px 22px;border:0;border-radius:16px;box-shadow:none}
+.role-admin .sbj-stat-card:nth-child(1){background:var(--ec-lavender)}
+.role-admin .sbj-stat-card:nth-child(2){background:var(--ec-matcha)}
+.role-admin .sbj-stat-card:nth-child(3){background:var(--ec-butter)}
+.role-admin .sbj-stat-value{color:var(--admin-ink);font-size:30px;line-height:1}
+.role-admin .sbj-stat-label{color:var(--admin-ink);font-size:12px}
+.role-admin .sbj-toolbar{margin:0 0 14px}
+.role-admin .sbj-search-box{max-width:620px}
+.role-admin .sbj-search-box svg{color:var(--admin-muted)}
+.role-admin .sbj-table-card{border:1px solid var(--admin-line);border-radius:16px;box-shadow:none}
+.role-admin .sbj-table-header{padding:15px 18px;background:var(--admin-surface);border-color:var(--admin-line)}
+.role-admin .sbj-table-header-title{color:var(--admin-ink)}
+.role-admin .sbj-table-count-badge{background:var(--ec-lavender);color:var(--admin-ink)}
+.role-admin .sbj-subject-cell{position:relative;gap:14px}
+.role-admin .sbj-subject-icon{display:block;width:8px;height:44px;border-radius:8px;background:var(--ec-iris)}
+.role-admin .sbj-subject-name{color:var(--admin-ink)}
+.role-admin .sbj-teachers-summary{color:var(--admin-muted)}
+.role-admin .sbj-teacher-tag{border-color:var(--admin-line);background:var(--admin-soft);color:var(--admin-ink)}
+.role-admin .sbj-teacher-avatar-sm{background:var(--ec-lavender);color:var(--admin-ink)}
+.role-admin .sbj-no-teachers-badge{border:0;background:var(--ec-warning-bg);color:var(--ec-warning-text)}
+.role-admin .sbj-scope-badge{border:0;background:var(--ec-info-bg);color:var(--ec-info-text)}
+.role-admin .sbj-scope-badge.is-inactive{background:var(--ec-neutral-bg);color:var(--ec-neutral-text)}
+.role-admin .sbj-status-badge.is-active{background:var(--ec-success-bg);color:var(--ec-success-text)}
+.role-admin .sbj-status-badge.is-inactive{background:var(--ec-neutral-bg);color:var(--ec-neutral-text)}
+
+/* Dialog vocabulary shared by all Admin features */
+.role-admin :is(.adm-modal-overlay,.cls-modal-overlay,.sbj-modal-backdrop){background:color-mix(in srgb,var(--admin-ink) 72%,transparent);backdrop-filter:none}
+.role-admin :is(.adm-modal-window,.cls-modal,.sbj-modal){border:0;border-radius:18px;background:var(--admin-surface);box-shadow:0 24px 70px rgba(41,38,79,.24)}
+.role-admin :is(.adm-modal-head,.cls-modal-head,.sbj-modal-head){padding:20px 24px;border-color:var(--admin-line);background:var(--ec-lavender)}
+.role-admin :is(.adm-modal-title,.cls-modal-head h3,.sbj-modal-title){margin:0;color:var(--admin-ink);font-size:19px;font-weight:700}
+.role-admin :is(.adm-modal-eyebrow,.cls-modal-badge){display:none}
+.role-admin :is(.adm-modal-close,.cls-modal-close,.sbj-modal-close-btn){border:0;background:color-mix(in srgb,white 74%,transparent);color:var(--admin-ink)}
+.role-admin :is(.adm-modal-body,.cls-modal-body,.sbj-modal-body){padding:24px;gap:18px}
+.role-admin :is(.adm-modal-foot,.cls-modal-foot,.sbj-modal-foot){padding:16px 24px;border-color:var(--admin-line);background:var(--admin-surface)}
+.role-admin :is(.adm-form-grid label,.adm-field,.cls-field label,.sbj-form-label){color:var(--admin-ink)}
+.role-admin :is(.adm-form-grid input,.adm-form-grid select,.adm-field input,.adm-field select,.cls-field input,.cls-field select,.sbj-form-input){min-height:44px;border-color:var(--ec-input-border);background:var(--admin-surface);color:var(--admin-ink)}
+.role-admin :is(.adm-form-grid input,.adm-form-grid select,.adm-field input,.adm-field select,.cls-field input,.cls-field select,.sbj-form-input):focus{border-color:var(--admin-primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--admin-primary) 18%,transparent)}
+.role-admin :is(.sbj-modal-intro,.sbj-edit-impact,.sbj-scope-preview-box,.cls-atomic-banner){border:0;background:var(--ec-info-bg);color:var(--ec-info-text)}
+.role-admin .sbj-edit-impact strong{color:var(--admin-ink)}
+.role-admin :is(.adm-errors,.cls-error-container,.sbj-form-errors){border-color:color-mix(in srgb,var(--ec-danger-text) 25%,transparent);background:var(--ec-danger-bg);color:var(--ec-danger-text)}
+
+/* Admin craft signature --------------------------------------------------- */
+.role-admin ::selection{background:var(--ec-butter);color:var(--admin-ink)}
+.role-admin :is(input,select,textarea){caret-color:var(--admin-primary)}
+
+/* Campus Studio: each metric borrows a different piece of school furniture. */
+.role-admin .admin-campus-card{isolation:isolate;overflow:hidden}
+.role-admin .admin-campus-card>*{position:relative;z-index:2}
+.role-admin .admin-campus-card.is-classrooms::before{
+  content:"";position:absolute;z-index:1;right:106px;bottom:28px;width:56px;height:10px;
+  border-radius:999px;background:color-mix(in srgb,var(--ec-iris) 24%,transparent);
+  box-shadow:0 -18px 0 color-mix(in srgb,var(--ec-iris) 14%,transparent),0 -36px 0 color-mix(in srgb,var(--ec-iris) 9%,transparent)
+}
+.role-admin .admin-campus-card.is-people::before{
+  content:"";position:absolute;right:-22px;bottom:-22px;width:118px;height:118px;border-radius:50%;
+  border:1px solid color-mix(in srgb,var(--admin-ink) 22%,transparent);
+  box-shadow:inset 0 0 0 18px color-mix(in srgb,white 18%,transparent),inset 0 0 0 19px color-mix(in srgb,var(--admin-ink) 16%,transparent)
+}
+.role-admin .admin-campus-card.is-people::after{z-index:2;box-shadow:-22px 24px 0 var(--ec-butter)}
+.role-admin .admin-campus-card.is-subjects::before{
+  content:"";position:absolute;right:28px;top:0;width:104px;height:24px;border-radius:0 0 18px 18px;
+  background:color-mix(in srgb,var(--ec-clay) 72%,var(--ec-butter));
+  box-shadow:-18px 15px 0 -8px color-mix(in srgb,var(--admin-ink) 16%,transparent)
+}
+.role-admin .admin-campus-card.is-subjects::after{
+  content:"";position:absolute;right:36px;bottom:30px;width:92px;height:58px;border:1px solid color-mix(in srgb,var(--admin-ink) 24%,transparent);
+  border-radius:6px 22px 6px 6px;background:color-mix(in srgb,white 18%,transparent);transform:rotate(-3deg)
+}
+.role-admin .admin-attention-board{isolation:isolate;overflow:hidden;padding-inline:28px}
+.role-admin .admin-attention-board::before,.role-admin .admin-attention-board::after{
+  content:"";position:absolute;top:50%;width:22px;height:22px;border-radius:50%;background:var(--admin-page);transform:translateY(-50%);pointer-events:none
+}
+.role-admin .admin-attention-board::before{left:-12px}.role-admin .admin-attention-board::after{right:-12px}
+.role-admin .admin-attention-head{border-bottom-style:dashed}
+
+/* People Directory: a paper directory and an identity slip, not two generic cards. */
+.role-admin .adm-layout>.adm-card:first-child{position:relative;border-radius:16px 16px 16px 28px}
+.role-admin .adm-layout>.adm-card:first-child::before{
+  content:"";position:absolute;left:28px;top:-9px;width:112px;height:10px;border-radius:10px 10px 0 0;background:var(--ec-lavender);pointer-events:none
+}
+.role-admin .adm-layout>.adm-card:first-child::after{
+  content:"";position:absolute;left:13px;top:92px;bottom:22px;width:1px;background:color-mix(in srgb,var(--admin-primary) 25%,transparent);pointer-events:none
+}
+.role-admin .adm-row{position:relative;border-radius:10px}
+.role-admin .adm-row::after{
+  content:"";position:absolute;right:10px;top:50%;width:5px;height:5px;border-radius:50%;background:transparent;transform:translateY(-50%);transition:background .18s ease
+}
+.role-admin .adm-row:hover::after,.role-admin .adm-row.is-selected::after{background:var(--admin-primary)}
+.role-admin .adm-detail{overflow:hidden;border-radius:16px 32px 16px 16px}
+.role-admin .adm-detail::before{
+  content:"";position:absolute;right:22px;top:0;width:72px;height:12px;border-radius:0 0 12px 12px;background:var(--ec-matcha);pointer-events:none
+}
+.role-admin .adm-detail::after{
+  content:"";position:absolute;right:-20px;bottom:-20px;width:76px;height:76px;border-radius:50%;border:10px solid color-mix(in srgb,var(--ec-iris) 22%,transparent);pointer-events:none
+}
+.role-admin .adm-detail>*{position:relative;z-index:1}
+
+/* Classroom Collection: four connected counters and plaque rows. */
+.role-admin .cls-stats-grid{position:relative}
+.role-admin .cls-stats-grid::after{
+  content:"";position:absolute;left:7%;right:7%;top:50%;height:1px;background:color-mix(in srgb,var(--admin-ink) 13%,transparent);z-index:0;pointer-events:none
+}
+.role-admin .cls-stat-card{position:relative;z-index:1;overflow:hidden}
+.role-admin .cls-stat-card::after{
+  content:"";position:absolute;right:-10px;bottom:-14px;width:54px;height:54px;border:1px solid color-mix(in srgb,var(--admin-ink) 18%,transparent);border-radius:50%;pointer-events:none
+}
+.role-admin .cls-stat-card:nth-child(1){border-radius:16px 34px 16px 16px}
+.role-admin .cls-stat-card:nth-child(2){border-radius:34px 16px 16px 16px}
+.role-admin .cls-stat-card:nth-child(3){border-radius:16px 16px 34px 16px}
+.role-admin .cls-stat-card:nth-child(4){border-radius:16px 16px 16px 34px}
+.role-admin .cls-card-wrapper{position:relative;overflow:hidden}
+.role-admin .cls-card-wrapper::before{
+  content:"";position:absolute;top:0;left:24px;width:84px;height:7px;border-radius:0 0 8px 8px;background:var(--ec-butter);z-index:2;pointer-events:none
+}
+.role-admin .cls-badge-name{position:relative;padding-right:28px}
+.role-admin .cls-badge-name::after{
+  content:"";position:absolute;right:10px;top:50%;width:7px;height:7px;border-radius:50%;background:var(--admin-surface);transform:translateY(-50%);box-shadow:0 0 0 1px color-mix(in srgb,var(--admin-ink) 16%,transparent)
+}
+
+/* Knowledge Library: metric covers and a visible shelf rhythm. */
+.role-admin .sbj-stat-card{position:relative;overflow:hidden}
+.role-admin .sbj-stat-card::before{
+  content:"";position:absolute;right:22px;top:18px;width:30px;height:48px;border:1px solid color-mix(in srgb,var(--admin-ink) 22%,transparent);border-radius:3px 12px 3px 3px;background:color-mix(in srgb,white 18%,transparent);transform:rotate(4deg);pointer-events:none
+}
+.role-admin .sbj-stat-card:nth-child(2)::before{height:42px;transform:rotate(-4deg)}
+.role-admin .sbj-stat-card:nth-child(3)::before{border-radius:16px 16px 3px 3px}
+.role-admin .sbj-table-card{position:relative;overflow:hidden}
+.role-admin .sbj-table-card::before{
+  content:"";position:absolute;left:20px;top:0;width:104px;height:8px;border-radius:0 0 9px 9px;background:var(--ec-lavender);z-index:3;pointer-events:none
+}
+.role-admin .sbj-table tbody tr{position:relative}
+.role-admin .sbj-subject-icon{position:relative;width:10px;height:48px;border-radius:3px 8px 8px 3px;box-shadow:inset -3px 0 0 color-mix(in srgb,white 30%,transparent)}
+.role-admin .sbj-subject-icon::after{
+  content:"";position:absolute;left:2px;right:2px;bottom:7px;height:1px;background:color-mix(in srgb,white 70%,transparent)
+}
+.role-admin .sbj-table tbody tr:nth-child(4n+2) .sbj-subject-icon{background:var(--ec-clay)}
+.role-admin .sbj-table tbody tr:nth-child(4n+3) .sbj-subject-icon{background:var(--ec-matcha)}
+.role-admin .sbj-table tbody tr:nth-child(4n+4) .sbj-subject-icon{background:var(--ec-butter)}
+
+@media(hover:hover){
+  .role-admin .admin-campus-card{transition:transform .18s ease,filter .18s ease}
+  .role-admin .admin-campus-card:hover{transform:translateY(-2px);filter:saturate(1.03)}
+  .role-admin .cls-badge-name{transition:transform .18s ease}
+  .role-admin .cls-table tbody tr:hover .cls-badge-name{transform:translateX(3px)}
+  .role-admin .sbj-subject-icon{transition:transform .18s ease}
+  .role-admin .sbj-table tbody tr:hover .sbj-subject-icon{transform:translateY(-2px) rotate(-2deg)}
+}
+
+@media(max-width:1100px){
+  .role-admin .admin-campus-grid{grid-template-columns:1fr 1fr}
+  .role-admin .admin-campus-card.is-classrooms{grid-column:1/-1}
+  .role-admin .adm-layout{grid-template-columns:minmax(0,1fr) minmax(300px,.72fr)}
+  .role-admin .cls-detail-header-card{display:grid;gap:18px}
+  .role-admin .cls-detail-header-actions{padding-right:0;justify-content:flex-start}
+}
+
+@media(max-width:700px){
+  .role-admin .page-content.adm-page,.role-admin .page-content.admin-campus{padding:24px 16px 40px}
+  .role-admin .page-heading h1{font-size:34px}
+  .role-admin .admin-campus-heading{margin-left:0}
+  .role-admin .admin-campus-heading h1{font-size:40px}
+  .role-admin .admin-campus-grid{grid-template-columns:1fr;gap:12px}
+  .role-admin .admin-campus-card.is-classrooms{grid-column:auto;min-height:230px;padding-right:110px;border-radius:36px 36px 22px 36px}
+  .role-admin .admin-campus-card{min-height:180px;padding:22px;border-radius:22px}
+  .role-admin .admin-campus-card>strong{font-size:48px}
+  .role-admin .admin-campus-card.is-classrooms::after{right:22px;width:70px;height:54px;border-width:10px}
+  .role-admin .adm-layout{grid-template-columns:1fr}
+  .role-admin .adm-detail{position:static}
+  .role-admin .adm-toolbar{align-items:stretch;flex-direction:column}
+  .role-admin .adm-toolbar .adm-primary{width:100%}
+  .role-admin .adm-filters{grid-template-columns:1fr 1fr}
+  .role-admin .adm-search{grid-column:1/-1}
+  .role-admin .cls-stats-grid,.role-admin .sbj-stats-grid{grid-template-columns:1fr 1fr}
+  .role-admin .cls-stat-card,.role-admin .sbj-stat-card{min-height:86px}
+  .role-admin .cls-toolbar,.role-admin .sbj-toolbar{align-items:stretch;flex-direction:column}
+  .role-admin .sbj-search-box{flex:0 0 auto;width:100%;min-height:44px}
+  .role-admin .sbj-toolbar-actions{width:100%}
+  .role-admin .cls-filters-group{display:grid;grid-template-columns:1fr 1fr;width:100%}
+  .role-admin .cls-search-input{grid-column:1/-1}
+  .role-admin :is(.cls-btn-create,.sbj-btn-primary){width:100%;justify-content:center}
+  .role-admin :is(.cls-card-wrapper,.sbj-table-responsive){overflow-x:auto;overscroll-behavior-inline:contain}
+  .role-admin :is(.cls-table,.sbj-table){min-width:760px}
+  .role-admin .cls-detail-header-card{padding:22px;border-radius:16px 34px 16px 16px}
+  .role-admin .cls-detail-header-main{display:grid;gap:12px}
+  .role-admin .cls-detail-header-titles{padding-right:54px}
+  .role-admin .cls-detail-header-titles h2{font-size:23px}
+  .role-admin .cls-detail-header-card::after{right:18px;bottom:18px;width:44px;height:34px;border-width:7px}
+  .role-admin .cls-detail-header-actions{display:grid;grid-template-columns:1fr;width:100%}
+  .role-admin .cls-tabs-container{overflow-x:auto;scrollbar-width:none}
+  .role-admin .cls-tab-btn{white-space:nowrap}
+  .role-admin .cls-subtabs-toolbar{align-items:stretch;flex-direction:column}
+  .role-admin .cls-student-actions{display:grid;grid-template-columns:1fr}
+  .role-admin :is(.adm-modal-body,.cls-modal-body,.sbj-modal-body){padding:20px}
+  .role-admin .adm-modal-body .adm-form-grid{grid-template-columns:1fr}
+  .role-admin .admin-campus-card.is-subjects::after{right:20px;bottom:20px;width:70px;height:44px}
+  .role-admin .adm-layout>.adm-card:first-child::after{display:none}
+  .role-admin .cls-stats-grid::after{display:none}
+  .role-admin .sbj-stat-card::before{right:14px;top:14px;transform:scale(.84) rotate(4deg);transform-origin:top right}
+}
+
+@media(prefers-reduced-motion:reduce){.role-admin *{scroll-behavior:auto!important}.role-admin .admin-campus-skeleton{animation:none}}

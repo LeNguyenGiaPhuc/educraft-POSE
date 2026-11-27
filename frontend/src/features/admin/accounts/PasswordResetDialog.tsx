@@ -70,7 +70,6 @@ export function PasswordResetDialog({ account, isSaving, onClose, onSave }: Prop
       <div className="adm-modal-window">
         <div className="adm-modal-head">
           <div>
-            <span className="adm-modal-eyebrow">QUẢN TRỊ TÀI KHOẢN</span>
             <h3 id="password-reset-title" className="adm-modal-title">Đặt lại mật khẩu</h3>
           </div>
           <button type="button" className="adm-modal-close" onClick={closeDialog} disabled={isSaving} aria-label="Đóng">
@@ -81,7 +80,7 @@ export function PasswordResetDialog({ account, isSaving, onClose, onSave }: Prop
         <form onSubmit={handleSubmit} noValidate>
           <div className="adm-modal-body">
             <p className="adm-inline-note" style={{ marginTop: 0 }}>
-              Tạo mật khẩu mới cho <strong>{account.fullName}</strong> (@{account.username}). Mật khẩu chỉ được gửi tới backend và không hiển thị lại sau khi lưu. Backend sẽ thu hồi các phiên đăng nhập cũ sau khi đặt lại thành công.
+              Tạo mật khẩu mới cho <strong>{account.fullName}</strong> (@{account.username}). Các phiên đăng nhập cũ sẽ kết thúc sau khi lưu.
             </p>
             <div className="adm-form-grid">
               <label>

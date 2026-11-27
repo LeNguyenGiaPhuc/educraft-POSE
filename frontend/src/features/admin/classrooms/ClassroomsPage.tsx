@@ -1,12 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent, type ChangeEvent } from 'react'
 import { useSearchParams } from 'react-router'
-import {
-  Archive,
-  Check,
-  CheckCircle2,
-  School,
-  Users,
-} from 'lucide-react'
+import { CheckCircle2 } from 'lucide-react'
 import { emptyClassroomDraft, validateClassroomDraft, type ClassroomDraft } from './classroomForm'
 import {
   downloadStudentTemplateXlsx,
@@ -303,21 +297,8 @@ export function ClassroomsPage() {
     <div className="page-content adm-page cls-container">
       {/* Heading */}
       <div className="page-heading">
-        <span className="eyebrow">
-          <span className="eyebrow-line" /> QUẢN TRỊ HỆ THỐNG
-        </span>
         <h1>Lớp học</h1>
-        <p>
-          Quản lý danh mục lớp, khối và năm học. Mỗi lớp độc lập chứa phân bổ môn học và phân công giáo viên.
-        </p>
-      </div>
-
-      {/* System notice */}
-      <div className="adm-notice">
-        <School size={17} />
-        <span>
-          Dữ liệu lớp học được tải từ hệ thống. Mỗi lớp mới sẽ tự động nhận các môn đang hoạt động trong danh mục chung.
-        </span>
+        <p>Quản lý lớp, sĩ số và phân công giảng dạy.</p>
       </div>
 
       {/* Success Notification */}
@@ -345,19 +326,13 @@ export function ClassroomsPage() {
       {/* Stats Cards */}
       <div className="cls-stats-grid">
         <div className="cls-stat-card">
-          <div className="cls-stat-icon">
-            <School size={22} />
-          </div>
           <div className="cls-stat-info">
             <span className="cls-stat-value">{classList.length}</span>
-            <span className="cls-stat-label">Tổng số lớp học</span>
+            <span className="cls-stat-label">Tổng số lớp</span>
           </div>
         </div>
 
         <div className="cls-stat-card">
-          <div className="cls-stat-icon is-active">
-            <Check size={22} />
-          </div>
           <div className="cls-stat-info">
             <span className="cls-stat-value">{activeClassesCount}</span>
             <span className="cls-stat-label">Lớp đang học</span>
@@ -365,22 +340,16 @@ export function ClassroomsPage() {
         </div>
 
         <div className="cls-stat-card">
-          <div className="cls-stat-icon is-archived">
-            <Archive size={22} />
-          </div>
           <div className="cls-stat-info">
             <span className="cls-stat-value">{archivedClassesCount}</span>
-            <span className="cls-stat-label">Lớp đã lưu trữ</span>
+            <span className="cls-stat-label">Đã lưu trữ</span>
           </div>
         </div>
 
         <div className="cls-stat-card">
-          <div className="cls-stat-icon is-students">
-            <Users size={22} />
-          </div>
           <div className="cls-stat-info">
             <span className="cls-stat-value">{totalStudentsCount}</span>
-            <span className="cls-stat-label">Học sinh trong lớp</span>
+            <span className="cls-stat-label">Học sinh</span>
           </div>
         </div>
       </div>

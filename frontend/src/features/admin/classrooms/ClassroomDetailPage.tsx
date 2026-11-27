@@ -5,14 +5,11 @@ import {
   ArrowLeft,
   Award,
   BookOpen,
-  Calendar,
   Check,
   CheckCircle2,
-  ChevronRight,
   Clock,
   Edit3,
   FileSpreadsheet,
-  GraduationCap,
   History,
   KeyRound,
   Lock,
@@ -432,21 +429,6 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
 
   return (
     <div className="page-content adm-page cls-container">
-      {/* Breadcrumb Navigation */}
-      <nav className="cls-breadcrumb" aria-label="Breadcrumb">
-        <button type="button" className="cls-breadcrumb-link" onClick={onBack}>
-          Quản trị hệ thống
-        </button>
-        <ChevronRight size={14} className="cls-breadcrumb-sep" />
-        <button type="button" className="cls-breadcrumb-link" onClick={onBack}>
-          Lớp học
-        </button>
-        <ChevronRight size={14} className="cls-breadcrumb-sep" />
-        <span className="cls-breadcrumb-current">
-          Chi tiết lớp {classroom.name}
-        </span>
-      </nav>
-
       {/* Back button */}
       <div>
         <button type="button" className="cls-btn-back" onClick={onBack}>
@@ -490,18 +472,16 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
       <div className="cls-detail-header-card">
         <div className="cls-detail-header-main">
           <div className="cls-class-badge-lg">
-            {classroom.name}
+            Khối {classroom.gradeLevel}
           </div>
           <div className="cls-detail-header-titles">
+            <h2>{classroom.name}</h2>
             <div className="cls-detail-header-meta">
               <span className="cls-meta-pill">
-                <GraduationCap size={14} /> Khối {classroom.gradeLevel}
+                {classroom.academicYear}
               </span>
               <span className="cls-meta-pill">
-                <Calendar size={14} /> Năm học: {classroom.academicYear}
-              </span>
-              <span className="cls-meta-pill">
-                <Users size={14} /> Sĩ số: <strong>{currentActiveStudents.length}</strong> học sinh
+                <strong>{currentActiveStudents.length}</strong> học sinh
               </span>
               <span
                 className={`cls-status-pill ${
@@ -511,7 +491,6 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
                 {isArchived ? 'Đã lưu trữ' : 'Đang hoạt động'}
               </span>
             </div>
-            <h2>Lớp {classroom.name}</h2>
           </div>
         </div>
 
@@ -546,7 +525,7 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
           className={`cls-tab-btn ${activeTab === 'SUBJECTS' ? 'is-active' : ''}`}
           onClick={() => setActiveTab('SUBJECTS')}
         >
-          <BookOpen size={16} /> Môn học & Giáo viên phụ trách
+          Môn học & giáo viên
           <span className="cls-tab-count">{classroomSubjectList.length}</span>
         </button>
         <button
@@ -554,7 +533,7 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
           className={`cls-tab-btn ${activeTab === 'STUDENTS' ? 'is-active' : ''}`}
           onClick={() => setActiveTab('STUDENTS')}
         >
-          <Users size={16} /> Danh sách học sinh & Lịch sử
+          Học sinh & lịch sử
           <span className="cls-tab-count">{currentActiveStudents.length}</span>
         </button>
       </div>
@@ -562,15 +541,6 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
       {/* TAB 1: MÔN HỌC VÀ GIÁO VIÊN PHỤ TRÁCH */}
       {activeTab === 'SUBJECTS' && (
         <div className="cls-card-wrapper cls-tab-content">
-          <div className="cls-tab-section-head">
-            <div>
-              <h3>Phân công giảng dạy theo môn</h3>
-              <p>
-                Mỗi lớp học tự động kế thừa danh mục môn học của trường. Giáo viên được phân công phải có chuyên môn phù hợp với môn học đó.
-              </p>
-            </div>
-          </div>
-
           <table className="cls-table">
             <thead>
               <tr>
@@ -600,7 +570,6 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
                         <BookOpen size={17} className="cls-sub-icon" />
                         <div>
                           <strong>{sub?.name ?? item.subjectId}</strong>
-                          <small>Mã môn: {item.subjectId}</small>
                         </div>
                       </div>
                     </td>
@@ -614,9 +583,7 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
                           </div>
                           <div>
                             <div className="cls-teacher-name">{teacher.fullName}</div>
-                            <div className="cls-teacher-contact">
-                              <Mail size={12} /> {teacher.contact}
-                            </div>
+                            <div className="cls-teacher-contact">{teacher.contact}</div>
                           </div>
                         </div>
                       ) : (
@@ -783,7 +750,6 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
                             </div>
                             <div>
                               <strong>{student.fullName}</strong>
-                              <small>ID: {student.id}</small>
                             </div>
                           </div>
                         </td>
@@ -1086,12 +1052,10 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
                       <AlertCircle size={32} style={{ color: '#c8761e', margin: '0 auto 10px' }} />
                       <h4>Chưa có giáo viên nào có chuyên môn môn học này đang hoạt động</h4>
                       <p>
-                        Hiện không có giáo viên nào đang ở trạng thái <code>ACTIVE</code> với chuyên môn{' '}
-                        <strong>{assigningSubject.subject.name}</strong>.
+                        Chưa có giáo viên đang hoạt động phù hợp với môn <strong>{assigningSubject.subject.name}</strong>.
                       </p>
-                      <p style={{ marginTop: 8, fontSize: '12px', color: '#688272' }}>
-                        Vui lòng thêm giáo viên mới hoặc cập nhật chuyên môn giáo viên tại mục{' '}
-                        <strong>Quản lý tài khoản</strong> trước khi phân công.
+                      <p style={{ marginTop: 8, fontSize: '12px', color: 'var(--ec-muted)' }}>
+                        Cập nhật chuyên môn trong <strong>Tài khoản</strong> trước khi phân công.
                       </p>
                     </div>
                   )
@@ -1166,7 +1130,7 @@ export function ClassroomDetailPage({ classroomId, onBack }: ClassroomDetailPage
               </button>
               <button
                 type="button"
-                className="cls-btn-submit"
+                className="cls-btn-submit cls-btn-assign-confirm"
                 onClick={handleSaveTeacherAssignment}
                 disabled={isMutating}
               >

@@ -225,7 +225,7 @@ export function StudentExcelImportModal({
               <p>
                 File Excel (<code>.xlsx</code>) có hàng đầu gồm đúng 3 cột theo thứ tự:
                 <strong> Họ và tên</strong>, <strong>Tên đăng nhập</strong>, <strong>Thông tin liên hệ</strong>.
-                Bản xem trước kiểm tra từng dòng; tài khoản và mật khẩu sẽ được tạo trong một giao dịch trên hệ thống.
+                Kiểm tra từng dòng trước khi thêm học sinh vào lớp.
               </p>
             </div>
             <button
@@ -407,7 +407,7 @@ export function StudentExcelImportModal({
               <div>
                 <strong>Hợp lệ 100%! Toàn bộ {importRows.length} học sinh đủ điều kiện để tạo tài khoản và thêm vào lớp {classroom.name}.</strong>
                 <p style={{ margin: '2px 0 0', fontSize: '12px' }}>
-                  Hệ thống sẽ tạo tài khoản và ghi nhận học sinh vào lớp trong một giao dịch.
+                  Sẵn sàng tạo tài khoản và thêm học sinh vào lớp.
                 </p>
               </div>
             </div>

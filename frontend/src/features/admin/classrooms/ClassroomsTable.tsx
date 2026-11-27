@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowRight, RotateCcw, School, Users } from 'lucide-react'
+import { AlertCircle, RotateCcw, School } from 'lucide-react'
 import type { AdminClassroomSummary } from '../../../lib/api/admin'
 
 type Props = {
@@ -46,10 +46,10 @@ export function ClassroomsTable({ classrooms, isLoading, loadError, onRetry, onR
                 <tr key={item.id}>
                   <td><span className="cls-badge-name">{item.name}</span></td>
                   <td><div className="cls-grade-year"><strong>Khối {item.gradeLevel}</strong><small>Năm học: {item.academicYear}</small></div></td>
-                  <td><span className="cls-student-count"><Users size={14} />{item.studentCount} học sinh</span></td>
+                  <td><span className="cls-student-count">{item.studentCount} học sinh</span></td>
                   <td><div className="cls-subject-progress"><div className={`cls-ratio-text ${stateClass}`}><span>{assigned}/{total} môn</span><span>{percentage}%</span></div><div className="cls-progress-bar"><div className={`cls-progress-fill ${stateClass}`} style={{ width: `${percentage}%` }} /></div></div></td>
                   <td><span className={`cls-status-pill ${item.status === 'ACTIVE' ? 'is-active' : 'is-archived'}`}>{item.status === 'ACTIVE' ? 'Đang học' : 'Lưu trữ'}</span></td>
-                  <td style={{ textAlign: 'right' }}><button type="button" className="cls-btn-detail" onClick={() => onSelect(item.id)}>Xem chi tiết lớp <ArrowRight size={14} /></button></td>
+                  <td style={{ textAlign: 'right' }}><button type="button" className="cls-btn-detail" onClick={() => onSelect(item.id)}>Mở lớp</button></td>
                 </tr>
               )
             })}
