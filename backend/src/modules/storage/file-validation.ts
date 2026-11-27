@@ -12,6 +12,11 @@ export const ALLOWED_MATERIAL_MIME_TYPES: Record<string, string[]> = {
   'image/jpeg': ['.jpg', '.jpeg'],
 };
 
+export function normalizeUploadFileName(fileName: string): string {
+  const decoded = Buffer.from(fileName, 'latin1').toString('utf8');
+  return decoded.includes('\uFFFD') ? fileName.normalize('NFC') : decoded.normalize('NFC');
+}
+
 export function sanitizeStorageKey(key: string): string {
   if (!key || typeof key !== 'string') {
     throw new BadRequestError('Mã lưu trữ file không hợp lệ');

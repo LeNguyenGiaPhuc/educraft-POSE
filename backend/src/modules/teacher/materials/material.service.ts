@@ -6,6 +6,7 @@ import {
 import { defaultStorageProvider } from '../../storage/storage-factory.js';
 import {
   generateStorageKey,
+  normalizeUploadFileName,
   validateMaterialFile,
 } from '../../storage/file-validation.js';
 import { requireAssignedSubject } from '../access/teacher-subject.policy.js';
@@ -94,8 +95,11 @@ export const materialService = {
       buffer: Buffer;
     };
   }) {
+    const fileName = normalizeUploadFileName(params.file.originalname);
+    const file = { ...params.file, originalname: fileName };
+
     // 1. File validation
-    const validation = validateMaterialFile(params.file);
+    const validation = validateMaterialFile(file);
     if (!validation.isValid) {
       throw new BadRequestError(validation.error || 'File không hợp lệ');
     }
@@ -111,7 +115,7 @@ export const materialService = {
     });
 
     // 3. Storage put
-    const storageKey = generateStorageKey(params.file.originalname);
+    const storageKey = generateStorageKey(fileName);
     await defaultStorageProvider.put(storageKey, params.file.buffer, params.file.mimetype);
 
     // 4. DB insert with compensation
@@ -119,7 +123,7 @@ export const materialService = {
     try {
       created = await materialRepository.createMaterialWithVersion({
         lessonId: params.lessonId,
-        fileName: params.file.originalname,
+        fileName,
         teacherId: params.teacherId,
         storageKey,
         mimeType: params.file.mimetype,
@@ -168,8 +172,11 @@ export const materialService = {
       buffer: Buffer;
     };
   }) {
+    const fileName = normalizeUploadFileName(params.file.originalname);
+    const file = { ...params.file, originalname: fileName };
+
     // 1. File validation
-    const validation = validateMaterialFile(params.file);
+    const validation = validateMaterialFile(file);
     if (!validation.isValid) {
       throw new BadRequestError(validation.error || 'File không hợp lệ');
     }
@@ -185,7 +192,7 @@ export const materialService = {
     });
 
     // 3. Storage put
-    const storageKey = generateStorageKey(params.file.originalname);
+    const storageKey = generateStorageKey(fileName);
     await defaultStorageProvider.put(storageKey, params.file.buffer, params.file.mimetype);
 
     // 4. DB insert with compensation
@@ -205,7 +212,7 @@ export const materialService = {
 
     const processingStatus = await processMaterialVersion({
       versionId: version.id,
-      fileName: params.file.originalname,
+      fileName,
       mimeType: version.mime_type,
       buffer: params.file.buffer,
     });
@@ -263,7 +270,7 @@ export const materialService = {
 
     const processingStatus = await processMaterialVersion({
       versionId: latest.id,
-      fileName: material.file_name,
+      fileName: normalizeUploadFileName(material.file_name),
       mimeType: latest.mime_type,
       buffer,
       attemptId,
@@ -313,7 +320,7 @@ export const materialService = {
 
     return {
       buffer,
-      fileName: material.file_name,
+      fileName: normalizeUploadFileName(material.file_name),
       mimeType: activeVersion.mime_type,
     };
   },

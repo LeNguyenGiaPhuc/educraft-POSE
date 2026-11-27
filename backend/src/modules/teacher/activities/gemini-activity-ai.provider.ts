@@ -34,16 +34,14 @@ const quizSchema: JsonSchema = {
           answer_key: { type: 'STRING' },
           citations: {
             type: 'ARRAY', minItems: 1,
-            items: { type: 'OBJECT', properties: { segment_id: { type: 'STRING' }, excerpt: { type: 'STRING' } }, required: ['segment_id', 'excerpt'], additionalProperties: false },
+            items: { type: 'OBJECT', properties: { segment_id: { type: 'STRING' }, excerpt: { type: 'STRING' } }, required: ['segment_id', 'excerpt'] },
           },
         },
         required: ['prompt', 'explanation', 'lesson_id', 'options', 'answer_key', 'citations'],
-        additionalProperties: false,
       },
     },
   },
   required: ['questions'],
-  additionalProperties: false,
 };
 
 const writtenSchema: JsonSchema = {
@@ -61,16 +59,14 @@ const writtenSchema: JsonSchema = {
           marking_criteria: { type: 'STRING' },
           citations: {
             type: 'ARRAY', minItems: 1,
-            items: { type: 'OBJECT', properties: { segment_id: { type: 'STRING' }, excerpt: { type: 'STRING' } }, required: ['segment_id', 'excerpt'], additionalProperties: false },
+            items: { type: 'OBJECT', properties: { segment_id: { type: 'STRING' }, excerpt: { type: 'STRING' } }, required: ['segment_id', 'excerpt'] },
           },
         },
         required: ['prompt', 'explanation', 'lesson_id', 'expected_answer', 'marking_criteria', 'citations'],
-        additionalProperties: false,
       },
     },
   },
   required: ['questions'],
-  additionalProperties: false,
 };
 
 function textFromResponse(value: unknown): string {

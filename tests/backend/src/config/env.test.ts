@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { parseEnv } from '../../../../backend/src/config/env.js';
 
 const validProductionEnv = {
@@ -13,6 +15,15 @@ const validProductionEnv = {
 };
 
 describe('parseEnv', () => {
+  it('loads backend .env for development and production start scripts', () => {
+    const packageJson = JSON.parse(
+      readFileSync(join(process.cwd(), 'package.json'), 'utf8')
+    ) as { scripts: Record<string, string> };
+
+    expect(packageJson.scripts.dev).toMatch(/^tsx watch --env-file=\.env /);
+    expect(packageJson.scripts.start).toContain('--env-file=.env');
+  });
+
   it('rejects production configuration without an explicit database URL', () => {
     const { DATABASE_URL: _removed, ...input } = validProductionEnv;
     expect(() => parseEnv(input)).toThrow('Invalid environment configuration');
