@@ -7,7 +7,7 @@ type Props = Common & InputHTMLAttributes<HTMLInputElement> & {
   children?: ReactNode
 }
 
-export function Field({ id, label, hint, error, kind = 'text', options = [], children, required, ...props }: Props) {
+export function Field({ id, label, hint, error, kind = 'text', options = [], children, required, type, ...props }: Props) {
   const description = [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(' ') || undefined
   const common = { id, 'aria-invalid': error ? true : undefined, 'aria-describedby': description, required }
   let control: ReactNode
@@ -16,7 +16,8 @@ export function Field({ id, label, hint, error, kind = 'text', options = [], chi
   } else if (kind === 'select') {
     control = <select {...common} {...props as SelectHTMLAttributes<HTMLSelectElement>}>{options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
   } else {
-    control = <input {...common} {...props} type={kind} />
+    const inputType = kind === 'text' ? type ?? 'text' : kind
+    control = <input {...common} {...props} type={inputType} />
   }
   return <div className={`ec-field${kind === 'checkbox' || kind === 'radio' ? ' ec-field-choice' : ''}`}>
     <label htmlFor={id}>{kind === 'checkbox' || kind === 'radio' ? control : null}<span>{label}{required && <span aria-hidden="true"> *</span>}</span></label>

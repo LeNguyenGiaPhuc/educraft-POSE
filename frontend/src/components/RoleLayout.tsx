@@ -67,8 +67,9 @@ export function RoleLayout({ user, onSignOut }: Props) {
       setMenuOpen(false)
     }
     if (event.key !== 'Tab') return
-    const controls = sidebarRef.current?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled)')
-    if (!controls?.length) return
+    const controls = Array.from(sidebarRef.current?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled)') ?? [])
+      .filter((control) => control.offsetParent !== null)
+    if (!controls.length) return
     const first = controls[0]
     const last = controls[controls.length - 1]
     if (event.shiftKey && document.activeElement === first) {
@@ -95,7 +96,7 @@ export function RoleLayout({ user, onSignOut }: Props) {
           <button className="icon-button mobile-close" aria-label="Đóng menu" onClick={() => setMenuOpen(false)}><X size={20} /></button>
           {isManagedWorkspace && <button type="button" className="icon-button sidebar-collapse" aria-label={sidebarCollapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'} aria-expanded={!sidebarCollapsed} onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>{sidebarCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}</button>}
         </div>
-        <div className="workspace-label"><span className="workspace-dot" /> {user.role === 'student' ? scenario === 'unassigned' ? 'Chưa được xếp lớp' : isViewingHistory ? 'Lớp 10A1 · chỉ đọc' : 'Lớp 11A2' : roleNames[user.role]} <span className="workspace-arrow">⌄</span></div>
+        {!isManagedWorkspace && <div className="workspace-label"><span className="workspace-dot" /> {scenario === 'unassigned' ? 'Chưa được xếp lớp' : isViewingHistory ? 'Lớp 10A1 · chỉ đọc' : 'Lớp 11A2'} <span className="workspace-arrow">⌄</span></div>}
         <p className="nav-caption">KHÔNG GIAN LÀM VIỆC</p>
         <nav className="main-nav" aria-label={`Điều hướng ${roleNames[user.role]}`}>
           {items.map(({ path, label, icon: Icon }) => (
@@ -123,7 +124,7 @@ export function RoleLayout({ user, onSignOut }: Props) {
         <header className="topbar">
           <button ref={menuButtonRef} className="icon-button mobile-menu" aria-label="Mở menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Menu size={22} /></button>
           <div className="breadcrumb"><span>Không gian học tập</span><span className="slash">/</span><strong>{current.label}{visibleTeacherContext && ` / ${visibleTeacherContext.classroomName} · ${visibleTeacherContext.subjectName}`}</strong></div>
-          <span className="topbar-right">{!isManagedWorkspace && <><span className="live-dot" /> Giao diện mẫu</>}<span className="topbar-avatar">{user.initials}</span></span>
+          {!isManagedWorkspace && <span className="topbar-right"><span className="live-dot" /> Giao diện mẫu<span className="topbar-avatar">{user.initials}</span></span>}
         </header>
         <main className="content"><Outlet /></main>
       </div>

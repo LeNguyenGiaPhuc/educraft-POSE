@@ -73,7 +73,6 @@ export function ChangePasswordDialog({ isOpen, onClose }: Props) {
     <ModalShell open={isOpen} title="Đổi mật khẩu" onClose={closeDialog} busy={isSaving}>
         <form onSubmit={handleSubmit} noValidate>
           <div className="change-password-body">
-            <p className="change-password-note">Mật khẩu mới chỉ được gửi tới backend và không hiển thị lại sau khi lưu.</p>
             <label>
               Mật khẩu hiện tại
               <input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => { setCurrentPassword(event.target.value); clearMessages() }} />

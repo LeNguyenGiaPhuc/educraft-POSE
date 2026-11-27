@@ -28,4 +28,11 @@ describe('managed workspace shell', () => {
     expect(html).toContain('class="app-shell role-student"')
     expect(html).not.toContain('Thu gọn thanh điều hướng')
   })
+
+  it('keeps the Teacher shell focused by omitting redundant role and topbar badges', () => {
+    const html = renderRole('teacher')
+    expect(html).not.toContain('workspace-label')
+    expect(html).not.toContain('topbar-avatar')
+    expect(html).toContain('class="sidebar-user"')
+  })
 })

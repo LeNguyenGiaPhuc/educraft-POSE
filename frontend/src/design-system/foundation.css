@@ -3,6 +3,11 @@
  * Scope is intentionally limited to shared Auth, Admin, Teacher and the
  * development preview. Student workspace styles must remain untouched.
  */
+@font-face{font-family:"Be Vietnam Pro";font-style:normal;font-weight:400;font-display:swap;src:url('../assets/educraft/fonts/BeVietnamPro-Regular.ttf') format('truetype')}
+@font-face{font-family:"Be Vietnam Pro";font-style:normal;font-weight:600;font-display:swap;src:url('../assets/educraft/fonts/BeVietnamPro-SemiBold.ttf') format('truetype')}
+@font-face{font-family:"Be Vietnam Pro";font-style:normal;font-weight:700;font-display:swap;src:url('../assets/educraft/fonts/BeVietnamPro-Bold.ttf') format('truetype')}
+@font-face{font-family:"Be Vietnam Pro";font-style:normal;font-weight:800;font-display:swap;src:url('../assets/educraft/fonts/BeVietnamPro-ExtraBold.ttf') format('truetype')}
+
 :where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview){
   --ec-ink:#29264f;
   --ec-iris:#5850be;
@@ -71,6 +76,7 @@
   --ec-asset-logomark:url('../assets/educraft/brand/logomark.svg');
   --ec-asset-craft-spark:url('../assets/educraft/brand/craft-spark.svg');
   --ec-shape-nest:url('../assets/educraft/shapes/nest.svg');
+  --ec-shape-nest-mask:url('../assets/educraft/shapes/nest-mask.svg');
   --ec-shape-folder:url('../assets/educraft/shapes/folder.svg');
   --ec-shape-ticket:url('../assets/educraft/shapes/ticket.svg');
   --ec-shape-step:url('../assets/educraft/shapes/step.svg');
@@ -284,6 +290,8 @@
 }
 
 :where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match{
+  --ec-match-connector-size:36px;
+  --ec-match-axis:50%;
   position:relative;
   isolation:isolate;
   display:grid;
@@ -318,21 +326,21 @@
 :where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match-piece:last-child::before{
   position:absolute;
   z-index:0;
-  top:calc(50% - 18px);
-  width:36px;
-  height:36px;
+  top:calc(var(--ec-match-axis) - var(--ec-match-connector-size) / 2);
+  width:var(--ec-match-connector-size);
+  height:var(--ec-match-connector-size);
   border-radius:50%;
   content:"";
   pointer-events:none;
 }
 
 :where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match-piece:first-child::after{
-  right:-18px;
+  right:calc(var(--ec-match-connector-size) / -2);
   background:var(--ec-lavender);
 }
 
 :where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match-piece:last-child::before{
-  left:-18px;
+  left:calc(var(--ec-match-connector-size) / -2);
   background:var(--ec-paper);
 }
 
@@ -389,8 +397,8 @@
   :where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-nest::after{top:auto;right:18px;bottom:18px}
   :where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match{grid-template-columns:1fr;gap:28px}
   :where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match::before{top:calc(50% - 28px);left:calc(50% - 4px);width:8px;height:56px}
-  :where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match-piece:first-child::after{top:auto;right:auto;bottom:-18px;left:calc(50% - 18px)}
-  :where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match-piece:last-child::before{top:-18px;left:calc(50% - 18px)}
+  :where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match-piece:first-child::after{top:auto;right:auto;bottom:calc(var(--ec-match-connector-size) / -2);left:calc(50% - var(--ec-match-connector-size) / 2)}
+  :where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match-piece:last-child::before{top:calc(var(--ec-match-connector-size) / -2);left:calc(50% - var(--ec-match-connector-size) / 2)}
 }
 
 @media(prefers-reduced-motion:reduce){

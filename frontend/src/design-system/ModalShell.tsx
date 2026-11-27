@@ -18,7 +18,7 @@ export function ModalShell({ open, title, onClose, busy = false, children, foote
     else firstButton?.focus()
     return () => {
       if (dialog.open) dialog.close()
-      previousFocus?.focus()
+      queueMicrotask(() => previousFocus?.focus())
     }
   }, [open])
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { ArrowRight } from 'lucide-react'
 import { ConnectedAction } from '../../../../frontend/src/design-system/ConnectedAction'
 import { Field } from '../../../../frontend/src/design-system/Field'
 import { NotebookTabs } from '../../../../frontend/src/design-system/NotebookTabs'
@@ -14,10 +15,24 @@ describe('Phase 02 core components', () => {
     expect(html).toContain('Đang lưu')
   })
 
+  it('allows a primary action to replace the default mark without changing its label', () => {
+    const html = renderToStaticMarkup(<ConnectedAction markIcon={<ArrowRight />}>Tiếp tục</ConnectedAction>)
+
+    expect(html).toContain('ec-action-mark-custom')
+    expect(html).toContain('Tiếp tục')
+    expect(html).toContain('aria-hidden="true"')
+  })
+
   it('connects a field error and hint to its native control', () => {
     const html = renderToStaticMarkup(<Field id="name" label="Tên" hint="Tên đầy đủ" error="Bắt buộc" />)
     expect(html).toContain('aria-invalid="true"')
     expect(html).toContain('aria-describedby="name-hint name-error"')
+  })
+
+  it('preserves an explicit password input type', () => {
+    const html = renderToStaticMarkup(<Field id="password" label="Mật khẩu" type="password" />)
+
+    expect(html).toContain('type="password"')
   })
 
   it('renders a real tablist and selected panel', () => {

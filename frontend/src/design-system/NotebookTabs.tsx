@@ -17,7 +17,9 @@ export function NotebookTabs({ tabs, label = 'Nội dung' }: Props) {
     else return
     event.preventDefault()
     setSelected(tabs[next].id)
-    refs.current[next]?.focus()
+    const nextButton = refs.current[next]
+    nextButton?.focus()
+    nextButton?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }
 
   if (!active) return null
