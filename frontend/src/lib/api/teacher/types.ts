@@ -29,17 +29,6 @@ export type TeacherClassroomStudent = {
   leftAt: string | null
 }
 
-export type TeacherClassroomDetail = {
-  id: string
-  name: string
-  academicYear: string
-  gradeLevel: number
-  status: TeacherClassroomStatus
-  readOnly: boolean
-  students: TeacherClassroomStudent[]
-  subjects: TeacherAssignedSubject[]
-}
-
 export type TeacherClassroomSubjectContext = {
   classroomSubjectId: string
   classroomId: string

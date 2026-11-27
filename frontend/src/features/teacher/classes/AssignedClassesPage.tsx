@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { AlertCircle, Archive, ArrowRight, BookOpen, RotateCcw, Search, School, Users } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { AlertCircle, ArrowRight, BookOpen, RotateCcw, Search, School, Users } from 'lucide-react'
 import { Link } from 'react-router'
 import { ApiError } from '../../../lib/api/client'
 import { teacherWorkspaceApi } from '../../../lib/api/teacher/workspace'
 import type { TeacherClassroomSummary } from '../../../lib/api/teacher/types'
+import { TeacherEmptyState } from '../components/TeacherEmptyState'
+import { classroomEntryOptions } from './classroomEntry'
 import './classes.css'
 
 export function AssignedClassesPage() {
@@ -57,16 +59,17 @@ export function AssignedClassesPage() {
   const activeClassrooms = visibleClassrooms.filter((classroom) => classroom.status === 'ACTIVE')
   const archivedClassrooms = visibleClassrooms.filter((classroom) => classroom.status === 'ARCHIVED')
   const sections = [
-    { title: 'Lớp hiện tại', icon: <School size={17} />, classrooms: activeClassrooms, archived: false },
-    { title: 'Lịch sử giảng dạy', icon: <Archive size={17} />, classrooms: archivedClassrooms, archived: true },
+    { title: 'Lớp hiện tại', classrooms: activeClassrooms, archived: false },
+    { title: 'Lịch sử giảng dạy', classrooms: archivedClassrooms, archived: true },
   ]
 
   return (
     <div className="page-content tc-page">
-      <div className="page-heading">
-        <span className="eyebrow"><span className="eyebrow-line" /> GIẢNG DẠY</span>
+      <div className="page-heading tc-classes-heading">
+        <span className="section-kicker">KHÔNG GIAN GIẢNG DẠY</span>
         <h1>Lớp của tôi</h1>
         <p>Danh sách lớp được phân công theo môn học. Lớp đã qua năm học được giữ lại ở phần lịch sử để tra cứu.</p>
+        <span className="tc-classes-plaque-mark" aria-hidden="true" />
       </div>
 
       <div className="tc-catalog-filters">
@@ -89,18 +92,19 @@ export function AssignedClassesPage() {
       {isLoading ? (
         <div className="panel tc-empty"><p>Đang tải danh sách lớp học...</p></div>
       ) : loadError ? (
-        <ClassroomState
-          role="alert"
+        <TeacherEmptyState
+          tone="error"
           icon={<AlertCircle size={28} />}
           title="Không thể tải danh sách lớp"
-          detail={loadError}
+          description={loadError}
           action={<button type="button" onClick={loadClassrooms}><RotateCcw size={14} /> Thử lại</button>}
         />
       ) : visibleClassrooms.length === 0 ? (
-        <ClassroomState
+        <TeacherEmptyState
+          tone={classrooms.length === 0 ? 'empty' : 'filtered'}
           icon={<School size={28} />}
-          title="Chưa có lớp phù hợp"
-          detail="Hãy thử thay đổi từ khóa hoặc bộ lọc khối."
+          title={classrooms.length === 0 ? 'Chưa có lớp được phân công' : 'Không tìm thấy lớp phù hợp'}
+          description={classrooms.length === 0 ? 'Khi được phân công, lớp hiện tại và lớp lưu trữ sẽ xuất hiện tại đây.' : 'Hãy thử thay đổi từ khóa hoặc bộ lọc khối.'}
         />
       ) : (
         <>
@@ -113,30 +117,18 @@ export function AssignedClassesPage() {
   )
 }
 
-function ClassroomState({ role, icon, title, detail, action }: { role?: 'alert' | 'status'; icon: ReactNode; title: string; detail: string; action?: ReactNode }) {
-  return (
-    <div className="panel tc-empty" role={role}>
-      {icon}
-      <h2>{title}</h2>
-      <p>{detail}</p>
-      {action}
-    </div>
-  )
-}
-
-function ClassroomSection({ title, icon, classrooms, archived = false }: { title: string; icon: ReactNode; classrooms: TeacherClassroomSummary[]; archived?: boolean }) {
+function ClassroomSection({ title, classrooms, archived = false }: { title: string; classrooms: TeacherClassroomSummary[]; archived?: boolean }) {
   if (classrooms.length === 0) return null
 
   return (
     <section className="tc-catalog-section" aria-labelledby={archived ? 'archived-classrooms-title' : 'active-classrooms-title'}>
       <div className="tc-section-title">
-        {icon}
         <h2 id={archived ? 'archived-classrooms-title' : 'active-classrooms-title'}>{title}</h2>
         <span>{classrooms.length} lớp</span>
       </div>
       <div className="tc-class-grid">
         {classrooms.map((classroom) => (
-          <div key={classroom.id} className={`panel tc-class-card ${archived ? 'is-archived' : ''}`}>
+          <article key={classroom.id} className={`panel tc-class-card ${archived ? 'is-archived' : ''}`}>
             <div className="tc-class-card-head">
               <div className="tc-class-card-badge">Khối {classroom.gradeLevel}</div>
               <span className="tc-class-card-year">{classroom.academicYear}</span>
@@ -149,11 +141,19 @@ function ClassroomSection({ title, icon, classrooms, archived = false }: { title
               </div>
             </div>
             <div className="tc-class-card-foot">
-              <Link to={`/teacher/classes/${classroom.id}`} className={`tc-class-card-btn ${archived ? 'is-read-only' : ''}`}>
-                {archived ? 'Xem lịch sử' : 'Vào lớp'} <ArrowRight size={15} />
-              </Link>
+              {classroomEntryOptions(classroom.id, classroom.subjects).map((option) => (
+                <Link key={option.path} to={option.path} className={`tc-class-card-btn ${archived ? 'is-read-only' : ''}`}>
+                  {classroom.subjects.length === 1
+                    ? archived ? 'Xem lịch sử' : 'Vào lớp'
+                    : `${archived ? 'Xem' : 'Vào'} môn ${option.label}`}
+                  <ArrowRight size={15} />
+                </Link>
+              ))}
+              {classroom.subjects.length === 0 && (
+                <span className="tc-class-card-unavailable">Chưa có môn được phân công</span>
+              )}
             </div>
-          </div>
+          </article>
         ))}
       </div>
     </section>

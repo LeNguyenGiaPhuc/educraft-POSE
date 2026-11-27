@@ -1,0 +1,68 @@
+.role-teacher .teacher-empty-state {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  width: 100%;
+  max-width: none;
+  margin: 20px 0 0;
+  border: 1px solid var(--ec-border);
+  border-radius: 18px 28px 18px 28px;
+  padding: 22px;
+  background: var(--ec-surface-muted);
+  color: var(--ec-ink);
+}
+
+.role-teacher .teacher-empty-state.is-filtered {
+  background: var(--ec-butter);
+}
+
+.role-teacher .teacher-empty-state.is-error {
+  border-color: var(--ec-danger-text);
+  background: var(--ec-danger-bg);
+}
+
+.role-teacher .teacher-empty-state-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px 22px 14px 22px;
+  background: var(--ec-lavender);
+  color: var(--ec-iris);
+}
+
+.role-teacher .teacher-empty-state.is-error .teacher-empty-state-icon {
+  background: var(--ec-danger-bg);
+  color: var(--ec-danger-text);
+}
+
+.role-teacher .teacher-empty-state h2 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.role-teacher .teacher-empty-state p {
+  margin: 4px 0 0;
+  color: var(--ec-text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.role-teacher .teacher-empty-state-action {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 560px) {
+  .role-teacher .teacher-empty-state {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 14px;
+  }
+
+  .role-teacher .teacher-empty-state-action {
+    grid-column: 1 / -1;
+  }
+}

@@ -1,0 +1,175 @@
+/* Final Teacher presentation layer. Feature styles keep their layout contracts;
+   this scoped layer aligns their visual vocabulary with the approved EduCraft system. */
+.role-teacher .nav-caption{margin-top:28px}
+.role-teacher .page-heading{max-width:900px;margin-bottom:24px}
+.role-teacher .page-heading .section-kicker{display:none}
+.role-teacher .page-heading h1{margin:0 0 8px;color:var(--ec-ink);font-size:clamp(28px,3.2vw,40px);font-weight:700;letter-spacing:-.035em;line-height:1.15;overflow-wrap:anywhere}
+.role-teacher .page-heading p{max-width:68ch;margin:0;color:var(--ec-text-secondary);font-size:14px;line-height:1.65}
+.role-teacher .panel{border-color:var(--ec-border);background:var(--ec-surface);color:var(--ec-ink);box-shadow:none}
+.role-teacher :is(input:not([type=checkbox]):not([type=radio]),select,textarea){border-color:var(--ec-input-border);background:var(--ec-surface);color:var(--ec-ink)}
+.role-teacher :is(input,select,textarea):focus-visible{border-color:var(--ec-iris);outline:3px solid var(--ec-focus);outline-offset:1px}
+.role-teacher :is(input[type=checkbox],input[type=radio]){accent-color:var(--ec-iris)}
+.role-teacher :is(.back-link,.ta-back,.tl-back,.tl-text-button,.tc-back-link,.tc-back-link-btn){color:var(--ec-iris)}
+.role-teacher .tc-section-title{color:var(--ec-ink)}
+.role-teacher .tc-section-title h2{color:var(--ec-ink)}
+.role-teacher .tc-section-title span{color:var(--ec-text-secondary)}
+.role-teacher :is(.ta-primary,.tl-main-button,.tw-search button){min-height:44px;border-color:var(--ec-iris);border-radius:var(--ec-radius-pill);background:var(--ec-iris);color:#fff;font-size:13px;font-weight:600}
+.role-teacher .ta-primary{background:var(--ec-iris)}
+.role-teacher :is(.ta-primary,.tl-main-button,.tw-search button):hover{background:var(--ec-primary-hover)}
+.role-teacher :is(.ta-secondary,.tl-secondary-button,.tl-actions button){min-height:40px;border-color:var(--ec-border);border-radius:var(--ec-radius-input);background:var(--ec-surface);color:var(--ec-iris);font-size:13px;font-weight:600}
+.role-teacher :is(.ta-secondary,.tl-secondary-button,.tl-actions button):hover{border-color:var(--ec-iris);background:var(--ec-lavender)}
+.role-teacher :is(.ta-primary,.ta-secondary,.tl-main-button,.tl-secondary-button,.tl-actions button,.tw-search button):focus-visible{outline:3px solid var(--ec-focus);outline-offset:2px}
+.role-teacher :is(.ta-primary,.ta-secondary,.tl-main-button,.tl-secondary-button,.tl-actions button):disabled{cursor:not-allowed;opacity:.52}
+
+/* Living Notebook — lesson folders and material records. */
+.role-teacher .tl-toolbar{align-items:flex-end;gap:12px;padding:12px;border:1px solid var(--ec-border);border-radius:var(--ec-radius-card);background:var(--ec-surface-muted)}
+.role-teacher .tl-toolbar label{color:var(--ec-ink);font-size:13px;font-weight:600}
+.role-teacher .tl-summary{color:var(--ec-text-secondary);font-size:13px}
+.role-teacher .tl-summary strong{color:var(--ec-ink)}
+.role-teacher .tl-list{gap:18px}
+.role-teacher .tl-folder-card{position:relative;min-width:0;padding:24px 22px 20px;border-radius:8px 20px 20px 14px}
+.role-teacher .tl-folder-card::before{top:-14px;left:0;width:132px;height:22px;border-radius:12px 12px 0 0;background:var(--ec-butter)}
+.role-teacher .tl-card-head h2,.role-teacher .tl-card h2{color:var(--ec-ink);font-size:18px;font-weight:700}
+.role-teacher .tl-card-head p,.role-teacher .tl-card>p,.role-teacher .tl-help{color:var(--ec-text-secondary);font-size:13px}
+.role-teacher .tl-file-icon{background:var(--ec-butter);color:var(--ec-ink)}
+.role-teacher .tl-tag{border-radius:999px;background:var(--ec-success-bg);color:var(--ec-success-text)}
+.role-teacher .tl-tag.draft{background:var(--ec-warning-bg);color:var(--ec-warning-text)}
+.role-teacher .tl-tag.archived{background:var(--ec-neutral-bg);color:var(--ec-neutral-text)}
+.role-teacher .tl-material-list,.role-teacher .tl-card ul{border-color:var(--ec-border)}
+.role-teacher .tl-material-list li,.role-teacher .tl-card li{border-color:var(--ec-border);color:var(--ec-ink);font-size:13px}
+.role-teacher .tl-material-list li>span>strong{color:var(--ec-ink)}
+.role-teacher .tl-material-list small,.role-teacher .tl-card li small{color:var(--ec-text-secondary)}
+.role-teacher .tl-upload{border-color:var(--ec-border);background:var(--ec-matcha);color:var(--ec-ink)}
+.role-teacher .tl-preview,.role-teacher .tl-version{background:var(--ec-lavender);color:var(--ec-ink)}
+.role-teacher .tl-publish-box{border-radius:var(--ec-radius-card);background:var(--ec-butter);color:var(--ec-ink)}
+
+/* Activity Studio — familiar controls with playful, purposeful surfaces. */
+.role-teacher .ta-editor-head{margin:20px 0 24px}
+.role-teacher .ta-editor-head h2{margin:0 0 7px;color:var(--ec-ink);font-size:26px;font-weight:700;letter-spacing:-.03em}
+.role-teacher .ta-editor-head p,.role-teacher :is(.ta-hint,.ta-notice,.ta-muted){color:var(--ec-text-secondary);font-size:13px;line-height:1.6}
+.role-teacher .ta-history-filters{padding:14px;border-radius:var(--ec-radius-card);background:var(--ec-surface-muted)}
+.role-teacher .ta-history-filters label,.role-teacher .ta-field label{color:var(--ec-ink);font-size:13px;font-weight:600}
+.role-teacher .ta-activity-row{color:var(--ec-ink)}
+.role-teacher .ta-activity-row strong{color:var(--ec-ink);font-size:14px}
+.role-teacher .ta-activity-row small{color:var(--ec-text-secondary);font-size:12px}
+.role-teacher .ta-question,.role-teacher .ta-criterion{border-color:var(--ec-border);border-radius:var(--ec-radius-card);background:var(--ec-surface)}
+.role-teacher .ta-question-number,.role-teacher .ta-criterion-number{background:var(--ec-lavender);color:var(--ec-iris)}
+.role-teacher .ta-suggestions,.role-teacher .ta-ai-box,.role-teacher .ta-ai-preview{border-color:var(--ec-lavender);background:var(--ec-lavender);color:var(--ec-ink)}
+.role-teacher .ta-suggestions strong,.role-teacher .ta-ai-box strong,.role-teacher .ta-ai-preview strong{color:var(--ec-ink)}
+.role-teacher .ta-reference{border-color:var(--ec-border);background:var(--ec-matcha);color:var(--ec-ink)}
+.role-teacher .ta-publish{background:var(--ec-butter);color:var(--ec-ink)}
+.role-teacher .ta-readonly,.role-teacher .tn-lock-note{background:var(--ec-neutral-bg);color:var(--ec-neutral-text)}
+.role-teacher .tn-panel-heading h2{margin:0 0 6px;color:var(--ec-ink);font-size:22px;font-weight:700}
+.role-teacher .tn-panel-heading p{margin:0;color:var(--ec-ink);line-height:1.55}
+.role-teacher .tn-section h3{color:var(--ec-ink);font-weight:700}
+
+/* Learning Records and Learning Journey. */
+.role-teacher .ts-page{color:var(--ec-ink)}
+.role-teacher .ts-filters{border-color:var(--ec-border);border-radius:var(--ec-radius-card);background:var(--ec-surface-muted)}
+.role-teacher .ts-filters label{color:var(--ec-ink)}
+.role-teacher .ts-stats>div{border-color:transparent;box-shadow:none}
+.role-teacher .ts-stats>div:nth-child(1){background:var(--ec-lavender)}
+.role-teacher .ts-stats>div:nth-child(2){background:var(--ec-matcha)}
+.role-teacher .ts-stats>div:nth-child(3){background:var(--ec-butter)}
+.role-teacher .ts-stats strong{color:var(--ec-ink);font-variant-numeric:tabular-nums}
+.role-teacher .ts-card,.role-teacher .ts-list,.role-teacher .ts-detail{border-color:var(--ec-border);background:var(--ec-surface)}
+.role-teacher .ts-list-item{border-color:var(--ec-border);color:var(--ec-ink)}
+.role-teacher .ts-list-item:hover,.role-teacher .ts-list-item.is-selected{background:var(--ec-lavender)}
+.role-teacher .ts-kind.exercise{background:var(--ec-lavender);color:var(--ec-iris)}
+.role-teacher .ts-kind.notebook{background:var(--ec-matcha);color:var(--ec-ink)}
+.role-teacher .ts-result-summary{background:var(--ec-lavender);color:var(--ec-ink)}
+.role-teacher .ts-result-summary strong{color:var(--ec-ink)}
+.role-teacher :is(.ts-answer-list,.ts-criteria-list) article{border-color:var(--ec-border);background:var(--ec-surface-muted)}
+.role-teacher .ts-comment{border-color:var(--ec-iris);background:var(--ec-lavender);color:var(--ec-ink)}
+.role-teacher .ts-state,.role-teacher .ts-detail-empty{background:var(--ec-surface-muted);color:var(--ec-text-secondary)}
+.role-teacher .ts-score{background:var(--ec-butter);color:var(--ec-ink);font-variant-numeric:tabular-nums}
+.role-teacher .tw-search{padding:14px;border-radius:var(--ec-radius-card);background:var(--ec-surface-muted)}
+.role-teacher .tw-students{border:1px solid var(--ec-border);border-radius:var(--ec-radius-card);background:var(--ec-surface)}
+.role-teacher .tw-students a{color:var(--ec-ink)}
+.role-teacher .tw-students a:hover{background:var(--ec-lavender)}
+.role-teacher .tw-evidence{border-color:var(--ec-border);color:var(--ec-ink)}
+
+/* Time Studio and Curiosity Studio. */
+.role-teacher .tc-month{gap:6px}
+.role-teacher .tc-weekday{color:var(--ec-text-secondary)}
+.role-teacher .tc-day{border-color:var(--ec-border);border-radius:12px;background:var(--ec-surface);color:var(--ec-ink)}
+.role-teacher .tc-day:hover{border-color:var(--ec-iris);background:var(--ec-lavender)}
+.role-teacher .tc-day.selected{border-color:var(--ec-butter);background:var(--ec-butter);box-shadow:none}
+.role-teacher .tc-day.blank{background:var(--ec-surface-muted)}
+.role-teacher .tc-count{background:var(--ec-lavender);color:var(--ec-ink)}
+.role-teacher .tc-day-summary{color:var(--ec-text-secondary)}
+.role-teacher .tc-day-spotlight{background:var(--ec-butter)}
+.role-teacher .tc-event-ticket{border-color:color-mix(in srgb,var(--ec-clay) 70%,var(--ec-border));background:var(--ec-clay);color:var(--ec-ink)}
+.role-teacher .tc-event-ticket::before,.role-teacher .tc-event-ticket::after{background:var(--ec-paper)}
+.role-teacher .tc-modal-overlay{background:color-mix(in srgb,var(--ec-ink) 72%,transparent);backdrop-filter:none}
+.role-teacher .tc-modal-window{border:1px solid var(--ec-border);border-radius:var(--ec-radius-card);background:var(--ec-surface);box-shadow:0 20px 50px rgb(41 38 79 / 18%)}
+.role-teacher .tc-modal-header{border-color:var(--ec-border);background:var(--ec-lavender)}
+.role-teacher .tc-modal-title{color:var(--ec-ink)}
+.role-teacher .tc-modal-eyebrow{color:var(--ec-iris)}
+.role-teacher .tc-modal-close{border-color:var(--ec-border);border-radius:50%;background:var(--ec-surface);color:var(--ec-ink)}
+.role-teacher .tc-modal-window>.ti-form>.ti-actions{border-color:var(--ec-border);background:var(--ec-surface-muted)}
+.role-teacher .ti-button.destructive{border-color:var(--ec-danger-text);background:var(--ec-surface);color:var(--ec-danger-text)}
+.role-teacher .ti-button.destructive:hover{background:var(--ec-danger-bg)}
+
+/* Production polish — fixes layout regressions left by feature-local legacy CSS. */
+.role-teacher .ti-error{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 16px;border:1px solid color-mix(in srgb,var(--ec-danger-text) 24%,transparent);border-radius:var(--ec-radius-panel);background:var(--ec-danger-bg);color:var(--ec-danger-text)}
+.role-teacher .ti-error>svg{flex:0 0 auto}
+.role-teacher .ti-error .tl-text-button{margin-left:auto;min-height:38px;padding:7px 11px;border:1px solid color-mix(in srgb,var(--ec-danger-text) 30%,transparent);border-radius:var(--ec-radius-input);background:var(--ec-surface);color:var(--ec-danger-text)}
+.role-teacher .tw-page :is(.tc-back-link,.tc-back-link-btn){border-color:var(--ec-border);background:var(--ec-lavender);color:var(--ec-iris)}
+.role-teacher .tw-page :is(.tc-back-link,.tc-back-link-btn):hover{border-color:var(--ec-iris);background:var(--ec-surface);color:var(--ec-primary-hover)}
+.role-teacher .tw-class-header .tc-status-line{color:var(--ec-lavender)}
+
+.role-teacher .tl-modal-overlay{border:0;background:color-mix(in srgb,var(--ec-ink) 72%,transparent);backdrop-filter:none}
+.role-teacher .tl-modal-window{max-width:680px;border:1px solid var(--ec-border);border-radius:var(--ec-radius-card);background:var(--ec-surface);box-shadow:var(--ec-shadow-modal)}
+.role-teacher .tl-modal-head{padding:20px 24px;border-color:var(--ec-border);background:var(--ec-lavender)}
+.role-teacher .tl-modal-eyebrow{color:var(--ec-iris)}
+.role-teacher .tl-modal-title{color:var(--ec-ink);font-size:22px}
+.role-teacher .tl-modal-body{display:grid;gap:8px;padding:24px}
+.role-teacher .tl-modal-body label{color:var(--ec-ink);font-size:13px;font-weight:600}
+.role-teacher .tl-modal-body input{width:100%;min-width:0;min-height:46px;padding:10px 12px;border:1px solid var(--ec-input-border);border-radius:var(--ec-radius-input);background:var(--ec-surface);color:var(--ec-ink);font:inherit}
+.role-teacher .tl-modal-foot{padding:16px 24px;border-color:var(--ec-border);background:var(--ec-surface-muted)}
+
+.role-teacher .tw-api-panel{width:100%;align-items:stretch;align-content:start;gap:18px;padding:24px;color:var(--ec-ink)}
+.role-teacher .tw-api-panel{position:relative;border-radius:14px 32px 18px 18px;overflow:visible}
+.role-teacher .tw-api-panel::before{position:absolute;top:-10px;left:30px;width:86px;height:12px;border-radius:10px 10px 0 0;background:var(--ec-butter);content:"";pointer-events:none}
+.role-teacher .tw-api-panel .page-heading{margin-bottom:0}
+.role-teacher .tw-api-panel .page-heading h2{margin:0 0 8px;color:var(--ec-ink);font-size:24px;font-weight:700}
+.role-teacher .tw-api-panel .page-heading p{color:var(--ec-text-secondary)}
+.role-teacher .tw-search{display:grid;grid-template-columns:minmax(240px,420px) auto;align-items:end;width:fit-content;max-width:100%;margin:0;padding:14px;border:1px solid var(--ec-border);border-radius:var(--ec-radius-panel);background:var(--ec-surface-muted)}
+.role-teacher .tw-search label{display:grid;gap:7px;color:var(--ec-ink);font-size:13px;font-weight:600}
+.role-teacher .tw-search input{width:100%;min-height:44px;border-color:var(--ec-input-border);border-radius:var(--ec-radius-input);color:var(--ec-ink)}
+.role-teacher .tw-students{display:grid;width:100%;margin:0;padding:0;border:1px solid var(--ec-border);border-radius:var(--ec-radius-panel);background:var(--ec-surface);overflow:clip}
+.role-teacher .tw-students li{min-width:0;margin:0}
+.role-teacher .tw-students li+li{border-color:var(--ec-border)}
+.role-teacher .tw-students a{display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:14px;width:100%;min-height:72px;padding:12px 16px;color:var(--ec-ink);text-decoration:none}
+.role-teacher .tw-students a:hover{background:var(--ec-lavender)}
+.role-teacher .tw-student-avatar{display:grid;width:42px;height:42px;place-items:center;border-radius:14px;background:var(--ec-lavender);color:var(--ec-iris);font-weight:800}
+.role-teacher .tw-student-copy{display:grid;min-width:0;gap:3px}
+.role-teacher .tw-student-copy strong{overflow-wrap:anywhere}
+.role-teacher .tw-student-copy small{color:var(--ec-text-secondary);font-size:12px;overflow-wrap:anywhere}
+.role-teacher .tw-students a>svg{color:var(--ec-iris)}
+
+.role-teacher .tn-form{gap:20px}
+.role-teacher .tn-section{gap:14px;padding:20px;border:1px solid var(--ec-border);border-radius:var(--ec-radius-card);background:var(--ec-surface-muted)}
+.role-teacher .tn-section legend{padding:0 8px;color:var(--ec-ink);font-size:15px;font-weight:700}
+.role-teacher :is(.tn-help,.tn-empty,.tn-evidence-note){color:var(--ec-text-secondary);line-height:1.55}
+.role-teacher .tn-file-picker{min-height:44px;border:1px dashed var(--ec-iris);border-radius:var(--ec-radius-input);background:var(--ec-lavender);color:var(--ec-iris)}
+.role-teacher .tn-ai-action{justify-self:start;border-color:var(--ec-lavender);background:var(--ec-surface);color:var(--ec-iris)}
+.role-teacher .tn-ai-action img{width:20px;height:20px}
+.role-teacher .tn-criterion-row{grid-template-columns:32px minmax(0,1fr) auto;gap:10px}
+.role-teacher .tn-criterion-row>span{display:grid;width:32px;height:32px;place-items:center;padding:0;border-radius:50%;background:var(--ec-lavender);color:var(--ec-iris)}
+.role-teacher .tn-criterion-row textarea{border-color:var(--ec-input-border);border-radius:var(--ec-radius-input);background:var(--ec-surface);color:var(--ec-ink)}
+.role-teacher .tn-criterion-actions button{width:34px;height:34px;border-color:var(--ec-border);border-radius:10px;background:var(--ec-surface);color:var(--ec-iris)}
+.role-teacher .tn-file-list,.role-teacher .tn-criteria-readonly{color:var(--ec-ink)}
+.role-teacher .ai-badge-class{background:var(--ec-lavender);color:var(--ec-ink)}
+.role-teacher .ta-lesson-picker legend{color:var(--ec-ink)}
+.role-teacher .tc-empty :is(h2,h3),.role-teacher .ai-topic-empty h3{color:var(--ec-ink)}
+.role-teacher .tw-tabs{overflow-x:visible;overflow-y:visible}
+
+@media(max-width:900px){.role-teacher .tl-toolbar{align-items:stretch;flex-direction:column}.role-teacher .tl-toolbar .tl-main-button{width:100%;margin-left:0}.role-teacher .tc-month{gap:4px}.role-teacher .tc-day{min-height:86px}}
+@media(max-width:600px){.role-teacher .page-heading h1{font-size:28px}.role-teacher .tl-folder-card{padding:22px 16px 16px}.role-teacher .tl-card-head{align-items:flex-start;flex-wrap:wrap}.role-teacher .ta-editor-head h2{font-size:22px}.role-teacher .ta-actions>*{max-width:100%}.role-teacher .tc-day{min-height:72px;padding:8px}.role-teacher .tc-day-summary{display:none}.role-teacher .tc-count-text{display:none}.role-teacher .ts-master-detail{grid-template-columns:1fr}.role-teacher .tw-search{grid-template-columns:1fr;width:100%}.role-teacher .tw-search button{width:100%}.role-teacher .tw-students a{grid-template-columns:40px minmax(0,1fr) auto;padding:12px}.role-teacher .tn-section{padding:16px}.role-teacher .tn-criterion-row{grid-template-columns:28px minmax(0,1fr)}.role-teacher .tn-criterion-actions{grid-column:2;display:flex;justify-content:flex-end}}
+
+@media(max-width:700px){
+  .role-teacher .tw-tabs{overflow-x:auto;scrollbar-width:none}
+  .role-teacher .tw-tabs::-webkit-scrollbar{display:none}
+}
