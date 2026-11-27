@@ -1,5 +1,8 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react'
-import { ArrowDown, ArrowUp, ImagePlus, Plus, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowRight, ArrowUp, ImagePlus, Plus, Trash2 } from 'lucide-react'
+import craftSpark from '../../../assets/educraft/brand/craft-spark.svg'
+import { ConnectedAction } from '../../../design-system/ConnectedAction'
+import { Field } from '../../../design-system/Field'
 import type {
   TeacherNotebookCheckDetail,
   TeacherNotebookCriterion,
@@ -148,10 +151,10 @@ export function NotebookCheckForm({ classroomSubjectId, activity, isSaving, onCa
   return (
     <form className="tn-form" onSubmit={submit} noValidate>
       <div className="ta-form-grid">
-        <label>Tên hoạt động *<input value={title} maxLength={250} onChange={(event) => setTitle(event.target.value)} /></label>
-        <label>{activity ? 'Đóng nhận bài' : 'Hạn nộp đợt đầu *'}<input type="datetime-local" value={dueAt} onChange={(event) => setDueAt(event.target.value)} /></label>
+        <Field id="notebook-check-title" label="Tên hoạt động" required value={title} maxLength={250} onChange={(event) => setTitle(event.target.value)} />
+        <Field id="notebook-check-due-at" label={activity ? 'Đóng nhận bài' : 'Hạn nộp đợt đầu'} required={!activity} type="datetime-local" value={dueAt} onChange={(event) => setDueAt(event.target.value)} />
       </div>
-      <label>Mô tả<textarea rows={3} value={description} onChange={(event) => setDescription(event.target.value)} /></label>
+      <Field id="notebook-check-description" label="Mô tả" kind="textarea" value={description} onChange={(event) => setDescription(event.target.value)} />
 
       <fieldset className="tn-section">
         <legend>Ảnh vở mẫu</legend>
@@ -161,8 +164,8 @@ export function NotebookCheckForm({ classroomSubjectId, activity, isSaving, onCa
         </label>
         <p className="tn-help">{activity ? 'Ảnh được tải lên sau khi lưu hoạt động. Mỗi file tối đa 10MB.' : 'Chọn 1–5 ảnh JPEG/PNG để tạo và công bố hoạt động. Mỗi file tối đa 10MB.'}</p>
         {files.length > 0 && <ul className="tn-file-list">{files.map((file) => <li key={`${file.name}-${file.lastModified}`}>{file.name}</li>)}</ul>}
-        {activity && activity.referenceFiles.length > 0 && <p className="tn-help">Đã có {activity.referenceFiles.length} ảnh mẫu trên backend.</p>}
-        <button type="button" className="ta-secondary" disabled={locked || isSuggesting || files.length === 0} onClick={() => void suggestCriteria()}>{isSuggesting ? 'Đang đọc ảnh...' : 'Gợi ý tiêu chí bằng AI'}</button>
+        {activity && activity.referenceFiles.length > 0 && <p className="tn-help">Đã có {activity.referenceFiles.length} ảnh mẫu.</p>}
+        <button type="button" className="ta-secondary tn-ai-action" disabled={locked || isSuggesting || files.length === 0} onClick={() => void suggestCriteria()}><img src={craftSpark} alt="" /> {isSuggesting ? 'Đang đọc ảnh...' : 'Gợi ý tiêu chí bằng AI'}</button>
         {suggestionMessage && <p className="tn-help" role="status">{suggestionMessage}</p>}
       </fieldset>
 
@@ -191,7 +194,7 @@ export function NotebookCheckForm({ classroomSubjectId, activity, isSaving, onCa
       {error && <p className="ta-error" role="alert">{error}</p>}
       <div className="ta-confirm-actions">
         <button type="button" className="ta-secondary" disabled={isSaving} onClick={onCancel}>Hủy</button>
-        <button type="submit" className="ta-primary" disabled={isSaving || locked}>{isSaving ? 'Đang lưu...' : activity ? 'Lưu thay đổi' : 'Tạo và công bố'}</button>
+        <ConnectedAction type="submit" className="ta-primary" loading={isSaving} disabled={locked} markIcon={<ArrowRight size={16} />}>{activity ? 'Lưu thay đổi' : 'Tạo và công bố'}</ConnectedAction>
       </div>
     </form>
   )

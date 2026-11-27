@@ -13,6 +13,7 @@ import {
 } from '../../../lib/api/teacher/results'
 import { teacherNotebookChecksApi, type TeacherNotebookPeriod } from '../../../lib/api/teacher/notebookChecks'
 import './submissions.css'
+import { filterSubmissionRows, findSubmissionRow, getSubmissionDetailId } from './submissionSelection'
 
 type Props = {
   classroomSubjectId: string
@@ -25,7 +26,7 @@ const exerciseStatuses: TeacherSubmissionStatus[] = ['PENDING', 'PROCESSING', 'G
 const notebookStatuses: TeacherSubmissionStatus[] = ['CURRENT', 'LOCKED', 'FINALIZED']
 
 const statusLabels: Record<TeacherSubmissionStatus, string> = {
-  MISSING: 'ChÆ°a ná»™p',
+  MISSING: 'Chưa nộp',
   PENDING: 'Chờ chấm',
   PROCESSING: 'Đang chấm',
   GRADED: 'Đã chấm',
@@ -166,9 +167,7 @@ export function SubmissionsPage({ classroomSubjectId, classroomName, subjectName
   }, [activityId, kind, params, periodId, setParams])
 
   const visibleItems = useMemo(() => {
-    const normalized = studentSearch.trim().toLocaleLowerCase('vi')
-    if (!normalized) return items
-    return items.filter((item) => `${item.student.fullName} ${item.student.username}`.toLocaleLowerCase('vi').includes(normalized))
+    return filterSubmissionRows(items, studentSearch)
   }, [items, studentSearch])
 
   const activityOptions = useMemo(() => {
@@ -178,7 +177,7 @@ export function SubmissionsPage({ classroomSubjectId, classroomName, subjectName
     return Array.from(values, ([id, title]) => ({ id, title, kind: 'EXERCISE' as const }))
   }, [availableActivities, items])
 
-  const selectedSummary = items.find((item) => item.id === selectedId) ?? null
+  const selectedSummary = findSubmissionRow(items, selectedId)
 
   useEffect(() => {
     let cancelled = false
@@ -186,15 +185,16 @@ export function SubmissionsPage({ classroomSubjectId, classroomName, subjectName
       return
     }
 
-    if (!selectedSummary.submissionId) {
+    const detailId = getSubmissionDetailId(selectedSummary)
+    if (!detailId) {
       setSelectedResult(null)
       setIsLoadingDetail(false)
       return
     }
 
     const load = selectedSummary.kind === 'EXERCISE'
-      ? teacherResultsApi.getExerciseResult(selectedSummary.submissionId)
-      : teacherResultsApi.getNotebookResult(selectedSummary.submissionId)
+      ? teacherResultsApi.getExerciseResult(detailId)
+      : teacherResultsApi.getNotebookResult(detailId)
 
     load
       .then((result) => {
@@ -255,7 +255,7 @@ export function SubmissionsPage({ classroomSubjectId, classroomName, subjectName
       <div className="page-heading">
         <span className="section-kicker">BÀI NỘP & KẾT QUẢ</span>
         <h1>{subjectName ? `${subjectName} · Bài nộp` : 'Bài nộp & kết quả'}</h1>
-        <p>{classroomName ? `${classroomName} · ` : ''}Theo dõi bài học sinh đã nộp và xem kết quả từ backend.</p>
+        <p>{classroomName ? `${classroomName} · ` : ''}Theo dõi bài học sinh đã nộp và kết quả đánh giá chính thức.</p>
       </div>
 
       {readOnly && <div className="ts-notice"><Archive size={16} /> Lớp đã lưu trữ. Dữ liệu chỉ được xem, không có thao tác thay đổi.</div>}
@@ -286,7 +286,7 @@ export function SubmissionsPage({ classroomSubjectId, classroomName, subjectName
             {notebookPeriods.map((period) => <option value={period.id} key={period.id}>Đợt {period.periodNo} · hạn {formatDate(period.dueAt)}</option>)}
           </select>
         </label>}
-        <label>Tìm học sinh
+        <label>Tìm học sinh trong trang này
           <input value={studentSearch} onChange={(event) => updateQuery({ submissionSearch: event.target.value || null })} placeholder="Tên hoặc tài khoản" />
         </label>
       </section>
@@ -305,7 +305,7 @@ export function SubmissionsPage({ classroomSubjectId, classroomName, subjectName
         </div>
       )}
       {!isLoading && !loadError && visibleItems.length === 0 && (
-        <div className="ts-state"><FileCheck2 size={24} /><h2>Chưa có bài nộp phù hợp</h2><p>Thử đổi bộ lọc hoặc đợi học sinh nộp bài.</p></div>
+        <div className="ts-state"><FileCheck2 size={24} /><h2>{items.length === 0 ? 'Chưa có bài nộp trong phạm vi này' : 'Không tìm thấy học sinh trong trang hiện tại'}</h2><p>{items.length === 0 ? 'Thử đổi bộ lọc hoặc đợi học sinh nộp bài.' : 'Xóa từ khóa hoặc chuyển trang để tiếp tục tìm.'}</p></div>
       )}
 
       {!isLoading && !loadError && visibleItems.length > 0 && (
@@ -357,6 +357,13 @@ function ExerciseResultDetail({ result }: { result: TeacherExerciseResult }) {
             <strong>Câu {index + 1}. {answer.question.prompt}</strong>
             <p>{answer.answer || 'Không có câu trả lời.'}</p>
             <small>{answer.earnedPoints === null ? 'Chưa có điểm câu này' : `${answer.earnedPoints}/${answer.question.maxPoints ?? '?'} điểm`}</small>
+            {answer.explanation && <p className="ts-explanation"><strong>Giải thích:</strong> {answer.explanation}</p>}
+            {answer.citations.length > 0 && (
+              <details className="ts-citations">
+                <summary>{answer.citations.length} trích dẫn học liệu</summary>
+                <ul>{answer.citations.map((citation) => <li key={citation.segment.id}>{citation.segment.positionLabel}: {citation.excerpt || citation.segment.content}</li>)}</ul>
+              </details>
+            )}
           </article>
         ))}
       </div>

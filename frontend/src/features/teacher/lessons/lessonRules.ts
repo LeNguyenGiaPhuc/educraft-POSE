@@ -28,6 +28,17 @@ export function canPublishMaterials(materials: { processing: string; local?: boo
   return materials.length > 0 && materials.every((material) => material.processing === 'PROCESSED' && !material.local)
 }
 
+export function getLessonPublishAction(
+  lessonStatus: 'DRAFT' | 'PUBLISHED',
+  materials: Array<{ status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'; processingStatus?: string }>,
+): { label: string } | null {
+  if (lessonStatus === 'DRAFT') return { label: 'Công bố bài học' }
+  if (materials.some((material) => material.status === 'DRAFT')) {
+    return { label: 'Cập nhật nội dung công bố' }
+  }
+  return null
+}
+
 export function sampleReplacement(processing: 'PROCESSED' | 'PROCESSING' | 'FAILED') {
   return [
     { id: 'fixture-retained', name: 'De-cuong-bai-hoc.pdf', version: 1, processing: 'PROCESSED' as const, sourcePosition: 'Trang 1–4' },
