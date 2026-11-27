@@ -1,0 +1,413 @@
+/*
+ * EduCraft Design Foundation
+ * Scope is intentionally limited to shared Auth, Admin, Teacher and the
+ * development preview. Student workspace styles must remain untouched.
+ */
+@font-face{font-family:"Be Vietnam Pro";font-style:normal;font-weight:400;font-display:swap;src:url('../assets/educraft/fonts/BeVietnamPro-Regular.ttf') format('truetype')}
+@font-face{font-family:"Be Vietnam Pro";font-style:normal;font-weight:600;font-display:swap;src:url('../assets/educraft/fonts/BeVietnamPro-SemiBold.ttf') format('truetype')}
+@font-face{font-family:"Be Vietnam Pro";font-style:normal;font-weight:700;font-display:swap;src:url('../assets/educraft/fonts/BeVietnamPro-Bold.ttf') format('truetype')}
+@font-face{font-family:"Be Vietnam Pro";font-style:normal;font-weight:800;font-display:swap;src:url('../assets/educraft/fonts/BeVietnamPro-ExtraBold.ttf') format('truetype')}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview){
+  --ec-ink:#29264f;
+  --ec-iris:#5850be;
+  --ec-lavender:#dcd9fa;
+  --ec-matcha:#c6d8a1;
+  --ec-butter:#f4d476;
+  --ec-clay:#ebaf99;
+  --ec-paper:#f5f2eb;
+  --ec-surface:#ffffff;
+  --ec-surface-muted:#f8f7f4;
+  --ec-text:#29264f;
+  --ec-text-secondary:#625d79;
+  --ec-border:#e5dfd9;
+  --ec-input-border:#827a91;
+  --ec-primary:#5850be;
+  --ec-primary-hover:#4941ac;
+  --ec-primary-pressed:#40399b;
+  --ec-focus:#5850be;
+  --ec-success-bg:#e3edd5;
+  --ec-success-text:#345938;
+  --ec-warning-bg:#f9e8af;
+  --ec-warning-text:#725820;
+  --ec-info-bg:#e4defa;
+  --ec-info-text:#514689;
+  --ec-danger-bg:#f5d5ce;
+  --ec-danger-text:#923e38;
+  --ec-neutral-bg:#e9e5e3;
+  --ec-neutral-text:#625d79;
+  --ec-font:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --ec-text-xs:12px;
+  --ec-text-sm:13px;
+  --ec-text-base:14px;
+  --ec-text-md:16px;
+  --ec-text-lg:18px;
+  --ec-text-xl:24px;
+  --ec-text-2xl:32px;
+  --ec-text-display:44px;
+  --ec-space-1:4px;
+  --ec-space-2:8px;
+  --ec-space-3:12px;
+  --ec-space-4:16px;
+  --ec-space-5:20px;
+  --ec-space-6:24px;
+  --ec-space-8:32px;
+  --ec-space-10:40px;
+  --ec-space-12:48px;
+  --ec-space-16:64px;
+  --ec-radius-sm:8px;
+  --ec-radius-input:12px;
+  --ec-radius-panel:16px;
+  --ec-radius-card:24px;
+  --ec-radius-hero:32px;
+  --ec-radius-pill:999px;
+  --ec-radius-asymmetric:24px 8px 8px 24px;
+  --ec-shadow-card:0 4px 12px rgba(41,38,79,.06);
+  --ec-shadow-modal:0 16px 48px rgba(41,38,79,.16);
+  --ec-sidebar-width:256px;
+  --ec-sidebar-collapsed:76px;
+  --ec-topbar-height:76px;
+  --ec-control-height:44px;
+  --ec-motion-fast:150ms;
+  --ec-motion-normal:200ms;
+  --ec-motion-slow:240ms;
+  --ec-motion-ease:cubic-bezier(.2,0,0,1);
+  --ec-asset-wordmark:url('../assets/educraft/brand/wordmark.svg');
+  --ec-asset-logomark:url('../assets/educraft/brand/logomark.svg');
+  --ec-asset-craft-spark:url('../assets/educraft/brand/craft-spark.svg');
+  --ec-shape-nest:url('../assets/educraft/shapes/nest.svg');
+  --ec-shape-nest-mask:url('../assets/educraft/shapes/nest-mask.svg');
+  --ec-shape-folder:url('../assets/educraft/shapes/folder.svg');
+  --ec-shape-ticket:url('../assets/educraft/shapes/ticket.svg');
+  --ec-shape-step:url('../assets/educraft/shapes/step.svg');
+  --ec-shape-plaque:url('../assets/educraft/shapes/plaque.svg');
+  --ec-shape-spine:url('../assets/educraft/shapes/spine.svg');
+  --ec-shape-note:url('../assets/educraft/shapes/note.svg');
+  --ec-shape-match:url('../assets/educraft/shapes/match.svg');
+  --ec-shape-connected-action:url('../assets/educraft/shapes/connected-action.svg');
+
+  /* Compatibility aliases used by the current Admin/Teacher CSS. */
+  --workspace-canvas:var(--ec-paper);
+  --workspace-surface:var(--ec-surface);
+  --workspace-ink:var(--ec-ink);
+  --workspace-body:var(--ec-text);
+  --workspace-muted:var(--ec-text-secondary);
+  --workspace-soft:var(--ec-surface-muted);
+  --workspace-line:var(--ec-border);
+  --workspace-brand:var(--ec-iris);
+  --workspace-brand-strong:var(--ec-ink);
+  --workspace-radius:var(--ec-radius-panel);
+
+  color:var(--ec-text);
+  font-family:var(--ec-font);
+  font-synthesis:none;
+  text-rendering:optimizeLegibility;
+  -webkit-font-smoothing:antialiased;
+  accent-color:var(--ec-iris);
+  caret-color:var(--ec-iris);
+  scrollbar-color:var(--ec-lavender) transparent;
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview)
+  :is(h1,h2,h3,h4,h5,h6,strong,button,input,select,textarea){
+  font-family:var(--ec-font);
+}
+
+:where(.login-layout,.role-admin,.role-teacher)
+  :is(.story-brand,.login-mobile-brand,.brand-mark,.brand>span:last-child){
+  font-family:var(--ec-font);
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) ::selection{
+  color:var(--ec-ink);
+  background:var(--ec-butter);
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview)
+  :is(a,button,input,select,textarea,[tabindex]):focus-visible{
+  outline:3px solid var(--ec-focus);
+  outline-offset:3px;
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview)
+  :is(button,input,select,textarea){
+  transition:
+    color var(--ec-motion-fast) var(--ec-motion-ease),
+    background-color var(--ec-motion-fast) var(--ec-motion-ease),
+    border-color var(--ec-motion-fast) var(--ec-motion-ease),
+    box-shadow var(--ec-motion-fast) var(--ec-motion-ease),
+    transform var(--ec-motion-fast) var(--ec-motion-ease);
+}
+
+/* Semantic color never relies on brand color alone. */
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-status{
+  display:inline-flex;
+  min-height:28px;
+  align-items:center;
+  gap:var(--ec-space-2);
+  padding:var(--ec-space-1) var(--ec-space-3);
+  border-radius:var(--ec-radius-pill);
+  font-size:var(--ec-text-xs);
+  font-weight:700;
+  line-height:1.5;
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-status-success{color:var(--ec-success-text);background:var(--ec-success-bg)}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-status-warning{color:var(--ec-warning-text);background:var(--ec-warning-bg)}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-status-info{color:var(--ec-info-text);background:var(--ec-info-bg)}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-status-danger{color:var(--ec-danger-text);background:var(--ec-danger-bg)}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-status-neutral{color:var(--ec-neutral-text);background:var(--ec-neutral-bg)}
+
+/* Geometry hosts keep content and focus rings above decoration. */
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-geometry{
+  position:relative;
+  isolation:isolate;
+  min-width:0;
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-geometry::before,
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-geometry::after{
+  position:absolute;
+  z-index:-1;
+  content:"";
+  pointer-events:none;
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-nest{
+  min-height:180px;
+  padding:var(--ec-space-8) clamp(84px,13vw,132px) var(--ec-space-8) var(--ec-space-8);
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-nest::before{
+  inset:0;
+  border-radius:var(--ec-radius-card) 68px var(--ec-radius-card) var(--ec-radius-card);
+  background:var(--ec-lavender);
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-nest::after{
+  top:18px;
+  right:18px;
+  width:46px;
+  height:46px;
+  border-radius:50%;
+  background:var(--ec-iris);
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-folder{
+  margin-top:20px;
+  padding:var(--ec-space-8) var(--ec-space-6) var(--ec-space-6);
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-folder::before{
+  inset:0;
+  border-radius:0 var(--ec-radius-panel) var(--ec-radius-panel) var(--ec-radius-panel);
+  background:var(--ec-matcha);
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-folder::after{
+  bottom:100%;
+  left:0;
+  width:38%;
+  height:20px;
+  border-radius:12px 12px 0 0;
+  background:var(--ec-matcha);
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-ticket{
+  padding:var(--ec-space-5) var(--ec-space-8);
+  padding-right:38%;
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-ticket::before{
+  inset:0;
+  border-radius:var(--ec-radius-panel);
+  background:var(--ec-butter);
+  -webkit-mask:
+    radial-gradient(circle at 0 50%,transparent 10px,#000 11px),
+    radial-gradient(circle at 100% 50%,transparent 10px,#000 11px);
+  -webkit-mask-composite:source-in;
+  mask:
+    radial-gradient(circle at 0 50%,transparent 10px,#000 11px),
+    radial-gradient(circle at 100% 50%,transparent 10px,#000 11px);
+  mask-composite:intersect;
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-ticket::after{
+  top:12px;
+  right:32%;
+  bottom:12px;
+  border-left:1px dashed color-mix(in srgb,var(--ec-warning-text) 55%,transparent);
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-plaque{
+  min-height:150px;
+  padding:56px var(--ec-space-6) var(--ec-space-6);
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-plaque::before{
+  inset:0;
+  border-radius:50% 50% var(--ec-radius-panel) var(--ec-radius-panel)/42px 42px var(--ec-radius-panel) var(--ec-radius-panel);
+  background:var(--ec-lavender);
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-spine{
+  min-height:150px;
+  padding:var(--ec-space-6) var(--ec-space-6) var(--ec-space-6) 68px;
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-spine::before{
+  inset:0;
+  border-radius:var(--ec-radius-panel);
+  background:var(--ec-matcha);
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-spine::after{
+  top:12px;
+  bottom:12px;
+  left:48px;
+  border-left:2px solid color-mix(in srgb,var(--ec-success-text) 35%,transparent);
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-note{
+  min-height:150px;
+  padding:var(--ec-space-6) calc(var(--ec-space-8) + 12px) var(--ec-space-8) var(--ec-space-6);
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-note::before{
+  inset:0;
+  border-radius:var(--ec-radius-panel);
+  background:var(--ec-butter);
+  clip-path:polygon(0 0,100% 0,100% calc(100% - 28px),calc(100% - 28px) 100%,0 100%);
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-note::after{
+  right:0;
+  bottom:0;
+  width:28px;
+  height:28px;
+  background:color-mix(in srgb,var(--ec-butter) 72%,var(--ec-warning-text));
+  clip-path:polygon(0 0,100% 0,0 100%);
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match{
+  --ec-match-connector-size:36px;
+  --ec-match-axis:50%;
+  position:relative;
+  isolation:isolate;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:28px;
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match::before{
+  position:absolute;
+  z-index:-1;
+  top:calc(50% - 4px);
+  left:calc(50% - 28px);
+  width:56px;
+  height:8px;
+  border-radius:var(--ec-radius-pill);
+  background:var(--ec-iris);
+  content:"";
+  pointer-events:none;
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match-piece{
+  position:relative;
+  min-width:0;
+  padding:var(--ec-space-6);
+  border-radius:var(--ec-radius-panel);
+  background:var(--ec-lavender);
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match-piece:last-child{background:var(--ec-matcha)}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match-piece:first-child::after,
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match-piece:last-child::before{
+  position:absolute;
+  z-index:0;
+  top:calc(var(--ec-match-axis) - var(--ec-match-connector-size) / 2);
+  width:var(--ec-match-connector-size);
+  height:var(--ec-match-connector-size);
+  border-radius:50%;
+  content:"";
+  pointer-events:none;
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match-piece:first-child::after{
+  right:calc(var(--ec-match-connector-size) / -2);
+  background:var(--ec-lavender);
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match-piece:last-child::before{
+  left:calc(var(--ec-match-connector-size) / -2);
+  background:var(--ec-paper);
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match-piece>*{position:relative;z-index:1}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-connected-action{
+  display:inline-flex;
+  min-height:var(--ec-control-height);
+  align-items:center;
+  justify-content:center;
+  gap:var(--ec-space-3);
+  padding:0 var(--ec-space-5) 0 var(--ec-space-2);
+  border:0;
+  border-radius:var(--ec-radius-pill);
+  color:#fff;
+  background:var(--ec-primary);
+  font-size:var(--ec-text-base);
+  font-weight:700;
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-connected-action:hover{background:var(--ec-primary-hover)}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-connected-action:active{background:var(--ec-primary-pressed);transform:translateY(1px)}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-connected-action-mark{
+  position:relative;
+  display:grid;
+  width:32px;
+  height:32px;
+  place-items:center;
+  border-radius:50%;
+  color:var(--ec-ink);
+  background:var(--ec-butter);
+  font-size:20px;
+  line-height:1;
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-connected-action-mark::before,
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-connected-action-mark::after{
+  position:absolute;
+  width:13px;
+  height:2px;
+  border-radius:2px;
+  background:currentColor;
+  content:"";
+}
+
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-connected-action-mark::after{transform:rotate(90deg)}
+
+@media(max-width:767px){
+  :where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-nest{
+    padding:var(--ec-space-6) var(--ec-space-6) 88px;
+  }
+
+  :where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-nest::after{top:auto;right:18px;bottom:18px}
+  :where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match{grid-template-columns:1fr;gap:28px}
+  :where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match::before{top:calc(50% - 28px);left:calc(50% - 4px);width:8px;height:56px}
+  :where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match-piece:first-child::after{top:auto;right:auto;bottom:calc(var(--ec-match-connector-size) / -2);left:calc(50% - var(--ec-match-connector-size) / 2)}
+  :where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-match-piece:last-child::before{top:calc(var(--ec-match-connector-size) / -2);left:calc(50% - var(--ec-match-connector-size) / 2)}
+}
+
+@media(prefers-reduced-motion:reduce){
+  :where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) *,
+  :where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) *::before,
+  :where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) *::after{
+    scroll-behavior:auto!important;
+    transition-duration:.01ms!important;
+    animation-duration:.01ms!important;
+    animation-iteration-count:1!important;
+  }
+}

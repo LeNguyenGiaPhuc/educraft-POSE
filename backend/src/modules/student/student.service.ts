@@ -3,6 +3,7 @@ import { AppError, BadRequestError, ConflictError, ForbiddenError, NotFoundError
 import { defaultStorageProvider } from '../storage/storage-factory.js';
 import { generateStorageKey, validateMaterialFile } from '../storage/file-validation.js';
 import { aiDraftProvider } from '../teacher/activities/activity-ai-draft.provider.js';
+import { studentTutorAiProvider } from './student-tutor-ai.provider.js';
 
 const publishedMaterialsInclude = {
   where: { status: 'PUBLISHED' as const },
@@ -798,73 +799,57 @@ export const studentService = {
   },
 
   async sendChatTurn(studentId: string, conversationId: string, input: { question: string; classroomSubjectId?: string }) {
-    return prisma.$transaction(async (tx) => {
-      const conversation = await tx.aIConversation.findFirst({
-        where: { id: conversationId, student_id: studentId },
-        include: { classroom: true },
-      });
-      if (!conversation) throw new NotFoundError('Không tìm thấy hội thoại');
-      const enrollment = await tx.classroomEnrollment.findFirst({
-        where: { student_id: studentId, classroom_id: conversation.classroom_id, left_at: null, classroom: { status: 'ACTIVE' } },
-        select: { id: true },
-      });
-      if (!enrollment) throw new ForbiddenError('Hội thoại lớp cũ chỉ được xem lại');
+    const conversation = await prisma.aIConversation.findFirst({ where: { id: conversationId, student_id: studentId }, select: { id: true, classroom_id: true } });
+    if (!conversation) throw new NotFoundError('Không tìm thấy hội thoại');
+    const enrollment = await prisma.classroomEnrollment.findFirst({ where: { student_id: studentId, classroom_id: conversation.classroom_id, left_at: null, classroom: { status: 'ACTIVE' } }, select: { id: true } });
+    if (!enrollment) throw new ForbiddenError('Hội thoại lớp cũ chỉ được xem lại');
+    if (input.classroomSubjectId) {
+      const subject = await prisma.classroomSubject.findFirst({ where: { id: input.classroomSubjectId, classroom_id: conversation.classroom_id }, select: { id: true } });
+      if (!subject) throw new ForbiddenError('Môn học không thuộc lớp của hội thoại này');
+    }
 
-      if (input.classroomSubjectId) {
-        const subject = await tx.classroomSubject.findFirst({
-          where: { id: input.classroomSubjectId, classroom_id: conversation.classroom_id },
-          select: { id: true },
-        });
-        if (!subject) throw new ForbiddenError('Môn học không thuộc lớp của hội thoại này');
-      }
-      const source = await tx.materialSegment.findFirst({
-        where: {
-          processing_status: 'PROCESSED',
-          materialVersion: {
-            processing_status: 'PROCESSED', published_at: { not: null },
-            material: {
-              status: 'PUBLISHED',
-              lesson: {
-                status: 'PUBLISHED',
-                ...(input.classroomSubjectId ? { classroom_subject_id: input.classroomSubjectId } : {}),
-                classroomSubject: { classroom_id: conversation.classroom_id },
-              },
-            },
-          },
+    const segments = await prisma.materialSegment.findMany({
+      where: {
+        processing_status: 'PROCESSED',
+        materialVersion: {
+          processing_status: 'PROCESSED', published_at: { not: null },
+          material: { status: 'PUBLISHED', lesson: {
+            status: 'PUBLISHED', ...(input.classroomSubjectId ? { classroom_subject_id: input.classroomSubjectId } : {}),
+            classroomSubject: { classroom_id: conversation.classroom_id },
+          } },
         },
-        select: { id: true },
-      });
-      if (!source) {
-        const turn = await tx.aIChatTurn.create({
-          data: {
-            conversation_id: conversationId,
-            status: 'ANSWERED',
-            completed_at: new Date(),
-            messages: {
-              create: [
-                { role: 'USER', content: input.question, attributed_classroom_subject_id: input.classroomSubjectId },
-                { role: 'ASSISTANT', content: 'Chưa đủ bằng chứng từ học liệu đã công bố và xử lý thành công để trả lời câu hỏi này.' },
-              ],
-            },
-          },
-          select: { id: true, status: true, created_at: true },
-        });
-        await tx.aIConversation.update({ where: { id: conversationId }, data: { updated_at: new Date() } });
-        return { ...turn, message: 'Chưa đủ bằng chứng từ nguồn học liệu được phép.' };
-      }
-
-      const turn = await tx.aIChatTurn.create({
-        data: {
-          conversation_id: conversationId,
-          status: 'FAILED',
-          completed_at: new Date(),
-          messages: { create: { role: 'USER', content: input.question, attributed_classroom_subject_id: input.classroomSubjectId } },
-        },
-        select: { id: true, status: true, created_at: true },
-      });
-      await tx.aIConversation.update({ where: { id: conversationId }, data: { updated_at: new Date() } });
-      return { ...turn, message: 'Câu hỏi đã lưu. Dịch vụ AI chưa được cấu hình nên chưa thể tạo câu trả lời.' };
+      }, take: 80, orderBy: { ordinal: 'asc' },
+      select: { id: true, content: true, position_label: true, materialVersion: { select: { material: { select: { title: true, lesson: { select: { title: true } } } } } } },
     });
+    const terms = input.question.toLocaleLowerCase().split(/[^\p{L}\p{N}]+/u).filter((term) => term.length > 2);
+    const sources = segments.map((segment) => ({ segment, score: terms.reduce((score, term) => score + (segment.content.toLocaleLowerCase().includes(term) ? 1 : 0), 0) }))
+      .sort((a, b) => b.score - a.score).slice(0, 6).map(({ segment }) => ({
+        id: segment.id,
+        label: `${segment.materialVersion.material.lesson.title} · ${segment.materialVersion.material.title} · ${segment.position_label}`,
+        content: segment.content,
+      }));
+    const previous = await prisma.aIChatTurn.findMany({ where: { conversation_id: conversationId, status: 'ANSWERED' }, orderBy: { created_at: 'desc' }, take: 5, include: { messages: { orderBy: { created_at: 'asc' }, select: { role: true, content: true } } } });
+    const history = previous.reverse().flatMap((turn) => turn.messages.map((message) => ({ role: message.role === 'USER' ? 'user' as const : 'model' as const, content: message.content })));
+    const turn = await prisma.aIChatTurn.create({ data: { conversation_id: conversationId, status: 'PENDING', messages: { create: { role: 'USER', content: input.question, attributed_classroom_subject_id: input.classroomSubjectId } } }, select: { id: true, status: true, created_at: true } });
+    await prisma.aIConversation.update({ where: { id: conversationId }, data: { updated_at: new Date() } });
+
+    if (!sources.length) {
+      const message = 'Chưa có học liệu đã xử lý và xuất bản phù hợp trong lớp để trả lời câu hỏi này.';
+      await prisma.$transaction([prisma.aIMessage.create({ data: { turn_id: turn.id, role: 'ASSISTANT', content: message } }), prisma.aIChatTurn.update({ where: { id: turn.id }, data: { status: 'ANSWERED', completed_at: new Date() } })]);
+      return { ...turn, status: 'ANSWERED' as const, message };
+    }
+
+    try {
+      const answer = await studentTutorAiProvider.answer({ question: input.question, history, sources });
+      const assistant = await prisma.aIMessage.create({ data: { turn_id: turn.id, role: 'ASSISTANT', content: answer.answer, citations: { create: answer.citations.map((citation) => ({ segment_id: citation.segmentId, excerpt: citation.excerpt })) } } });
+      await prisma.aIChatTurn.update({ where: { id: turn.id }, data: { status: 'ANSWERED', completed_at: new Date() } });
+      return { ...turn, status: 'ANSWERED' as const, message: assistant.content, citations: answer.citations };
+    } catch (error) {
+      const message = error instanceof AppError && error.statusCode === 503 ? 'Dịch vụ AI hiện chưa được bật. Câu hỏi đã được lưu, bạn có thể thử lại sau.' : 'Trợ lý AI chưa thể trả lời lúc này. Câu hỏi đã được lưu, vui lòng thử lại.';
+      await prisma.$transaction([prisma.aIMessage.create({ data: { turn_id: turn.id, role: 'ASSISTANT', content: message } }), prisma.aIChatTurn.update({ where: { id: turn.id }, data: { status: 'FAILED', completed_at: new Date() } })]);
+      if (error instanceof AppError && error.statusCode === 503) return { ...turn, status: 'FAILED' as const, message };
+      throw error;
+    }
   },
 
   async markNotificationRead(studentId: string, notificationId: string, read: boolean) {

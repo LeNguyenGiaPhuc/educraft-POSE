@@ -1,0 +1,84 @@
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview){
+  --ec-weight-display:800;--ec-weight-page:700;--ec-weight-section:650;--ec-weight-card:600;--ec-weight-button:600;
+  --ec-leading-display:1.2;--ec-leading-page:1.25;--ec-leading-section:1.35;--ec-leading-body:1.6;--ec-leading-button:1.4;
+}
+:where(.login-layout,.role-admin,.role-teacher) :is(.story-brand small,.brand small){font-family:var(--ec-font)}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-action{display:inline-flex;min-height:44px;align-items:center;justify-content:center;gap:10px;padding:8px 18px;border:1px solid transparent;border-radius:var(--ec-radius-pill);font-size:14px;font-weight:var(--ec-weight-button);line-height:var(--ec-leading-button);text-align:center;transition:background var(--ec-motion-fast) var(--ec-motion-ease),transform var(--ec-motion-fast) var(--ec-motion-ease)}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-action-primary{padding-left:8px;background:var(--ec-iris);color:white}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-action-primary:hover{background:var(--ec-primary-hover)}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-action-primary:active{background:var(--ec-primary-pressed)}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-action-mark{position:relative;display:block;width:30px;height:30px;flex:none;border-radius:50%;background:var(--ec-butter)}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-action-primary .ec-action-mark::before,
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-action-primary .ec-action-mark::after{position:absolute;top:50%;left:50%;width:12px;height:2px;border-radius:2px;background:var(--ec-ink);content:"";transform:translate(-50%,-50%)}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-action-primary .ec-action-mark::after{transform:translate(-50%,-50%) rotate(90deg)}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-action-primary .ec-action-mark-custom::before,
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-action-primary .ec-action-mark-custom::after{display:none}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-action-mark-custom svg{display:block;width:17px;height:17px;margin:6px;color:var(--ec-ink)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-action-secondary{background:var(--ec-lavender);color:var(--ec-ink)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-action-outline{border-color:var(--ec-iris);background:white;color:var(--ec-iris)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-action-text{background:transparent;color:var(--ec-iris)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-action-destructive{background:var(--ec-danger-bg);color:var(--ec-danger-text)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-action:is(.ec-action-secondary,.ec-action-outline,.ec-action-text,.ec-action-destructive):hover{filter:brightness(.96)}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-action:active{transform:translateY(1px)}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-action:disabled{opacity:.55;cursor:not-allowed;transform:none}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-field{display:grid;gap:8px;min-width:0;font-size:14px}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-field label{font-weight:600;color:var(--ec-ink)}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-field :is(input:not([type=checkbox]):not([type=radio]),select,textarea){width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--ec-input-border);border-radius:var(--ec-radius-input);background:white;color:var(--ec-ink);font:inherit}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-field textarea{min-height:110px;resize:vertical}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-field [aria-invalid=true]{border-color:var(--ec-danger-text)}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-field :is(input,select,textarea):disabled{background:var(--ec-neutral-bg);color:var(--ec-neutral-text);cursor:not-allowed}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-field :is(input,select,textarea):read-only{background:var(--ec-surface-muted)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-field-choice label{display:flex;align-items:center;gap:8px;min-height:44px}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-field-hint{color:var(--ec-text-secondary)}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-field-error{color:var(--ec-danger-text)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-notebook{position:relative;min-width:0;padding-left:10px}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-notebook::before{position:absolute;z-index:1;top:42px;bottom:8px;left:0;width:10px;border-radius:10px 0 0 10px;background:var(--ec-lavender);content:"";pointer-events:none}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-notebook-tabs{display:flex;gap:6px;overflow-x:auto;padding:4px 4px 0 8px;scrollbar-width:thin}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-notebook-tabs button{position:relative;z-index:0;flex:0 0 auto;min-height:44px;max-width:min(360px,75vw);padding:8px 18px;border:1px solid var(--ec-border);border-bottom:0;border-radius:14px 14px 4px 4px;background:var(--ec-lavender);color:var(--ec-ink);font-weight:600;text-align:left;white-space:normal}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-notebook-tabs button[aria-selected=true]{z-index:2;border-color:var(--ec-iris);background:var(--ec-iris);color:#fff;transform:translateY(1px)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-notebook-panel{position:relative;z-index:0;min-height:100px;padding:24px;border:1px solid var(--ec-border);border-radius:4px 16px 16px 12px;background:white}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-table-shell{border:1px solid var(--ec-border);border-radius:16px;background:white}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-table-scroll{max-width:100%;overflow-x:auto}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-table-shell table{width:100%;min-width:520px;border-collapse:collapse;text-align:left}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-table-shell th{padding:14px 16px;background:var(--ec-surface-muted);color:var(--ec-ink);font-size:13px;font-weight:600}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-table-shell td{padding:16px;border-top:1px solid var(--ec-border);font-size:14px}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-table-message,:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-table-pagination{margin:0;padding:20px 16px;border-top:1px solid var(--ec-border)}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-feedback{padding:14px 16px;border-radius:12px;font-size:14px;line-height:1.5}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-feedback-success{background:var(--ec-success-bg);color:var(--ec-success-text)}
+:where(.login-layout,.role-admin,.role-teacher,.ec-foundation-preview) .ec-feedback-error{background:var(--ec-danger-bg);color:var(--ec-danger-text)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-feedback-info{background:var(--ec-info-bg);color:var(--ec-info-text)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-feedback-warning{background:var(--ec-warning-bg);color:var(--ec-warning-text)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-feedback-empty{background:var(--ec-neutral-bg);color:var(--ec-neutral-text)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-feedback-loading{background:var(--ec-surface-muted);color:var(--ec-ink)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-feedback-loading::after{display:block;width:55%;height:12px;margin-top:10px;border-radius:6px;background:var(--ec-lavender);content:""}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-modal{width:min(560px,calc(100vw - 32px));max-width:none;max-height:calc(100dvh - 32px);margin:auto;padding:0;border:0;border-radius:20px;background:white;color:var(--ec-ink);box-shadow:var(--ec-shadow-modal)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-modal::backdrop{background:rgba(24,21,52,.68)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-modal-window{display:flex;max-height:calc(100dvh - 32px);flex-direction:column}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-modal-head,:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-modal-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 24px;background:var(--ec-surface-muted)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-modal-head{border-bottom:1px solid var(--ec-border)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-modal-head h2{margin:0;font-size:22px;font-weight:var(--ec-weight-section)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-modal-close{display:grid;width:44px;height:44px;place-items:center;border:0;border-radius:10px;background:transparent;color:var(--ec-ink)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-modal-body{min-height:0;overflow-y:auto}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-modal-foot{border-top:1px solid var(--ec-border)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .change-password-body{padding:24px}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .change-password-foot{position:sticky;bottom:0;background:var(--ec-surface-muted)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .change-password-primary{background:var(--ec-iris);border-color:var(--ec-iris);color:#fff}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .change-password-secondary{border-color:var(--ec-iris);color:var(--ec-iris)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .change-password-body input{border-color:var(--ec-input-border);color:var(--ec-ink)}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .change-password-body label{color:var(--ec-ink)}
+/* Nested shapes are decoration; the text remains ordinary DOM. */
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-nest::before{border-radius:0;-webkit-mask:var(--ec-shape-nest-mask) center/100% 100% no-repeat;mask:var(--ec-shape-nest-mask) center/100% 100% no-repeat}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-nest::after{top:calc(16% - 23px);right:calc(14% - 23px);transform:none}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-nest-body{position:relative;z-index:1;min-width:0}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-match{gap:20px}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-match::before{left:calc(50% - 24px);width:48px}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-match-piece:first-child::after{right:-18px}
+:where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-match-piece:last-child::before{left:-18px}
+@media(max-width:767px){
+  :where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-nest{min-height:0;padding:24px;padding-inline-end:78px}
+  :where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-nest::after{top:16px;right:16px;bottom:auto}
+  :where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-match{gap:20px}
+  :where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-match::before{top:calc(50% - 24px);left:calc(50% - 4px);width:8px;height:48px}
+  :where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-match-piece:first-child::after{top:auto;right:auto;bottom:calc(var(--ec-match-connector-size) / -2);left:calc(50% - var(--ec-match-connector-size) / 2)}
+  :where(.role-admin,.role-teacher,.ec-foundation-preview) .ec-match-piece:last-child::before{top:calc(var(--ec-match-connector-size) / -2);left:calc(50% - var(--ec-match-connector-size) / 2)}
+}

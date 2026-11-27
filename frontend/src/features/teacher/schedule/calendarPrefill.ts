@@ -8,6 +8,16 @@ export type CalendarCreatePrefill = {
   eventType: string
 }
 
+const calendarCreatePrefillKeys = [
+  'create',
+  'lessonId',
+  'activityId',
+  'title',
+  'startsAt',
+  'details',
+  'eventType',
+] as const
+
 export function getCalendarCreatePrefill(params: URLSearchParams): CalendarCreatePrefill | null {
   if (params.get('create') !== '1') return null
 
@@ -20,4 +30,10 @@ export function getCalendarCreatePrefill(params: URLSearchParams): CalendarCreat
     details: params.get('details') ?? '',
     eventType: params.get('eventType') ?? '',
   }
+}
+
+export function clearCalendarCreatePrefill(params: URLSearchParams): URLSearchParams {
+  const next = new URLSearchParams(params)
+  calendarCreatePrefillKeys.forEach((key) => next.delete(key))
+  return next
 }

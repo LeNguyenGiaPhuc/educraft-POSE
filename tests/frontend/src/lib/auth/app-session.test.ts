@@ -52,12 +52,12 @@ describe('app session', () => {
     expect(mocks.readDemoSession).not.toHaveBeenCalled()
   })
 
-  it('falls back to the Student demo session when backend auth is unavailable', async () => {
+  it('clears the Student demo session when backend auth is unavailable', async () => {
     mocks.readDemoSession.mockReturnValue(demoStudent)
     mocks.me.mockRejectedValue(new Error('backend unavailable'))
 
-    await expect(resolveInitialSession()).resolves.toEqual(demoStudent)
-    expect(mocks.readDemoSession).toHaveBeenCalledTimes(1)
+    await expect(resolveInitialSession()).resolves.toBeNull()
+    expect(mocks.saveDemoSession).toHaveBeenCalledWith(null)
   })
 
   it('returns no session when neither backend nor demo auth is available', async () => {

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
-import { AlertCircle, Archive, ArrowLeft, BookOpen, RotateCcw, School, Users } from 'lucide-react'
+import { AlertCircle, Archive, ArrowLeft, ArrowRight, BookOpen, RotateCcw, School, Users } from 'lucide-react'
 import { ApiError } from '../../../lib/api/client'
 import { teacherWorkspaceApi, teacherWorkspacePath } from '../../../lib/api/teacher/workspace'
 import type { TeacherClassroomStudent, TeacherClassroomSubjectContext } from '../../../lib/api/teacher/types'
@@ -48,6 +48,7 @@ export function TeacherSubjectWorkspace() {
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
+  const activeTabRef = useRef<HTMLAnchorElement>(null)
 
   useEffect(() => {
     if (!classroomSubjectId) return
@@ -87,6 +88,10 @@ export function TeacherSubjectWorkspace() {
   const requestedTab = params.get('tab')
   const tab: WorkspaceTab = isWorkspaceTab(requestedTab) ? requestedTab : 'lessons'
   const search = params.get('studentSearch') ?? ''
+
+  useEffect(() => {
+    activeTabRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [tab])
   const visibleStudents = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase('vi')
     if (!normalizedSearch) return students
@@ -119,7 +124,7 @@ export function TeacherSubjectWorkspace() {
   if (loadError || !context) {
     return (
       <div className="page-content tw-page">
-        <Link className="tc-back-link" to={classroomId ? `/teacher/classes/${classroomId}` : '/teacher/classes'}><ArrowLeft size={15} /> Quay lại lớp</Link>
+        <Link className="tc-back-link" to="/teacher/classes"><ArrowLeft size={15} /> Quay lại lớp của tôi</Link>
         <div className="panel tc-empty" role="alert">
           <AlertCircle size={28} />
           <h2>Không thể tải workspace môn học</h2>
@@ -132,13 +137,14 @@ export function TeacherSubjectWorkspace() {
 
   return (
     <div className="page-content tw-page">
-      <header className="tw-class-header">
+      <header className="tw-class-header tw-notebook-header">
         <div>
           <div className="tc-status-line">
             {context.readOnly ? <Archive size={14} /> : <School size={14} />}
             {context.readOnly ? 'LỊCH SỬ GIẢNG DẠY' : 'LỚP HIỆN TẠI'}
           </div>
-          <h1>{context.classroomName} · {context.subjectName}</h1>
+          <span className="tw-classroom-plaque">{context.classroomName}</span>
+          <h1>{context.subjectName}</h1>
           <p>Khối {context.gradeLevel} · Năm học {context.academicYear} · {context.studentCount} học sinh</p>
         </div>
         <span className={`tc-status-pill ${context.readOnly ? 'is-archived' : 'is-active'}`}>
@@ -153,24 +159,16 @@ export function TeacherSubjectWorkspace() {
         </div>
       )}
 
-      <section className="tw-subject-summary" aria-label="Thông tin môn học">
-        <BookOpen size={19} />
-        <div>
-          <strong>{context.subjectName}</strong>
-          <span>{context.lessonCount} bài học · {context.activityCount} hoạt động · {context.studentCount} học sinh</span>
-        </div>
-      </section>
-
       <nav className="tw-tabs" aria-label="Không gian môn học">
         {tabs.map((item) => (
-          <Link key={item.id} aria-current={tab === item.id ? 'page' : undefined} to={getTabPath(item.id)}>{item.label}</Link>
+          <Link ref={tab === item.id ? activeTabRef : undefined} key={item.id} aria-current={tab === item.id ? 'page' : undefined} to={getTabPath(item.id)}>{item.label}</Link>
         ))}
       </nav>
 
       {tab === 'lessons' ? (
         <TeacherLessonsPanel context={context} />
       ) : tab === 'activities' ? (
-        <ActivitiesPage classroomSubjectId={context.classroomSubjectId} />
+        <ActivitiesPage classroomSubjectId={context.classroomSubjectId} embedded />
       ) : tab === 'statistics' ? (
         <ClassStatisticsPage classroomSubjectId={context.classroomSubjectId} embedded />
       ) : tab === 'submissions' ? (
@@ -203,7 +201,7 @@ export function TeacherSubjectWorkspace() {
           <BookOpen size={25} />
           <h2>{tabs.find((item) => item.id === tab)?.label}</h2>
           <p>{context.readOnly ? 'Dữ liệu lịch sử được giữ ở chế độ chỉ xem.' : 'Chức năng này sẽ được nối API trong đợt Activities/Statistics tiếp theo.'}</p>
-          <span className="tc-muted">Chưa dùng dữ liệu fixture để tránh hiển thị hoặc ghi nhầm dữ liệu mẫu.</span>
+          <span className="tc-muted">Không thể tải dữ liệu môn học lúc này.</span>
         </section>
       )}
     </div>
@@ -213,10 +211,16 @@ export function TeacherSubjectWorkspace() {
 function StudentRow({ student, archived, studentPath }: { student: TeacherClassroomStudent; archived: boolean; studentPath: string }) {
   return (
     <li>
-      <strong><Link to={studentPath}>{student.name}</Link></strong>
-      <span>@{student.username}</span>
-      {archived && student.joinedAt && <span>Vào lớp: {formatDate(student.joinedAt)}</span>}
-      {archived && student.leftAt && <span>Rời lớp: {formatDate(student.leftAt)}</span>}
+      <Link to={studentPath}>
+        <span className="tw-student-avatar" aria-hidden="true">{student.name.trim().slice(0, 1).toLocaleUpperCase('vi-VN')}</span>
+        <span className="tw-student-copy">
+          <strong>{student.name}</strong>
+          <small>@{student.username}</small>
+          {archived && student.joinedAt && <small>Vào lớp: {formatDate(student.joinedAt)}</small>}
+          {archived && student.leftAt && <small>Rời lớp: {formatDate(student.leftAt)}</small>}
+        </span>
+        <ArrowRight size={16} aria-hidden="true" />
+      </Link>
     </li>
   )
 }

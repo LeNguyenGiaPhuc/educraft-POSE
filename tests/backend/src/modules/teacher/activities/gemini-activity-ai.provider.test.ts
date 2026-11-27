@@ -98,6 +98,7 @@ describe('Gemini activity AI provider', () => {
     expect(body.generationConfig.responseSchema.type).toBe('OBJECT');
     expect(body.generationConfig.responseSchema.properties.questions.type).toBe('ARRAY');
     expect(body.generationConfig.responseSchema.properties.questions.items.properties.options.type).toBe('ARRAY');
+    expect(JSON.stringify(body.generationConfig.responseSchema)).not.toContain('additionalProperties');
 
     const writtenFetch = vi.fn().mockResolvedValue(response({ questions: [{
       prompt: 'Nêu ý chính.', explanation: 'Giải thích.', lesson_id: 'lesson-1',

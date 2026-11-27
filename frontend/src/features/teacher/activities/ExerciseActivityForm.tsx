@@ -12,6 +12,12 @@ import type {
 import { teacherActivitiesApi } from '../../../lib/api/teacher/activities'
 import { difficultyLabels } from './activityRules'
 import { AiDraftPanel } from './AiDraftPanel'
+import {
+  activityBuilderSteps,
+  getQuestionStepError,
+  getSetupStepError,
+  type ActivityBuilderStep,
+} from './activityBuilderState'
 
 type DraftQuestion = TeacherQuestionInput & { id: string }
 
@@ -77,6 +83,7 @@ export function ExerciseActivityForm({ activity, exerciseType = activity?.exerci
   const [aiDraft, setAiDraft] = useState<TeacherAiDraftResult | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState('')
+  const [step, setStep] = useState<ActivityBuilderStep>(1)
 
   function updateQuestion(id: string, patch: Partial<DraftQuestion>) {
     setQuestions((current) => current.map((question) => question.id === id ? { ...question, ...patch } : question))
@@ -179,8 +186,33 @@ export function ExerciseActivityForm({ activity, exerciseType = activity?.exerci
     }
   }
 
+  function goToNextStep() {
+    const stepError = step === 1
+      ? getSetupStepError(title, lessonIds)
+      : getQuestionStepError(questions.length)
+
+    if (stepError) {
+      setError(stepError)
+      return
+    }
+
+    setError('')
+    setStep((step + 1) as ActivityBuilderStep)
+  }
+
   return (
     <form className="ta-api-form" onSubmit={submit} noValidate>
+      <ol className="ta-connected-stepper" aria-label="Các bước tạo hoạt động">
+        {activityBuilderSteps.map((item) => (
+          <li key={item.id} className={item.id === step ? 'is-current' : item.id < step ? 'is-complete' : ''} aria-current={item.id === step ? 'step' : undefined}>
+            <span>{item.id}</span>
+            <strong>{item.label}</strong>
+          </li>
+        ))}
+      </ol>
+
+      {step === 1 && <section className="ta-builder-panel" aria-labelledby="ta-setup-title">
+      <div className="ta-builder-panel-heading"><h3 id="ta-setup-title">Thiết lập hoạt động</h3></div>
       <div className="ta-form-grid">
         <label>Tên hoạt động *<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={250} /></label>
         {!activity && <label>Loại hoạt động
@@ -204,7 +236,10 @@ export function ExerciseActivityForm({ activity, exerciseType = activity?.exerci
         {publishedLessons.length === 0 && <p>Chưa có bài học đã công bố. Hãy công bố bài học trước khi tạo hoạt động.</p>}
         {publishedLessons.map((lesson) => <label key={lesson.id}><input type="checkbox" checked={lessonIds.includes(lesson.id)} onChange={() => toggleLesson(lesson.id)} /> {lesson.title}</label>)}
       </fieldset>
+      </section>}
 
+      {step === 2 && <section className="ta-builder-panel" aria-labelledby="ta-questions-title">
+      <div className="ta-builder-panel-heading"><h3 id="ta-questions-title">Xây dựng câu hỏi</h3></div>
       {!activity && <AiDraftPanel instructions={instructions} questionCount={questionCount} isGenerating={isGenerating} result={aiDraft} onInstructionsChange={setInstructions} onQuestionCountChange={setQuestionCount} onGenerate={() => void generateDraft()} />}
 
       <div className="ta-api-question-heading"><div><h3>Câu hỏi</h3><p>Giáo viên kiểm tra và chỉnh sửa trước khi công bố.</p></div><button type="button" className="ta-secondary" onClick={addQuestion}>Thêm câu hỏi</button></div>
@@ -225,9 +260,30 @@ export function ExerciseActivityForm({ activity, exerciseType = activity?.exerci
           </fieldset>
         ))}
       </div>
+      </section>}
+
+      {step === 3 && <section className="ta-builder-panel ta-builder-review" aria-labelledby="ta-review-title">
+        <div className="ta-builder-panel-heading"><h3 id="ta-review-title">Kiểm tra và công bố</h3></div>
+        <dl>
+          <div><dt>Tên hoạt động</dt><dd>{title || 'Chưa nhập'}</dd></div>
+          <div><dt>Loại</dt><dd>{exerciseType === 'QUIZ' ? 'Quiz' : 'Tự luận'}</dd></div>
+          <div><dt>Bài học nguồn</dt><dd>{lessonIds.length} bài học</dd></div>
+          <div><dt>Câu hỏi</dt><dd>{questions.length} câu</dd></div>
+          <div><dt>Hạn nhận bài</dt><dd>{closesAt ? new Date(closesAt).toLocaleString('vi-VN') : 'Không đặt hạn'}</dd></div>
+        </dl>
+        <div className="ta-builder-question-summary">
+          {questions.map((question, index) => <article key={question.id}><span>Câu {index + 1}</span><strong>{question.prompt || 'Chưa nhập nội dung'}</strong><small>{question.maxPoints || 0} điểm</small></article>)}
+        </div>
+      </section>}
 
       {error && <p className="ta-error" role="alert">{error}</p>}
-      <div className="ta-confirm-actions"><button type="button" className="ta-secondary" onClick={onCancel} disabled={isSaving || isGenerating}>Hủy</button><button type="submit" className="ta-primary" disabled={isSaving || isGenerating || publishedLessons.length === 0}>{isSaving ? 'Đang lưu...' : activity ? 'Lưu thay đổi' : 'Công bố hoạt động'}</button></div>
+      <div className="ta-confirm-actions">
+        <button type="button" className="ta-secondary" onClick={onCancel} disabled={isSaving || isGenerating}>Hủy</button>
+        {step > 1 && <button type="button" className="ta-secondary" onClick={() => { setError(''); setStep((step - 1) as ActivityBuilderStep) }} disabled={isSaving || isGenerating}>Quay lại</button>}
+        {step < 3
+          ? <button type="button" className="ta-primary" onClick={goToNextStep} disabled={isSaving || isGenerating || publishedLessons.length === 0}>Tiếp tục</button>
+          : <button type="submit" className="ta-primary" disabled={isSaving || isGenerating || publishedLessons.length === 0}>{isSaving ? 'Đang lưu...' : activity ? 'Lưu thay đổi' : 'Công bố hoạt động'}</button>}
+      </div>
     </form>
   )
 }

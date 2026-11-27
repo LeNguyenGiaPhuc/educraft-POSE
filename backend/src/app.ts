@@ -37,6 +37,7 @@ import { createGeminiAiProcessingProvider } from './modules/teacher/materials/ge
 import { DefaultActivityAiDraftProvider, setAiDraftProvider } from './modules/teacher/activities/activity-ai-draft.provider.js';
 import { createGeminiActivityAiProvider } from './modules/teacher/activities/gemini-activity-ai.provider.js';
 import { studentRouter } from './modules/student/student.routes.js';
+import { configureStudentTutorAiProvider } from './modules/student/student-tutor-ai.provider.js';
 
 function configureNotebookAiProvider(): void {
   if (env.AI_PROVIDER !== 'gemini') {
@@ -104,6 +105,7 @@ export function createApp(): Express {
   configureNotebookCriteriaProvider();
   configureMaterialAiProvider();
   configureActivityAiProvider();
+  configureStudentTutorAiProvider();
   const app = express();
 
   // 1. Security & request identification

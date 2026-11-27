@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router'
 import { ApiError } from '../../../lib/api/client'
 import { teacherLessonsApi, type TeacherLessonDetail, type TeacherLessonMaterial } from '../../../lib/api/teacher/lessons'
 import { teacherWorkspacePath } from '../../../lib/api/teacher/workspace'
-import { acceptedMaterialTypes, getMaterialProcessingClass, isSupportedMaterial, maxMaterialBytes, processingLabels, publicationLabels } from './lessonRules'
+import { acceptedMaterialTypes, getLessonPublishAction, getMaterialProcessingClass, isSupportedMaterial, maxMaterialBytes, processingLabels, publicationLabels } from './lessonRules'
 import './lessons.css'
 
 function errorMessage(error: unknown): string {
@@ -31,6 +31,18 @@ function publishBlockReason(lesson: TeacherLessonDetail): string {
   return ''
 }
 
+export function PendingMaterialUploadRow({ fileName }: { fileName: string }) {
+  return (
+    <li className="tl-material-uploading" aria-live="polite">
+      <div className="tl-material-main">
+        <span className="tl-material-icon"><Upload size={16} /></span>
+        <span className="tl-material-copy"><strong>{fileName}</strong><small>Đang gửi tệp lên hệ thống</small></span>
+        <strong className="tl-material-status processing">Đang tải lên</strong>
+      </div>
+    </li>
+  )
+}
+
 export function TeacherLessonPage() {
   const { lessonId, classroomId, classroomSubjectId } = useParams()
   const [lesson, setLesson] = useState<TeacherLessonDetail | null>(null)
@@ -41,6 +53,7 @@ export function TeacherLessonPage() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [isMutating, setIsMutating] = useState(false)
+  const [pendingUpload, setPendingUpload] = useState<{ fileName: string; materialId?: string } | null>(null)
 
   useEffect(() => {
     if (!lessonId) return
@@ -70,10 +83,14 @@ export function TeacherLessonPage() {
 
   const readOnly = lesson?.classroom.status === 'ARCHIVED'
   const publishReason = useMemo(() => lesson ? publishBlockReason(lesson) : '', [lesson])
+  const publishAction = useMemo(() => lesson ? getLessonPublishAction(lesson.status, lesson.materials) : null, [lesson])
   const backPath = classroomId && classroomSubjectId ? `${teacherWorkspacePath(classroomId, classroomSubjectId)}?tab=lessons` : '/teacher/classes'
 
   async function refreshLesson() {
-    setReloadKey((value) => value + 1)
+    if (!lessonId) return
+    const data = await teacherLessonsApi.getDetail(lessonId)
+    setLesson(data)
+    setTitle(data.title)
   }
 
   async function saveTitle(event: FormEvent<HTMLFormElement>) {
@@ -105,16 +122,19 @@ export function TeacherLessonPage() {
       return
     }
 
+    setPendingUpload({ fileName: file.name, materialId })
     setIsMutating(true)
     setError('')
+    setMessage('')
     try {
       if (materialId) await teacherLessonsApi.uploadMaterialVersion(materialId, file)
       else await teacherLessonsApi.uploadMaterial(lesson.id, file)
-      setMessage('Đã tải học liệu. Trạng thái xử lý được lấy lại từ backend.')
+      setMessage('Đã tải học liệu. Hệ thống đang kiểm tra và xử lý tệp.')
       await refreshLesson()
     } catch (requestError) {
       setError(errorMessage(requestError))
     } finally {
+      setPendingUpload(null)
       setIsMutating(false)
     }
   }
@@ -135,12 +155,12 @@ export function TeacherLessonPage() {
   }
 
   async function publishLesson() {
-    if (!lesson || readOnly || publishReason) return
+    if (!lesson || readOnly || publishReason || !publishAction) return
     setIsMutating(true)
     setError('')
     try {
       await teacherLessonsApi.publish(lesson.id)
-      setMessage('Đã công bố bài học.')
+      setMessage(publishAction.label === 'Cập nhật nội dung công bố' ? 'Đã cập nhật nội dung công bố.' : 'Đã công bố bài học.')
       await refreshLesson()
     } catch (requestError) {
       setError(errorMessage(requestError))
@@ -192,13 +212,13 @@ export function TeacherLessonPage() {
   return (
     <div className="page-content tl-page">
       <Link className="tl-back" to={backPath}><ArrowLeft size={16} /> Quay lại workspace</Link>
-      <div className="page-heading"><span className="section-kicker">{lesson.subject.name} · {lesson.classroom.name}</span><h1>{lesson.title}</h1><p>{lesson.classroom.status === 'ARCHIVED' ? 'Lớp đã lưu trữ · chỉ xem dữ liệu lịch sử.' : 'Quản lý nội dung bài học và học liệu.'}</p></div>
+      <div className="page-heading"><span className="section-kicker">{lesson.subject.name} · {lesson.classroom.name}</span><h1>{lesson.title}</h1>{lesson.classroom.status === 'ARCHIVED' && <p>Lớp đã lưu trữ · chỉ xem dữ liệu lịch sử.</p>}</div>
       {readOnly && <div className="sample-strip"><Archive size={16} /> Lớp đã lưu trữ. Bạn có thể xem phiên bản và tải học liệu, nhưng không thể thay đổi dữ liệu.</div>}
       {message && <div className="tl-success-banner" role="status"><Check size={17} /> {message}<button type="button" className="tl-text-button" aria-label="Đóng thông báo" onClick={() => setMessage('')}><X size={14} /></button></div>}
       {error && <div className="tl-range-error" role="alert"><AlertCircle size={15} /> {error}</div>}
 
       <section className="panel tl-editor">
-        <div className="tl-card-head"><div className="tl-file-icon"><FileText size={20} /></div><div><h2>{lesson.title}</h2><p>Trạng thái: {publicationLabels[lesson.status]}</p></div><span className={`tl-tag ${lesson.status.toLowerCase()}`}>{publicationLabels[lesson.status]}</span></div>
+        <div className="tl-card-head"><div className="tl-file-icon"><FileText size={20} /></div><div><h2>{lesson.title}</h2></div><span className={`tl-tag ${lesson.status.toLowerCase()}`}>{publicationLabels[lesson.status]}</span></div>
         {!readOnly && (
           <form onSubmit={saveTitle} className="tl-inline-form">
             <label htmlFor="teacher-lesson-edit-title">Tên bài học</label>
@@ -208,12 +228,12 @@ export function TeacherLessonPage() {
         )}
 
         <h3>Học liệu</h3>
-        {lesson.materials.length === 0 ? <p className="tl-help">Chưa có học liệu. Bài học chỉ được công bố sau khi có học liệu đã xử lý.</p> : (
-          <ul className="tl-material-list">{lesson.materials.map((material) => { const latest = latestVersion(material); const canRetry = latest && (latest.processingStatus === 'FAILED' || latest.processingStatus === 'PENDING'); return <li key={material.id}><FileText size={16} /><span><strong>{material.fileName}</strong><small>{material.versions.length} phiên bản · mới nhất v{latest?.versionNo ?? 0}</small></span>{latest && <strong className={getMaterialProcessingClass(latest.processingStatus)}>{processingLabels[latest.processingStatus]}</strong>}<button type="button" className="tl-text-button" onClick={() => void downloadMaterial(material)}><Download size={14} /> Tải xuống</button>{!readOnly && <>{canRetry && <button type="button" className="tl-text-button" onClick={() => void retryMaterialProcessing(material)} disabled={isMutating}><RotateCcw size={14} /> Xử lý lại</button>}<label className="tl-secondary-button tl-file-button"><Upload size={14} /> Tải phiên bản<input aria-label="Tải phiên bản học liệu" type="file" accept={acceptedMaterialTypes} onChange={(event) => void uploadMaterial(event, material.id)} disabled={isMutating} /></label><button type="button" className="tl-text-button" onClick={() => void archiveMaterial(material.id)} disabled={isMutating}>Lưu trữ</button></>}</li> })}</ul>
+        {lesson.materials.length === 0 && !pendingUpload ? <p className="tl-help">Chưa có học liệu. Bài học chỉ được công bố sau khi có học liệu đã xử lý.</p> : (
+          <ul className="tl-material-list">{pendingUpload && !pendingUpload.materialId && <PendingMaterialUploadRow fileName={pendingUpload.fileName} />}{lesson.materials.map((material) => { const latest = latestVersion(material); const canRetry = latest && (latest.processingStatus === 'FAILED' || latest.processingStatus === 'PENDING'); const isUploadingVersion = pendingUpload?.materialId === material.id; return <li key={material.id}><div className="tl-material-main"><span className="tl-material-icon"><FileText size={16} /></span><span className="tl-material-copy"><strong>{material.fileName}</strong><small>{isUploadingVersion ? `Đang tải ${pendingUpload.fileName}` : `${material.versions.length} phiên bản · mới nhất v${latest?.versionNo ?? 0}`}</small></span>{isUploadingVersion ? <strong className="tl-material-status processing">Đang tải phiên bản</strong> : latest && <strong className={`tl-material-status ${getMaterialProcessingClass(latest.processingStatus)}`}>{processingLabels[latest.processingStatus]}</strong>}</div><div className="tl-material-actions"><button type="button" className="tl-material-action" onClick={() => void downloadMaterial(material)} disabled={isMutating}><Download size={14} /> Tải xuống</button>{!readOnly && <>{canRetry && !isUploadingVersion && <button type="button" className="tl-material-action" onClick={() => void retryMaterialProcessing(material)} disabled={isMutating}><RotateCcw size={14} /> Xử lý lại</button>}<label className="tl-material-action tl-file-button"><Upload size={14} /> Tải phiên bản mới<input aria-label="Tải phiên bản học liệu" type="file" accept={acceptedMaterialTypes} onChange={(event) => void uploadMaterial(event, material.id)} disabled={isMutating} /></label><button type="button" className="tl-material-action tl-material-archive" onClick={() => void archiveMaterial(material.id)} disabled={isMutating}><Archive size={14} /> Lưu trữ</button></>}</div></li> })}</ul>
         )}
         {!readOnly && <label className="tl-secondary-button tl-file-button"><Upload size={14} /> Thêm học liệu<input aria-label="Thêm học liệu" type="file" accept={acceptedMaterialTypes} onChange={(event) => void uploadMaterial(event)} disabled={isMutating} /></label>}
 
-        <div className="tl-publish-box"><strong>Điều kiện công bố</strong><p>{publishReason || 'Bài học đủ điều kiện công bố.'}</p>{!readOnly && lesson.status === 'DRAFT' && <button type="button" className="tl-main-button" onClick={() => void publishLesson()} disabled={Boolean(publishReason) || isMutating}>Công bố bài học</button>}{lesson.status === 'PUBLISHED' && <Link className="tl-secondary-button" to={`/teacher/calendar?create=1&classroomSubjectId=${encodeURIComponent(lesson.classroomSubjectId)}&lessonId=${encodeURIComponent(lesson.id)}&title=${encodeURIComponent(lesson.title)}`}><Calendar size={14} /> Thêm vào lịch</Link>}</div>
+        <div className="tl-publish-box"><strong>Điều kiện công bố</strong><p>{publishReason || (publishAction ? 'Nội dung đã sẵn sàng để công bố.' : 'Nội dung hiện tại đã được công bố.')}</p>{!readOnly && publishAction && <button type="button" className="tl-main-button" onClick={() => void publishLesson()} disabled={Boolean(publishReason) || isMutating}>{publishAction.label}</button>}{lesson.status === 'PUBLISHED' && <Link className="tl-secondary-button" to={`/teacher/calendar?create=1&classroomSubjectId=${encodeURIComponent(lesson.classroomSubjectId)}&lessonId=${encodeURIComponent(lesson.id)}&title=${encodeURIComponent(lesson.title)}`}><Calendar size={14} /> Thêm vào lịch</Link>}</div>
       </section>
     </div>
   )

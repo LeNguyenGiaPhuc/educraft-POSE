@@ -6,6 +6,7 @@ import { teacherLessonsApi, type TeacherLessonSummary } from '../../../lib/api/t
 import { teacherWorkspacePath } from '../../../lib/api/teacher/workspace'
 import type { TeacherClassroomSubjectContext } from '../../../lib/api/teacher/types'
 import { processingLabels, publicationLabels, getMaterialProcessingClass } from './lessonRules'
+import { TeacherEmptyState } from '../components/TeacherEmptyState'
 import './lessons.css'
 
 type Props = { context: TeacherClassroomSubjectContext }
@@ -88,8 +89,7 @@ export function TeacherLessonsPanel({ context }: Props) {
     <section className="panel tw-api-panel tl-api-panel" aria-live="polite">
       <div className="tl-api-heading">
         <div>
-          <span className="section-kicker">BÀI HỌC & HỌC LIỆU</span>
-          <h2>{context.subjectName}</h2>
+          <h2>Bài học & học liệu</h2>
           <p>{context.readOnly ? 'Dữ liệu lớp đã lưu trữ ở chế độ chỉ xem.' : 'Tạo bài học, quản lý học liệu và công bố khi đủ điều kiện.'}</p>
         </div>
         {!context.readOnly && (
@@ -106,13 +106,10 @@ export function TeacherLessonsPanel({ context }: Props) {
 
       {isLoading && <div className="tc-empty"><BookOpen size={25} /><p>Đang tải bài học...</p></div>}
       {!isLoading && loadError && (
-        <div className="tc-empty" role="alert">
-          <AlertCircle size={25} /><h2>Không thể tải bài học</h2><p>{loadError}</p>
-          <button type="button" onClick={() => setReloadKey((value) => value + 1)}><RotateCcw size={14} /> Thử lại</button>
-        </div>
+        <TeacherEmptyState tone="error" icon={<AlertCircle size={25} />} title="Không thể tải bài học" description={loadError} action={<button type="button" onClick={() => setReloadKey((value) => value + 1)}><RotateCcw size={14} /> Thử lại</button>} />
       )}
       {!isLoading && !loadError && visibleLessons.length === 0 && (
-        <div className="tc-empty"><FileText size={30} /><h2>Chưa có bài học phù hợp</h2><p>Điều chỉnh bộ lọc hoặc tạo bài học mới.</p></div>
+        <TeacherEmptyState tone={lessons.length === 0 ? 'empty' : 'filtered'} icon={<FileText size={24} />} title={lessons.length === 0 ? 'Chưa có bài học' : 'Không tìm thấy bài học'} description={lessons.length === 0 ? (context.readOnly ? 'Lớp lưu trữ chưa có bài học để xem.' : 'Tạo bài học đầu tiên, sau đó thêm học liệu và công bố.') : 'Thử đổi từ khóa hoặc bộ lọc trạng thái.'} />
       )}
       {!isLoading && !loadError && visibleLessons.length > 0 && (
         <div className="tl-list">
@@ -142,7 +139,7 @@ export function TeacherLessonsPanel({ context }: Props) {
 function LessonRow({ lesson, context }: { lesson: TeacherLessonSummary; context: TeacherClassroomSubjectContext }) {
   const path = `${teacherWorkspacePath(context.classroomId, context.classroomSubjectId)}/lessons/${encodeURIComponent(lesson.id)}`
   return (
-    <article className="panel tl-card">
+    <article className="panel tl-card ec-folder tl-folder-card">
       <div className="tl-card-head">
         <div className="tl-file-icon"><FileText size={20} /></div>
         <div>
@@ -152,8 +149,21 @@ function LessonRow({ lesson, context }: { lesson: TeacherLessonSummary; context:
         <span className={`tl-tag ${lesson.status.toLowerCase()}`}>{publicationLabels[lesson.status]}</span>
       </div>
       <ul className="tl-material-list">
-        {lesson.materials.length === 0 && <li><span>Chưa có học liệu</span></li>}
-        {lesson.materials.map((material) => <li key={material.id}><FileText size={15} /><span>{material.name}<small>Phiên bản {material.version}{material.sourcePosition ? ` · ${material.sourcePosition}` : ''}</small></span><strong className={getMaterialProcessingClass(material.processing)}>{processingLabels[material.processing]}</strong></li>)}
+        {lesson.materials.length === 0 && <li className="tl-material-empty-row"><span>Chưa có học liệu</span></li>}
+        {lesson.materials.map((material) => (
+          <li key={material.id}>
+            <div className="tl-material-main">
+              <span className="tl-material-icon"><FileText size={16} /></span>
+              <span className="tl-material-copy">
+                <strong>{material.name}</strong>
+                <small>Phiên bản {material.version}{material.sourcePosition ? ` · ${material.sourcePosition}` : ''}</small>
+              </span>
+              <strong className={`tl-material-status ${getMaterialProcessingClass(material.processing)}`}>
+                {processingLabels[material.processing]}
+              </strong>
+            </div>
+          </li>
+        ))}
       </ul>
       <Link className="tl-text-button" to={path}>Mở chi tiết bài học</Link>
     </article>

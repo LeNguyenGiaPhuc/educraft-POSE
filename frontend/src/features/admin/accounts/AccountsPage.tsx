@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { CheckCircle2, CircleHelp, Plus, ShieldCheck, Users } from 'lucide-react'
+import { CircleHelp, Plus } from 'lucide-react'
 import { accountDraftFrom, emptyAccountDraft, normalizeAccountDraft, validateAccountDraft, type AccountDraft } from './accountForm'
 import { validatePassword } from '../../../lib/accountIdentity'
 import { PasswordResetDialog } from './PasswordResetDialog'
@@ -212,33 +212,19 @@ export function AccountsPage() {
   return (
     <div className="page-content adm-page">
       <div className="page-heading">
-        <span className="eyebrow"><span className="eyebrow-line" /> QUẢN TRỊ HỆ THỐNG</span>
         <h1>Tài khoản</h1>
-        <p>Quản lý tài khoản giáo viên và học sinh. Tài khoản học sinh có thể được tạo trước khi phân lớp.</p>
-      </div>
-
-      <div className="adm-notice">
-        <ShieldCheck size={17} />
-        <span>Dữ liệu được tải từ backend. Các thao tác tạo và cập nhật sẽ kiểm tra quyền Admin trước khi lưu.</span>
+        <p>Quản lý giáo viên, học sinh và trạng thái truy cập.</p>
       </div>
 
       {isLoading && <div className="adm-notice" role="status">Đang tải danh sách tài khoản...</div>}
       {loadError && <div className="adm-errors" role="alert"><strong>Không thể tải tài khoản:</strong> {loadError}</div>}
 
       {message && (
-        <div className="adm-notice" style={{ background: '#eef8ef', borderColor: '#c4e3c5', color: '#276239', marginBottom: 16 }} role="status">
-          <CheckCircle2 size={17} style={{ color: '#2b7843' }} />
-          <span>{message}</span>
-        </div>
+        <div className="adm-feedback is-success" role="status"><span>{message}</span></div>
       )}
 
       <div className="adm-toolbar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <strong style={{ fontSize: 13, color: '#33503f' }}>Danh sách tài khoản</strong>
-          <span style={{ fontSize: 12, background: '#eaf0e8', color: '#436952', padding: '3px 8px', borderRadius: 6, fontWeight: 700 }}>
-            {visible.length} tài khoản
-          </span>
-        </div>
+        <div className="adm-toolbar-title"><strong>Danh sách tài khoản</strong><span>{visible.length}</span></div>
         <button type="button" className="adm-primary" onClick={startCreate}>
           <Plus size={17} /> Tạo tài khoản
         </button>
@@ -247,11 +233,7 @@ export function AccountsPage() {
       <div className="adm-layout">
         <section className="adm-card">
           <div className="adm-card-head">
-            <div>
-              <span className="section-kicker">DANH SÁCH</span>
-              <h2>Giáo viên & học sinh <small>{visible.length}</small></h2>
-            </div>
-            <Users size={19} />
+            <h2>Giáo viên & học sinh</h2>
           </div>
 
           <AccountFilters
@@ -275,10 +257,7 @@ export function AccountsPage() {
           {selected ? (
             <>
               <div className="adm-card-head">
-                <div>
-                  <span className="section-kicker">CHI TIẾT TÀI KHOẢN</span>
-                  <h2>{selected.fullName}</h2>
-                </div>
+                <h2>{selected.fullName}</h2>
                 <span className={`adm-avatar ${selected.role === 'TEACHER' ? 'is-teacher' : ''}`}>
                   {selected.fullName.split(' ').slice(-2).map((part) => part[0]).join('')}
                 </span>

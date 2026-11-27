@@ -5,6 +5,7 @@ import type {
   ProcessedSegment,
 } from './ai-processing.provider.js';
 import { MATERIAL_SYSTEM_PROMPT } from './material-system-prompt.js';
+import { extractOoxmlText } from './ooxml-text.js';
 
 type GeminiMaterialProviderOptions = {
   apiKey?: string;
@@ -34,12 +35,10 @@ const materialSchema: JsonSchema = {
           content: { type: 'STRING' },
         },
         required: ['position_type', 'position_index', 'position_label', 'ordinal', 'content'],
-        additionalProperties: false,
       },
     },
   },
   required: ['segments'],
-  additionalProperties: false,
 };
 
 function textFromResponse(value: unknown): string {
@@ -150,6 +149,16 @@ function materialPart(mimeType: string, buffer: Buffer) {
   };
 }
 
+function materialContentPart(mimeType: string, buffer: Buffer) {
+  const extractedText = extractOoxmlText(buffer, mimeType);
+  if (extractedText !== null) {
+    return {
+      text: `Text extracted locally from the Office document:\n\n${extractedText}`,
+    };
+  }
+  return materialPart(mimeType, buffer);
+}
+
 function buildMaterialTaskPrompt(fileName: string, mimeType: string): string {
   return [
     `Extract the readable teaching content from the file "${fileName}" (${mimeType}).`,
@@ -195,7 +204,7 @@ export function createGeminiAiProcessingProvider(
                 role: 'user',
                 parts: [
                   { text: buildMaterialTaskPrompt(fileName, mimeType) },
-                  materialPart(mimeType, buffer),
+                  materialContentPart(mimeType, buffer),
                 ],
               }],
               generationConfig: {

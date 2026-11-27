@@ -1,6 +1,5 @@
 import { apiRequest } from '../client'
 import type {
-  TeacherClassroomDetail,
   TeacherClassroomSubjectContext,
   TeacherClassroomSummary,
   TeacherSubjectStudent,
@@ -13,11 +12,6 @@ export function teacherWorkspacePath(classroomId: string, classroomSubjectId: st
 export const teacherWorkspaceApi = {
   async listClassrooms(): Promise<TeacherClassroomSummary[]> {
     const response = await apiRequest<TeacherClassroomSummary[]>('/teacher/classrooms')
-    return response.data
-  },
-
-  async getClassroom(classroomId: string): Promise<TeacherClassroomDetail> {
-    const response = await apiRequest<TeacherClassroomDetail>(`/teacher/classrooms/${classroomId}`)
     return response.data
   },
 

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Pencil, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import type { AdminSubject } from '../../../lib/api/admin'
 import { ApiError } from '../../../lib/api/client'
 import { validateSubjectName } from './subjectRules'
@@ -52,7 +52,7 @@ export function SubjectEditDialog({ subject, subjects, onClose, onSave }: Props)
       <div className="sbj-modal">
         <div className="sbj-modal-head">
           <h2 id="modal-edit-subject-title" className="sbj-modal-title">
-            <Pencil size={19} color="#286449" /> Sửa môn học
+            Sửa môn học
           </h2>
           <button type="button" className="sbj-modal-close-btn" onClick={onClose} aria-label="Đóng cửa sổ">
             <X size={18} />
@@ -61,15 +61,6 @@ export function SubjectEditDialog({ subject, subjects, onClose, onSave }: Props)
 
         <form onSubmit={handleSubmit}>
           <div className="sbj-modal-body">
-            <p className="sbj-modal-intro">
-              Chỉ đổi tên hiển thị của môn học. ID, giáo viên, lớp học và dữ liệu học tập liên quan sẽ được giữ nguyên.
-            </p>
-
-            <div className="sbj-form-field">
-              <label htmlFor="edit-subject-id" className="sbj-form-label">Mã môn (ID)</label>
-              <input id="edit-subject-id" className="sbj-form-input sbj-readonly-input" value={subject.id} readOnly />
-            </div>
-
             <div className="sbj-form-field">
               <label htmlFor="edit-subject-name" className="sbj-form-label">
                 Tên môn học <span style={{ color: '#dc2626' }}>*</span>

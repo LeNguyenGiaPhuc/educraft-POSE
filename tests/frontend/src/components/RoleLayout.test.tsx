@@ -1,42 +1,41 @@
+import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { MemoryRouter } from 'react-router'
-import { describe, expect, it, vi } from 'vitest'
+import { MemoryRouter, Route, Routes } from 'react-router'
 import { RoleLayout } from '../../../../frontend/src/components/RoleLayout'
+import { demoUsers } from '../../../../frontend/src/data/demo'
 
-const adminUser = {
-  role: 'admin' as const,
-  email: 'admin@example.com',
-  name: 'Admin Example',
-  initials: 'AE',
-  context: 'Quản lý hệ thống',
+function renderRole(role: 'admin' | 'teacher' | 'student') {
+  const user = demoUsers.find((entry) => entry.role === role)!
+  return renderToStaticMarkup(
+    <MemoryRouter initialEntries={[`/${role}`]}>
+      <Routes>
+        <Route path={`/${role}`} element={<RoleLayout user={user} onSignOut={() => {}} />} />
+      </Routes>
+    </MemoryRouter>,
+  )
 }
 
-const studentUser = {
-  role: 'student' as const,
-  email: 'student@example.com',
-  name: 'Student Example',
-  initials: 'SE',
-  context: 'Học sinh',
-}
-
-describe('RoleLayout account actions', () => {
-  it('shows the password action for an Admin', () => {
-    const html = renderToStaticMarkup(
-      <MemoryRouter initialEntries={['/admin']}>
-        <RoleLayout user={adminUser} onSignOut={vi.fn()} />
-      </MemoryRouter>
-    )
-
-    expect(html).toContain('Đổi mật khẩu')
+describe('managed workspace shell', () => {
+  it('provides a labelled collapse control and current navigation for Admin', () => {
+    const html = renderRole('admin')
+    expect(html).toContain('aria-label="Thu gọn thanh điều hướng"')
+    expect(html).toContain('aria-current="page"')
+    expect(html).toContain('class="app-shell role-admin managed-shell')
   })
 
-  it('does not show the password action for the Student preview', () => {
-    const html = renderToStaticMarkup(
-      <MemoryRouter initialEntries={['/student']}>
-        <RoleLayout user={studentUser} onSignOut={vi.fn()} />
-      </MemoryRouter>
-    )
+  it('preserves the Student shell without managed controls', () => {
+    const html = renderRole('student')
+    expect(html).toContain('class="app-shell role-student"')
+    expect(html).not.toContain('Thu gọn thanh điều hướng')
+    expect(html).toContain('Không gian học sinh')
+    expect(html).not.toContain('Bản mô phỏng Student')
+    expect(html).not.toContain('Giao diện mẫu')
+  })
 
-    expect(html).not.toContain('Đổi mật khẩu')
+  it('keeps the Teacher shell focused by omitting redundant role and topbar badges', () => {
+    const html = renderRole('teacher')
+    expect(html).not.toContain('workspace-label')
+    expect(html).not.toContain('topbar-avatar')
+    expect(html).toContain('class="sidebar-user"')
   })
 })

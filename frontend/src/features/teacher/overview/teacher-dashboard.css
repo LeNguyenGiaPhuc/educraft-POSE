@@ -1,0 +1,95 @@
+.role-teacher .td-dashboard-content{width:min(100%,1280px);margin:0 auto;padding:clamp(28px,3.5vw,48px) clamp(20px,3.5vw,52px) 44px}
+.role-teacher .td-dashboard-heading{max-width:720px;margin-bottom:24px}
+.role-teacher .td-dashboard-heading h1{margin:0;color:var(--ec-ink);font-size:clamp(34px,3.6vw,48px);font-weight:700;letter-spacing:-.045em;line-height:1.08}
+.role-teacher .td-dashboard-heading p{max-width:580px;margin:10px 0 0;color:var(--ec-text-secondary);font-size:16px;line-height:1.6}
+.role-teacher .td-bento{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(280px,1fr);grid-template-areas:"review classrooms" "activities events";grid-template-rows:minmax(280px,auto) minmax(188px,auto);gap:20px;align-items:stretch}
+.role-teacher .td-metric{position:relative;min-width:0;min-height:0;color:var(--ec-ink)}
+.role-teacher .td-metric h2{margin:6px 0 0;font-size:clamp(18px,1.7vw,23px);font-weight:700;line-height:1.3}
+.role-teacher .td-metric p{margin:8px 0 0;color:color-mix(in srgb,var(--ec-ink) 72%,transparent);font-size:14px;line-height:1.55}
+.role-teacher .td-card-label{display:block;margin-bottom:11px;color:color-mix(in srgb,var(--ec-ink) 68%,transparent);font-size:12px;font-weight:700;letter-spacing:.09em;line-height:1.4;text-transform:uppercase}
+.role-teacher .td-metric-value{display:block;max-width:100%;color:var(--ec-ink);font-size:clamp(40px,4.7vw,64px);font-variant-numeric:tabular-nums;font-weight:800;letter-spacing:-.055em;line-height:.94}
+.role-teacher .td-card-link{display:inline-flex;min-height:44px;align-items:center;gap:8px;margin-top:16px;color:var(--ec-ink);font-size:14px;font-weight:700;line-height:1.4;text-decoration-thickness:1px;text-underline-offset:5px}
+.role-teacher .td-card-link:hover{color:var(--ec-primary-hover);text-decoration:underline}
+
+.role-teacher .td-review-card{grid-area:review;min-height:0;padding:30px 156px 30px 32px}
+.role-teacher .td-review-card::before{border-radius:32px 82px 32px 32px}
+.role-teacher .td-review-card::after{top:22px;right:22px;width:20px;height:20px;opacity:.72}
+.role-teacher .td-review-content{position:relative;z-index:1;max-width:520px}
+.role-teacher .td-review-content p{max-width:420px}
+.role-teacher .td-review-illustration{position:absolute;z-index:0;right:22px;bottom:20px;width:min(23%,128px);max-height:116px;object-fit:contain;pointer-events:none}
+
+.role-teacher .td-classrooms-card,.role-teacher .td-activities-card{padding:26px;border-radius:24px}
+.role-teacher .td-classrooms-card{grid-area:classrooms;display:grid;grid-template-columns:minmax(0,1fr) 76px;grid-template-rows:1fr auto;align-items:start;background:var(--ec-matcha)}
+.role-teacher .td-classrooms-card img{width:76px;height:76px;object-fit:contain;pointer-events:none}
+.role-teacher .td-classrooms-card .td-card-link{grid-column:1/-1;align-self:end}
+.role-teacher .td-activities-card{grid-area:activities;background:var(--ec-butter)}
+
+.role-teacher .td-events-card{grid-area:events;min-height:0;padding:24px 128px 24px 28px}
+.role-teacher .td-events-card::before{background:var(--ec-clay)}
+.role-teacher .td-events-card::after{right:102px;border-color:color-mix(in srgb,var(--ec-ink) 32%,transparent)}
+.role-teacher .td-event-content{position:relative;z-index:1;max-width:360px}
+.role-teacher .td-events-card img{position:absolute;z-index:0;top:50%;right:18px;width:70px;max-height:78px;object-fit:contain;transform:translateY(-50%);pointer-events:none}
+
+.role-teacher .td-skeleton{display:block;border-radius:16px;background:color-mix(in srgb,var(--ec-neutral-bg) 82%,var(--ec-surface))}
+.role-teacher .td-skeleton-title{width:min(420px,76%);height:48px}
+.role-teacher .td-skeleton-copy{width:min(560px,92%);height:20px;margin-top:14px}
+.role-teacher .td-skeleton-review{grid-area:review;min-height:280px;border-radius:32px 82px 32px 32px}
+.role-teacher .td-skeleton-card{min-height:188px;border-radius:24px}
+.role-teacher .td-skeleton-card:nth-child(2){grid-area:classrooms}
+.role-teacher .td-skeleton-card:nth-child(3){grid-area:activities}
+.role-teacher .td-skeleton-event{grid-area:events;min-height:188px;border-radius:24px}
+
+.role-teacher .td-dashboard-error{display:flex;width:min(calc(100% - 40px),760px);align-items:center;gap:22px;margin:clamp(32px,6vw,72px) auto;padding:clamp(26px,4vw,42px);border:1px solid color-mix(in srgb,var(--ec-danger-text) 18%,transparent);border-radius:28px;color:var(--ec-ink);background:color-mix(in srgb,var(--ec-danger-bg) 70%,var(--ec-paper))}
+.role-teacher .td-error-symbol{display:grid;flex:0 0 58px;width:58px;height:58px;place-items:center;border-radius:50%;color:#fff;background:var(--ec-danger-text);font-size:28px;font-weight:800}
+.role-teacher .td-dashboard-error h1{margin:0;font-size:clamp(26px,4vw,36px);font-weight:700;line-height:1.2}
+.role-teacher .td-dashboard-error p{margin:9px 0 20px;color:var(--ec-danger-text);line-height:1.6}
+.role-teacher .td-dashboard-error button{display:inline-flex;min-height:44px;align-items:center;gap:8px;padding:0 18px;border:0;border-radius:999px;color:#fff;background:var(--ec-ink);font-weight:700;cursor:pointer}
+.role-teacher.td-state-preview{min-height:100vh;background:var(--ec-paper)}
+.role-teacher .td-state-preview-label{position:relative;z-index:2;margin:0;padding:10px 18px;color:#fff;background:var(--ec-ink);font-size:12px;font-weight:700;letter-spacing:.04em;text-align:center}
+
+@media(max-width:900px){
+  .role-teacher .td-dashboard-content{padding-inline:28px}
+  .role-teacher .td-bento{grid-template-columns:minmax(0,1.35fr) minmax(230px,.8fr);grid-template-rows:minmax(276px,auto) minmax(184px,auto);gap:16px}
+  .role-teacher .td-review-card{padding:28px 126px 28px 28px}
+  .role-teacher .td-review-illustration{width:104px}
+  .role-teacher .td-classrooms-card,.role-teacher .td-activities-card{padding:23px}
+  .role-teacher .td-events-card{padding:22px 104px 22px 24px}
+  .role-teacher .td-events-card::after{right:82px}
+  .role-teacher .td-events-card img{right:14px;width:56px}
+}
+
+@media(max-width:767px){
+  .role-teacher .td-dashboard-content{padding:26px 18px 40px}
+  .role-teacher .td-dashboard-heading{margin-bottom:20px}
+  .role-teacher .td-dashboard-heading h1{font-size:34px}
+  .role-teacher .td-bento{grid-template-columns:1fr;grid-template-areas:"review" "classrooms" "activities" "events";grid-template-rows:none;gap:14px}
+  .role-teacher .td-review-card{min-height:0;padding:22px}
+  .role-teacher .td-review-card::before{border-radius:26px 64px 26px 26px}
+  .role-teacher .td-review-card::after{top:18px;right:18px;width:16px;height:16px}
+  .role-teacher .td-review-content{max-width:calc(100% - 58px)}
+  .role-teacher .td-review-illustration{right:14px;bottom:16px;width:58px;max-height:64px}
+  .role-teacher .td-classrooms-card,.role-teacher .td-activities-card{min-height:0;padding:22px}
+  .role-teacher .td-classrooms-card{grid-template-columns:minmax(0,1fr) 62px}
+  .role-teacher .td-classrooms-card img{width:62px;height:62px}
+  .role-teacher .td-events-card{min-height:0;padding:22px 82px 22px 22px}
+  .role-teacher .td-events-card::after{top:16px;right:68px;bottom:16px;left:auto;border-top:0;border-left:1px dashed color-mix(in srgb,var(--ec-ink) 32%,transparent)}
+  .role-teacher .td-events-card img{top:auto;right:14px;bottom:22px;width:46px;max-height:56px;transform:none}
+  .role-teacher .td-skeleton-review,.role-teacher .td-skeleton-card,.role-teacher .td-skeleton-event{min-height:152px}
+  .role-teacher .td-skeleton-review{border-radius:26px 64px 26px 26px}
+  .role-teacher .td-dashboard-error{align-items:flex-start;gap:16px;margin:28px auto;padding:24px}
+  .role-teacher .td-error-symbol{flex-basis:48px;width:48px;height:48px;font-size:23px}
+}
+
+@media(max-width:420px){
+  .role-teacher .td-dashboard-heading h1{font-size:31px}
+  .role-teacher .td-dashboard-heading p{font-size:14px}
+  .role-teacher .td-metric-value{font-size:46px}
+  .role-teacher .td-review-card{padding:20px}
+  .role-teacher .td-review-content{max-width:calc(100% - 58px)}
+  .role-teacher .td-review-illustration{right:12px;bottom:14px;width:54px}
+  .role-teacher .td-classrooms-card,.role-teacher .td-activities-card{padding:20px}
+  .role-teacher .td-events-card{padding:20px 76px 20px 20px}
+  .role-teacher .td-events-card::after{right:62px}
+  .role-teacher .td-dashboard-error{display:block}
+  .role-teacher .td-error-symbol{margin-bottom:18px}
+}

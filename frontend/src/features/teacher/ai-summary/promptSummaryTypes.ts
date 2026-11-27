@@ -8,8 +8,12 @@ export type PromptSummaryStudent = {
 }
 
 export type PromptSummaryStats = {
-  count: number
-  latestDate: string
+  entryCount: number
+  topicCount: number
+  occurrenceCount: number
+  promptCount: number
+  latestPeriodEnd: string
+  latestGeneratedAt: string
 }
 
 export type PromptSummaryTopic = {
@@ -18,4 +22,6 @@ export type PromptSummaryTopic = {
   count: number
   periodStart: string
   periodEnd: string
+  promptCount: number
+  generatedAt: string
 }

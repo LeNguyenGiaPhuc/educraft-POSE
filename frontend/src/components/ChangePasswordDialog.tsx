@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react'
-import { KeyRound, X } from 'lucide-react'
+import { KeyRound } from 'lucide-react'
 import { ApiError } from '../lib/api/client'
 import { authApi } from '../lib/api/auth'
 import { getPasswordChangeErrors, type PasswordChangeErrors } from '../lib/auth/passwordRules'
 import './ChangePasswordDialog.css'
+import { ModalShell } from '../design-system/ModalShell'
 
 type Props = {
   isOpen: boolean
@@ -68,40 +69,13 @@ export function ChangePasswordDialog({ isOpen, onClose }: Props) {
     }
   }
 
-  if (!isOpen) return null
-
   return (
-    <dialog
-      open
-      className="change-password-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="change-password-title"
-      onCancel={(event) => {
-        event.preventDefault()
-        closeDialog()
-      }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) closeDialog()
-      }}
-    >
-      <div className="change-password-window">
-        <div className="change-password-head">
-          <div>
-            <span className="change-password-eyebrow">BẢO MẬT TÀI KHOẢN</span>
-            <h2 id="change-password-title">Đổi mật khẩu</h2>
-          </div>
-          <button type="button" className="change-password-close" onClick={closeDialog} disabled={isSaving} aria-label="Đóng đổi mật khẩu">
-            <X size={18} />
-          </button>
-        </div>
-
+    <ModalShell open={isOpen} title="Đổi mật khẩu" onClose={closeDialog} busy={isSaving}>
         <form onSubmit={handleSubmit} noValidate>
           <div className="change-password-body">
-            <p className="change-password-note">Mật khẩu mới chỉ được gửi tới backend và không hiển thị lại sau khi lưu.</p>
             <label>
               Mật khẩu hiện tại
-              <input type="password" autoFocus autoComplete="current-password" value={currentPassword} onChange={(event) => { setCurrentPassword(event.target.value); clearMessages() }} />
+              <input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => { setCurrentPassword(event.target.value); clearMessages() }} />
               {errors.currentPassword && <span className="change-password-field-error">{errors.currentPassword}</span>}
             </label>
             <label>
@@ -123,7 +97,6 @@ export function ChangePasswordDialog({ isOpen, onClose }: Props) {
             <button type="submit" className="change-password-primary" disabled={isSaving}><KeyRound size={16} /> {isSaving ? 'Đang lưu...' : 'Lưu mật khẩu mới'}</button>
           </div>
         </form>
-      </div>
-    </dialog>
+    </ModalShell>
   )
 }

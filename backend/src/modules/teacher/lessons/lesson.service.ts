@@ -1,4 +1,5 @@
 import { BadRequestError, NotFoundError } from '../../../shared/errors/app-error.js';
+import { normalizeUploadFileName } from '../../storage/file-validation.js';
 import { requireAssignedSubject } from '../access/teacher-subject.policy.js';
 import { lessonRepository } from './lesson.repository.js';
 import type { CreateLessonInput, UpdateLessonInput } from './lesson.schemas.js';
@@ -22,7 +23,7 @@ export const lessonService = {
         const active = m.activeVersion;
         return {
           id: m.id,
-          name: m.file_name,
+          name: normalizeUploadFileName(m.file_name),
           version: latest ? latest.version_no : 1,
           processing: latest ? latest.processing_status : 'PENDING',
           activeVersionId: active?.id ?? null,
@@ -80,7 +81,7 @@ export const lessonService = {
       createdBy: lesson.createdBy,
       materials: lesson.materials.map((m) => ({
         id: m.id,
-        fileName: m.file_name,
+        fileName: normalizeUploadFileName(m.file_name),
         status: m.status,
         createdAt: m.created_at.toISOString(),
         activeVersionId: m.activeVersion?.id ?? null,

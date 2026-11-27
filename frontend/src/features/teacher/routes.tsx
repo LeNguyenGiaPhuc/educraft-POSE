@@ -7,7 +7,6 @@ import { TeacherBackButton } from './components/TeacherBackButton'
 import { ActivitiesPage } from './activities/ActivitiesPage'
 import { PromptSummaryPage } from './ai-summary/PromptSummaryPage'
 import { AssignedClassesPage } from './classes/AssignedClassesPage'
-import { TeacherClassroomDetailPage } from './classes/TeacherClassroomDetailPage'
 import { TeacherSubjectWorkspace } from './classes/TeacherSubjectWorkspace'
 import { TeacherLessonPage } from './lessons/TeacherLessonPage'
 import { SchedulePage } from './schedule/SchedulePage'
@@ -15,6 +14,7 @@ import { StudentDetailPage } from './students/StudentDetailPage'
 import { teacherWorkspaceApi, teacherWorkspacePath } from '../../lib/api/teacher/workspace'
 import type { TeacherClassroomSubjectContext } from '../../lib/api/teacher/types'
 import { useEffect, useState } from 'react'
+import './teacher-studio.css'
 
 export function TeacherContextRoute({ children, tab = 'lessons' }: { children: ReactNode; tab?: TeacherWorkspaceTab }) {
   const { classroomId, classroomSubjectId, lessonId, activityId, studentId } = useParams()
@@ -29,12 +29,6 @@ export function TeacherContextRoute({ children, tab = 'lessons' }: { children: R
 function TeacherWorkspaceRoute() {
   const { classroomSubjectId } = useParams()
   return <TeacherContextRoute><TeacherSubjectWorkspace key={classroomSubjectId} /></TeacherContextRoute>
-}
-
-function TeacherClassRoute() {
-  const { classroomId } = useParams()
-  if (!classroomId) return <Navigate to="/teacher/classes" replace />
-  return <TeacherClassroomDetailPage classroomId={classroomId} />
 }
 
 function LegacyTeacherRedirect({ section }: { section: string }) {
@@ -80,8 +74,8 @@ function LegacyTeacherContextRedirect({ requestedId, section, query }: { request
 }
 
 export const teacherRouteElements = <>
-  <Route path="classes" element={<><TeacherBackButton fallbackTo="/teacher" /><AssignedClassesPage /></>} />
-  <Route path="classes/:classroomId" element={<TeacherClassRoute />} />
+  <Route path="classes" element={<AssignedClassesPage />} />
+  <Route path="classes/:classroomId" element={<Navigate to="/teacher/classes" replace />} />
   <Route path="classes/:classroomId/subjects/:classroomSubjectId" element={<TeacherWorkspaceRoute />} />
   <Route path="classes/:classroomId/subjects/:classroomSubjectId/lessons/:lessonId" element={<TeacherContextRoute><TeacherLessonPage /></TeacherContextRoute>} />
   <Route path="classes/:classroomId/subjects/:classroomSubjectId/activities/:activityId" element={<TeacherContextRoute tab="activities"><ActivitiesPage /></TeacherContextRoute>} />

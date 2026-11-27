@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FileImage, RotateCcw, Sparkles } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ExternalLink, FileImage, RotateCcw } from 'lucide-react'
+import craftSpark from '../../../assets/educraft/brand/craft-spark.svg'
 import { ApiError } from '../../../lib/api/client'
 import {
   teacherNotebookChecksApi,
   type TeacherCriterionStatus,
   type TeacherNotebookSubmissionReview,
 } from '../../../lib/api/teacher/notebookChecks'
+import { buildTeacherReviewDraft, isCurrentReviewRequest, submissionStatusLabel } from './notebookReviewState'
 
 type Props = {
   submissionId: string
@@ -33,36 +35,62 @@ export function NotebookSubmissionReviewPanel({ submissionId, readOnly, onFinali
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [selectedFileId, setSelectedFileId] = useState('')
+  const [previewUrl, setPreviewUrl] = useState('')
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false)
+  const submissionIdRef = useRef(submissionId)
+  const reviewRequestRef = useRef({ requestId: 0, submissionId })
+  const previewUrlRef = useRef('')
 
-  const loadReview = useCallback(async () => {
+  const replacePreviewUrl = useCallback((nextUrl: string) => {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+    previewUrlRef.current = nextUrl
+    setPreviewUrl(nextUrl)
+  }, [])
+
+  const loadReview = useCallback(async (preserveDraft = false) => {
+    const requestId = reviewRequestRef.current.requestId + 1
+    reviewRequestRef.current = { requestId, submissionId }
     setIsLoading(true)
     setError('')
     try {
       const nextReview = await teacherNotebookChecksApi.getReview(submissionId)
+      if (!isCurrentReviewRequest(reviewRequestRef.current, requestId, submissionId)) return
       setReview(nextReview)
-      setComment(nextReview.assessment?.teacherComment ?? '')
-      const nextResults: Record<string, { status: TeacherCriterionStatus; note: string }> = {}
-      const savedResults = new Map((nextReview.assessment?.results ?? []).map((item) => [item.criterionId, item]))
-      const aiResults = new Map((nextReview.aiDraft?.suggestions ?? []).map((item) => [item.criterionId, item]))
-      for (const criterion of nextReview.criteria) {
-        const saved = savedResults.get(criterion.id)
-        const ai = aiResults.get(criterion.id)
-        nextResults[criterion.id] = {
-          status: saved?.status ?? ai?.status ?? 'UNDETERMINED',
-          note: saved?.note ?? ai?.note ?? '',
-        }
+      if (!preserveDraft) {
+        const draft = buildTeacherReviewDraft(nextReview)
+        setComment(draft.comment)
+        setResults(draft.results)
       }
-      setResults(nextResults)
     } catch (loadError) {
-      setError(errorMessage(loadError))
+      if (isCurrentReviewRequest(reviewRequestRef.current, requestId, submissionId)) {
+        setError(errorMessage(loadError))
+      }
     } finally {
-      setIsLoading(false)
+      if (isCurrentReviewRequest(reviewRequestRef.current, requestId, submissionId)) {
+        setIsLoading(false)
+      }
     }
   }, [submissionId])
 
   useEffect(() => {
+    submissionIdRef.current = submissionId
+    setReview(null)
+    setResults({})
+    setComment('')
+    setIsAnalyzing(false)
+    setIsSaving(false)
+    setIsPreviewLoading(false)
+    setNotice('')
+    setError('')
+    setSelectedFileId('')
+    replacePreviewUrl('')
     void loadReview()
-  }, [loadReview])
+  }, [loadReview, replacePreviewUrl, submissionId])
+
+  useEffect(() => () => {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+  }, [])
 
   const isFinalized = review?.status === 'FINALIZED' || Boolean(review?.assessment)
   const aiReady = Boolean(review?.aiDraft)
@@ -85,24 +113,46 @@ export function NotebookSubmissionReviewPanel({ submissionId, readOnly, onFinali
     }
   }
 
+  async function previewFile(fileId: string) {
+    const targetSubmissionId = submissionId
+    setSelectedFileId(fileId)
+    setIsPreviewLoading(true)
+    setError('')
+    try {
+      const result = await teacherNotebookChecksApi.downloadSubmissionFile(targetSubmissionId, fileId)
+      const nextUrl = URL.createObjectURL(result.blob)
+      if (submissionIdRef.current !== targetSubmissionId) {
+        URL.revokeObjectURL(nextUrl)
+        return
+      }
+      replacePreviewUrl(nextUrl)
+    } catch (fileError) {
+      if (submissionIdRef.current === targetSubmissionId) setError(errorMessage(fileError))
+    } finally {
+      if (submissionIdRef.current === targetSubmissionId) setIsPreviewLoading(false)
+    }
+  }
+
   async function runAnalysis() {
+    const targetSubmissionId = submissionId
     setIsAnalyzing(true)
     setError('')
     setNotice('')
     try {
       const result = review?.processingStatus === 'FAILED'
-        ? await teacherNotebookChecksApi.retryAnalysis(submissionId)
-        : await teacherNotebookChecksApi.analyze(submissionId)
+        ? await teacherNotebookChecksApi.retryAnalysis(targetSubmissionId)
+        : await teacherNotebookChecksApi.analyze(targetSubmissionId)
+      if (submissionIdRef.current !== targetSubmissionId) return
       if (result.status === 'UNAVAILABLE' || result.status === 'FAILED') {
         setNotice(result.message ?? 'AI chưa thể phân tích; giáo viên có thể chấm thủ công.')
       } else {
         setNotice('Đã tạo bản nháp AI. Hãy kiểm tra trước khi chốt.')
       }
-      await loadReview()
+      await loadReview(true)
     } catch (analysisError) {
-      setError(errorMessage(analysisError))
+      if (submissionIdRef.current === targetSubmissionId) setError(errorMessage(analysisError))
     } finally {
-      setIsAnalyzing(false)
+      if (submissionIdRef.current === targetSubmissionId) setIsAnalyzing(false)
     }
   }
 
@@ -115,10 +165,11 @@ export function NotebookSubmissionReviewPanel({ submissionId, readOnly, onFinali
 
   async function finalize() {
     if (!review || isFinalized) return
+    const targetSubmissionId = submissionId
     setIsSaving(true)
     setError('')
     try {
-      await teacherNotebookChecksApi.finalize(submissionId, {
+      await teacherNotebookChecksApi.finalize(targetSubmissionId, {
         results: review.criteria.map((criterion) => ({
           criterionId: criterion.id,
           status: results[criterion.id]?.status ?? 'UNDETERMINED',
@@ -126,13 +177,14 @@ export function NotebookSubmissionReviewPanel({ submissionId, readOnly, onFinali
         })),
         teacherComment: comment.trim() || null,
       })
+      if (submissionIdRef.current !== targetSubmissionId) return
       setNotice('Đã chốt kết quả kiểm tra vở.')
       await loadReview()
       onFinalized?.()
     } catch (finalizeError) {
-      setError(errorMessage(finalizeError))
+      if (submissionIdRef.current === targetSubmissionId) setError(errorMessage(finalizeError))
     } finally {
-      setIsSaving(false)
+      if (submissionIdRef.current === targetSubmissionId) setIsSaving(false)
     }
   }
 
@@ -148,23 +200,32 @@ export function NotebookSubmissionReviewPanel({ submissionId, readOnly, onFinali
           <h3 id="tn-review-title">{review.studentName}</h3>
           <p>{review.username} · Nộp lúc {new Date(review.submittedAt).toLocaleString('vi-VN')}</p>
         </div>
-        <strong>{isFinalized ? 'Đã chốt' : review.status}</strong>
+        <strong>{submissionStatusLabel(review.status)}</strong>
       </header>
 
-      <div className="tn-review-files">
-        <h4>Ảnh bài nộp</h4>
-        {review.files.length === 0 && <p className="tn-empty">Bài nộp chưa có file ảnh.</p>}
-        {review.files.map((file) => <button type="button" className="tn-file-button" key={file.id} onClick={() => void openFile(file.id)}><FileImage size={15} /> Mở ảnh {file.sortOrder}</button>)}
-      </div>
+      <div className="tn-review-desk">
+        <aside className="tn-review-evidence" aria-labelledby="tn-evidence-title">
+          <div className="tn-review-files">
+            <h4 id="tn-evidence-title">Ảnh bài nộp</h4>
+            <p className="tn-help">Ảnh được mở bằng phiên truy cập riêng tư hiện tại.</p>
+            {review.files.length === 0 && <p className="tn-empty">Bài nộp chưa có file ảnh.</p>}
+            <div className="tn-review-file-actions">
+              {review.files.map((file) => <button type="button" className={`tn-file-button${selectedFileId === file.id ? ' is-selected' : ''}`} key={file.id} onClick={() => void previewFile(file.id)}><FileImage size={15} /> Xem ảnh {file.sortOrder}</button>)}
+            </div>
+            {isPreviewLoading && <div className="tn-evidence-preview is-loading" aria-busy="true">Đang tải ảnh riêng tư...</div>}
+            {!isPreviewLoading && previewUrl && <figure className="tn-evidence-preview"><img src={previewUrl} alt="Ảnh bài nộp đang xem" /><figcaption><button type="button" className="tn-file-button" onClick={() => void openFile(selectedFileId)}><ExternalLink size={14} /> Mở ảnh trong tab mới</button></figcaption></figure>}
+          </div>
 
-      <div className="tn-ai-review">
-        <div><strong><Sparkles size={15} /> Gợi ý Gemini</strong><p>{statusText}</p></div>
-        {!readOnly && !isFinalized && <button type="button" className="ta-secondary" disabled={isAnalyzing || review.status !== 'LOCKED'} onClick={() => void runAnalysis()}>{isAnalyzing ? 'Đang phân tích...' : review.processingStatus === 'FAILED' ? 'Thử lại Gemini' : aiReady ? 'Phân tích lại' : 'Phân tích bằng Gemini'}</button>}
-      </div>
-      {review.aiDraft?.ocrText && <details className="tn-ocr"><summary>Xem bản chép AI</summary><pre>{review.aiDraft.ocrText}</pre></details>}
-      {notice && <p className="ta-success" role="status">{notice}</p>}
-      {error && <p className="ta-error" role="alert">{error}</p>}
+          <div className="tn-ai-review">
+            <div><strong><img src={craftSpark} alt="" /> Gợi ý Gemini</strong><p>{statusText}</p></div>
+            {!readOnly && !isFinalized && <button type="button" className="ta-secondary" disabled={isAnalyzing || review.status !== 'LOCKED'} onClick={() => void runAnalysis()}>{isAnalyzing ? 'Đang phân tích...' : review.processingStatus === 'FAILED' ? 'Thử lại Gemini' : aiReady ? 'Phân tích lại' : 'Phân tích bằng Gemini'}</button>}
+          </div>
+          {review.aiDraft?.ocrText && <details className="tn-ocr"><summary>Xem bản chép AI</summary><pre>{review.aiDraft.ocrText}</pre></details>}
+          {notice && <p className="ta-success" role="status">{notice}</p>}
+          {error && <p className="ta-error" role="alert">{error}</p>}
+        </aside>
 
+        <div className="tn-review-assessment">
       <div className="tn-result-list">
         <h4>Đánh giá theo tiêu chí</h4>
         {review.criteria.map((criterion, index) => {
@@ -173,7 +234,7 @@ export function NotebookSubmissionReviewPanel({ submissionId, readOnly, onFinali
           return (
             <fieldset className="tn-result-row" key={criterion.id}>
               <legend>{index + 1}. {criterion.content}</legend>
-              {aiSuggestion?.evidence && <p className="tn-evidence-note">Bằng chứng AI: {aiSuggestion.evidence}</p>}
+              {aiSuggestion && <div className="tn-ai-suggestion"><strong>AI đề xuất: {statusLabel(aiSuggestion.status)}</strong>{aiSuggestion.note && <span>{aiSuggestion.note}</span>}{aiSuggestion.evidence && <span>Bằng chứng: {aiSuggestion.evidence}</span>}</div>}
               <label>Trạng thái<select value={result.status} disabled={readOnly || isFinalized} onChange={(event) => updateResult(criterion.id, { status: event.target.value as TeacherCriterionStatus })}><option value="RECORDED">{statusLabel('RECORDED')}</option><option value="NEEDS_SUPPLEMENTATION">{statusLabel('NEEDS_SUPPLEMENTATION')}</option><option value="UNDETERMINED">{statusLabel('UNDETERMINED')}</option></select></label>
               <label>Ghi chú<textarea rows={2} value={result.note} disabled={readOnly || isFinalized} onChange={(event) => updateResult(criterion.id, { note: event.target.value })} /></label>
             </fieldset>
@@ -183,6 +244,8 @@ export function NotebookSubmissionReviewPanel({ submissionId, readOnly, onFinali
 
       <label className="tn-comment">Nhận xét chung<textarea rows={3} value={comment} disabled={readOnly || isFinalized} onChange={(event) => setComment(event.target.value)} /></label>
       {!readOnly && !isFinalized && <button type="button" className="ta-primary" disabled={isSaving || review.status !== 'LOCKED'} onClick={() => void finalize()}>{isSaving ? 'Đang chốt...' : 'Chốt kết quả'}</button>}
+        </div>
+      </div>
     </section>
   )
 }

@@ -1,9 +1,8 @@
-import { Plus, School, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import type { FormEvent } from 'react'
 
 type Props = {
   name: string
-  activeClassroomCount: number
   formErrors: string[]
   isSaving: boolean
   onClose: () => void
@@ -13,7 +12,6 @@ type Props = {
 
 export function SubjectCreateDialog({
   name,
-  activeClassroomCount,
   formErrors,
   isSaving,
   onClose,
@@ -33,7 +31,7 @@ export function SubjectCreateDialog({
       <div className="sbj-modal">
         <div className="sbj-modal-head">
           <h2 id="modal-add-subject-title" className="sbj-modal-title">
-            <Plus size={20} color="#286449" /> Thêm môn học mới
+            Thêm môn học
           </h2>
           <button type="button" className="sbj-modal-close-btn" onClick={onClose} aria-label="Đóng cửa sổ">
             <X size={18} />
@@ -42,11 +40,6 @@ export function SubjectCreateDialog({
 
         <form onSubmit={onSubmit}>
           <div className="sbj-modal-body">
-            <p className="sbj-modal-intro">
-              Khi thêm một môn mới, hệ thống sẽ tự động tạo môn cho mọi lớp <strong>đang hoạt động</strong> (trạng thái:{' '}
-              <em>Chưa phân công giáo viên</em>). Các lớp đã lưu trữ giữ nguyên dữ liệu lịch sử.
-            </p>
-
             <div className="sbj-form-field">
               <label htmlFor="new-subject-name" className="sbj-form-label">
                 Tên môn học <span style={{ color: '#dc2626' }}>*</span>
@@ -60,20 +53,6 @@ export function SubjectCreateDialog({
                 placeholder="Ví dụ: Hóa học, Sinh học, Tin học..."
                 autoFocus
               />
-            </div>
-
-            <div className="sbj-scope-preview-box">
-              <span className="sbj-scope-preview-label">
-                Phạm vi áp dụng tự động ({activeClassroomCount} lớp đang học):
-              </span>
-              <div className="sbj-scope-classes-list">
-                <span className="sbj-scope-class-chip">
-                  <School size={12} /> Dữ liệu lớp đang hoạt động lấy từ backend
-                </span>
-              </div>
-              <span className="sbj-scope-preview-note">
-                * Môn học sẽ được mở với trạng thái Chưa phân công giáo viên. Admin có thể phân công giáo viên sau tại chi tiết từng lớp.
-              </span>
             </div>
 
             {formErrors.length > 0 && (
@@ -91,7 +70,7 @@ export function SubjectCreateDialog({
               Hủy
             </button>
             <button type="submit" className="sbj-btn-primary" disabled={isSaving}>
-              <Plus size={16} /> {isSaving ? 'Đang lưu...' : 'Xác nhận thêm môn'}
+              {isSaving ? 'Đang lưu...' : 'Thêm môn học'}
             </button>
           </div>
         </form>

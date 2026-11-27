@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   validateMaterialFile,
   generateStorageKey,
+  normalizeUploadFileName,
   sanitizeStorageKey,
 } from '../../../../../backend/src/modules/storage/file-validation.js';
 
@@ -41,6 +42,12 @@ function createStoredZip(entryNames: string[]): Buffer {
 }
 
 describe('FileValidation', () => {
+  it('restores UTF-8 Vietnamese filenames decoded as multipart Latin-1', () => {
+    expect(normalizeUploadFileName('Äáº I VIá»T THá»I LÃ.docx')).toBe('ĐẠI VIỆT THỜI LÝ.docx');
+    expect(normalizeUploadFileName('Educraft_test.docx')).toBe('Educraft_test.docx');
+    expect(normalizeUploadFileName('café.pdf')).toBe('café.pdf');
+  });
+
   it('generates a safe storage key without path traversal', () => {
     const key = generateStorageKey('../../etc/passwd.pdf');
     expect(key).not.toContain('..');

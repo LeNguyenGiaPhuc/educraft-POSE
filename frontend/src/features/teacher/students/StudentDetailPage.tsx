@@ -3,9 +3,6 @@ import { AlertCircle, RotateCcw } from 'lucide-react'
 import { useParams } from 'react-router'
 import { ApiError } from '../../../lib/api/client'
 import { teacherResultsApi, type TeacherStudentProgressResult } from '../../../lib/api/teacher/results'
-import { teacherWorkspacePath } from '../../../lib/api/teacher/workspace'
-import { TeacherBackButton } from '../components/TeacherBackButton'
-import { InfoNotice } from '../insights/TeacherUI'
 import { StudentProgress } from '../progress/ProgressPage'
 import '../classes/classes.css'
 
@@ -19,15 +16,11 @@ function studentError(error: unknown): string {
 }
 
 export function StudentDetailPage() {
-  const { classroomId, classroomSubjectId, studentId } = useParams()
+  const { classroomSubjectId, studentId } = useParams()
   const [progress, setProgress] = useState<TeacherStudentProgressResult | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
-  const parent = classroomId && classroomSubjectId
-    ? `${teacherWorkspacePath(classroomId, classroomSubjectId)}?tab=students`
-    : '/teacher/classes'
-
   useEffect(() => {
     if (!classroomSubjectId || !studentId) {
       setIsLoading(false)
@@ -57,7 +50,6 @@ export function StudentDetailPage() {
   if (loadError || !progress) {
     return (
       <div className="page-content tw-page">
-        <TeacherBackButton fallbackTo={parent} />
         <div className="panel tc-empty" role="alert"><AlertCircle size={28} /><h2>Không thể tải hồ sơ học sinh</h2><p>{loadError || 'Thiếu thông tin học sinh.'}</p><button type="button" onClick={() => setReloadKey((value) => value + 1)}><RotateCcw size={14} /> Thử lại</button></div>
       </div>
     )
@@ -66,9 +58,7 @@ export function StudentDetailPage() {
   const context = progress.classroomSubject
   return (
     <div className="page-content tw-page">
-      <TeacherBackButton fallbackTo={parent} />
       <div className="page-heading"><h1>{progress.student.fullName}</h1><p>{context.classroom.name} · {context.subject.name} · {context.classroom.academicYear}</p></div>
-      <InfoNotice>Dữ liệu tiến độ được tải từ backend. Kiểm tra vở được giữ riêng và không cộng vào xu hướng điểm.</InfoNotice>
       <StudentProgress progress={progress} />
     </div>
   )

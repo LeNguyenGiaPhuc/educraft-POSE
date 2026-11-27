@@ -1,4 +1,4 @@
-import { ArrowRight, UserRound } from 'lucide-react'
+import { UserRound } from 'lucide-react'
 import type { AdminAccount } from '../../../lib/api/admin'
 
 type Props = {
@@ -31,7 +31,6 @@ export function AccountsTable({ accounts, selectedId, isLoading, onSelect }: Pro
             <small>@{account.username} · {account.role === 'TEACHER' ? 'Giáo viên' : 'Học sinh'}</small>
           </span>
           <span className={`adm-status ${account.status === 'ACTIVE' ? 'active' : 'inactive'}`}>{account.status === 'ACTIVE' ? 'Hoạt động' : 'Tạm khóa'}</span>
-          <ArrowRight size={15} />
         </button>
       ))}
     </div>

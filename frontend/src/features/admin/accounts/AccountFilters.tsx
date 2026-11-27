@@ -1,4 +1,4 @@
-import { Filter, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import type { AdminAccount } from '../../../lib/api/admin'
 
 type Props = {
@@ -19,7 +19,6 @@ export function AccountFilters({ search, roleFilter, statusFilter, onSearchChang
         <input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Tìm theo tên hoặc tên đăng nhập" />
       </label>
       <label className="adm-filter">
-        <Filter size={16} />
         <span className="sr-only">Lọc vai trò</span>
         <select value={roleFilter} onChange={(event) => onRoleChange(event.target.value as Props['roleFilter'])}>
           <option value="ALL">Mọi vai trò</option>

@@ -1,6 +1,7 @@
 .tc-toolbar{display:flex;align-items:end;gap:14px;flex-wrap:wrap;margin-top:20px}
 .tc-toolbar label{display:grid;gap:7px;font-size:13px;font-weight:600;flex:1;min-width:180px}
 .tc-toolbar select{padding:10px;border:1px solid var(--border-color,#dce3eb);border-radius:8px;background:var(--surface,#fff);width:100%;min-width:0}
+.tc-toolbar>select{flex:1;min-width:180px;min-height:44px}
 .tc-month-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .tc-month-heading h2{margin:0;text-transform:capitalize}
 .tc-month{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
@@ -105,6 +106,8 @@
 }
 
 .tc-modal-body {
+  display: grid;
+  gap: 20px;
   padding: 22px;
   overflow-y: auto;
   flex: 1;
@@ -128,7 +131,7 @@
 
 .tc-modal-body .ti-field {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   font-size: 13px;
   font-weight: 600;
   color: #334155;
@@ -153,7 +156,7 @@
 .tc-modal-body .ti-form-grid {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 12px;
+  gap: 18px;
 }
 
 /* Confirmation modal styles */
@@ -231,9 +234,44 @@
   cursor: pointer;
 }
 
+.tc-day-spotlight {
+  background: #fff4c7;
+  border-color: #ead990;
+}
+
+.tc-event-ticket {
+  position: relative;
+  background: #fff0e7;
+  border-color: #eac8b5;
+}
+
+.tc-event-ticket::before,
+.tc-event-ticket::after {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 28px;
+  border: 1px solid #eac8b5;
+  background: var(--ec-paper, #f5f2eb);
+  content: '';
+  transform: translateY(-50%);
+}
+
+.tc-event-ticket::before {
+  left: -1px;
+  border-left: 0;
+  border-radius: 0 20px 20px 0;
+}
+
+.tc-event-ticket::after {
+  right: -1px;
+  border-right: 0;
+  border-radius: 20px 0 0 20px;
+}
+
 @media(max-width:600px){
   .tc-toolbar{align-items:stretch}
-  .tc-toolbar label{min-width:100%}
+  .tc-toolbar label,.tc-toolbar>select{min-width:100%}
   .tc-toolbar>.ti-button{justify-content:center}
   .tc-month{gap:3px}
   .tc-day{padding:5px;min-height:64px;gap:5px}
@@ -244,4 +282,98 @@
   .tc-page .ti-grid{grid-template-columns:1fr}
   .tc-page .ti-actions{flex-wrap:wrap}
   .tc-modal-body .ti-form-grid{grid-template-columns:1fr}
+}
+
+/* Calendar interaction refinement */
+.role-teacher .tc-calendar-heading{position:relative;isolation:isolate;max-width:none;min-height:142px;margin-bottom:0;padding:28px 150px 28px 30px;border-radius:30px 30px 12px 30px;background:var(--ec-clay);overflow:hidden}
+.role-teacher .tc-calendar-heading::before{position:absolute;z-index:-1;right:32px;top:50%;width:82px;height:82px;transform:translateY(-50%) rotate(3deg);background:url('../../../assets/educraft/illustrations/calendar.svg') center/contain no-repeat;content:""}
+.role-teacher .tc-calendar-heading::after{position:absolute;z-index:-2;right:124px;top:16px;bottom:16px;border-left:1px dashed color-mix(in srgb,var(--ec-ink) 28%,transparent);content:""}
+.role-teacher .tc-calendar-heading h1{margin-bottom:8px;font-size:clamp(32px,3.4vw,44px)}
+.role-teacher .tc-calendar-heading p{color:color-mix(in srgb,var(--ec-ink) 72%,transparent)}
+.role-teacher .tc-toolbar{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;
+  align-items:end;
+  gap:12px;
+  padding:14px;
+  border:1px solid var(--ec-border);
+  border-radius:var(--ec-radius-panel);
+  background:var(--ec-surface);
+}
+.role-teacher .tc-calendar-heading~.tc-toolbar{position:relative;z-index:2;margin:-16px 18px 28px;padding:16px 18px;border:0;border-radius:18px 28px 18px 18px;box-shadow:0 12px 28px rgb(41 38 79 / 8%)}
+.role-teacher .tc-toolbar label{min-width:0;color:var(--ec-ink)}
+.role-teacher .tc-toolbar label>span{color:var(--ec-text-secondary);font-size:12px;font-weight:600}
+.role-teacher .tc-toolbar select{min-height:44px;border-color:var(--ec-border);border-radius:var(--ec-radius-input);background:var(--ec-paper);color:var(--ec-ink)}
+.role-teacher .tc-create-action{min-width:154px;white-space:nowrap}
+.role-teacher .tc-calendar-card{position:relative;padding:28px 22px 22px;border-radius:14px 38px 18px 18px;overflow:visible}
+.role-teacher .tc-calendar-card::before{position:absolute;top:-10px;left:34px;width:92px;height:16px;border-radius:12px 12px 0 0;background:var(--ec-butter);content:""}
+.role-teacher .tc-month-heading{max-width:560px;margin:0 auto 8px;padding:7px 10px;border-radius:999px;background:var(--ec-lavender)}
+.role-teacher .tc-month-heading h2{color:var(--ec-ink);font-size:22px;font-weight:700}
+.role-teacher .tc-month-control{width:44px;padding:0}
+.role-teacher .tc-calendar-card>.ti-muted{text-align:center}
+.role-teacher .tc-day{
+  min-height:96px;
+  border-color:var(--ec-border);
+  border-radius:12px;
+  background:var(--ec-surface);
+  color:var(--ec-ink);
+  transition:border-color .18s ease,background-color .18s ease,transform .18s ease;
+}
+.role-teacher .tc-day:hover{border-color:color-mix(in srgb,var(--ec-iris) 55%,var(--ec-border));background:color-mix(in srgb,var(--ec-lavender) 35%,var(--ec-surface));transform:translateY(-1px)}
+.role-teacher .tc-day.selected{border-color:var(--ec-iris);background:var(--ec-lavender);box-shadow:inset 0 0 0 1px var(--ec-iris)}
+.role-teacher .tc-day.blank{background:var(--ec-surface-muted);transform:none}
+.role-teacher .tc-month>.tc-day:nth-child(7n){background:color-mix(in srgb,var(--ec-clay) 18%,var(--ec-surface))}
+.role-teacher .tc-month>.tc-day:nth-child(7n).selected{background:var(--ec-lavender)}
+.role-teacher .tc-count{border-radius:var(--ec-radius-pill);background:var(--ec-iris);color:#fff;font-weight:700}
+.role-teacher .tc-day-summary{color:var(--ec-text-secondary)}
+.role-teacher .tc-empty{display:grid;justify-items:center;gap:6px;min-height:132px;padding:24px;color:var(--ec-text-secondary)}
+.role-teacher .tc-empty svg{color:var(--ec-iris)}
+.role-teacher .tc-empty h2,.role-teacher .tc-empty p{margin:0}
+.role-teacher .tc-empty h2{color:var(--ec-ink);font-size:17px}
+.role-teacher .tc-detail-grid{grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr);align-items:stretch}
+.role-teacher .tc-day-spotlight,.role-teacher .tc-event-ticket{min-width:0;padding:22px}
+.role-teacher .tc-panel-heading h2,.role-teacher .tc-ticket-heading h2{margin:0;color:var(--ec-ink);font-size:19px}
+.role-teacher .tc-panel-heading p{margin:4px 0 16px;color:var(--ec-text-secondary);font-size:12px}
+.role-teacher .tc-day-spotlight .ti-list-button{border-color:color-mix(in srgb,var(--ec-butter) 60%,var(--ec-border));background:color-mix(in srgb,var(--ec-butter) 18%,var(--ec-surface))}
+.role-teacher .tc-day-spotlight .ti-list-button.active{border-color:var(--ec-iris);background:var(--ec-surface)}
+.role-teacher .tc-day-empty,.role-teacher .tc-event-empty{display:grid;justify-items:center;gap:8px;padding:28px 16px;color:var(--ec-text-secondary);text-align:center}
+.role-teacher .tc-day-empty p,.role-teacher .tc-event-empty p{margin:0}
+.role-teacher .tc-day-empty svg,.role-teacher .tc-event-empty svg{color:var(--ec-iris)}
+.role-teacher .tc-ticket-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 24px 18px 0}
+.role-teacher .tc-ticket-heading .ti-chip{flex:none}
+.role-teacher .tc-event-content{display:grid;gap:16px;margin-right:24px}
+.role-teacher .tc-event-content h3{margin:0;color:var(--ec-ink);font-size:23px;line-height:1.3;overflow-wrap:anywhere}
+.role-teacher .tc-event-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.role-teacher .tc-event-meta p{display:flex;align-items:flex-start;gap:9px;margin:0;padding:11px 12px;border:1px solid color-mix(in srgb,var(--ec-ink) 12%,transparent);border-radius:12px;background:color-mix(in srgb,var(--ec-surface) 72%,transparent)}
+.role-teacher .tc-event-meta svg{flex:none;margin-top:2px;color:var(--ec-iris)}
+.role-teacher .tc-event-meta span{display:grid;gap:2px;min-width:0}
+.role-teacher .tc-event-meta strong{color:var(--ec-ink);font-size:13px;line-height:1.45}
+.role-teacher .tc-event-meta small{color:color-mix(in srgb,var(--ec-ink) 72%,transparent);font-size:12px}
+.role-teacher .tc-details{display:grid;gap:5px;margin:0;padding:12px 14px;border-radius:12px;background:color-mix(in srgb,var(--ec-surface) 65%,transparent)}
+.role-teacher .tc-details>span{color:color-mix(in srgb,var(--ec-ink) 72%,transparent);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.role-teacher .tc-details p{margin:0;color:var(--ec-ink);font-size:13px;line-height:1.55}
+.role-teacher .tc-resource-link{display:inline-flex;width:max-content;max-width:100%;align-items:center;gap:7px;color:var(--ec-ink);font-size:13px;font-weight:700;text-underline-offset:3px}
+.role-teacher .tc-ticket-actions{display:flex;flex-wrap:wrap;gap:8px;padding-top:16px;border-top:1px dashed color-mix(in srgb,var(--ec-ink) 24%,transparent)}
+.role-teacher .tc-ticket-actions .ti-button{min-height:40px;background:var(--ec-surface)}
+.role-teacher .tc-ticket-actions .ti-button.primary{background:var(--ec-iris);color:#fff}
+.role-teacher .tc-readonly{display:flex;align-items:center;gap:7px}
+
+@media(max-width:900px){
+  .role-teacher .tc-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .role-teacher .tc-create-action{grid-column:1/-1;width:100%}
+  .role-teacher .tc-detail-grid{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  .role-teacher .tc-calendar-heading{min-height:118px;padding:24px 92px 24px 22px;border-radius:24px 24px 10px 24px}
+  .role-teacher .tc-calendar-heading::before{right:18px;width:58px;height:58px}
+  .role-teacher .tc-calendar-heading::after{right:88px}
+  .role-teacher .tc-calendar-heading~.tc-toolbar{margin:-10px 10px 22px}
+  .role-teacher .tc-toolbar{grid-template-columns:1fr;padding:12px}
+  .role-teacher .tc-create-action{grid-column:auto}
+  .role-teacher .tc-calendar-card{padding:14px 10px}
+  .role-teacher .tc-day{min-height:66px;border-radius:9px}
+  .role-teacher .tc-ticket-heading{align-items:flex-start;flex-direction:column;margin-right:16px}
+  .role-teacher .tc-event-content{margin-right:16px}
+  .role-teacher .tc-event-meta{grid-template-columns:1fr}
+  .role-teacher .tc-ticket-actions .ti-button{flex:1}
 }

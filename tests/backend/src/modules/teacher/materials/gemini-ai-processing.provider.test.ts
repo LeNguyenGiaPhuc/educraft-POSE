@@ -24,6 +24,35 @@ function response(value: unknown, status = 200): Response {
   });
 }
 
+function storedZipEntry(name: string, content: string): Buffer {
+  const nameBuffer = Buffer.from(name);
+  const contentBuffer = Buffer.from(content);
+  const localHeader = Buffer.alloc(30);
+  localHeader.writeUInt32LE(0x04034b50, 0);
+  localHeader.writeUInt16LE(20, 4);
+  localHeader.writeUInt32LE(contentBuffer.length, 18);
+  localHeader.writeUInt32LE(contentBuffer.length, 22);
+  localHeader.writeUInt16LE(nameBuffer.length, 26);
+
+  const localRecord = Buffer.concat([localHeader, nameBuffer, contentBuffer]);
+  const centralHeader = Buffer.alloc(46);
+  centralHeader.writeUInt32LE(0x02014b50, 0);
+  centralHeader.writeUInt16LE(20, 4);
+  centralHeader.writeUInt16LE(20, 6);
+  centralHeader.writeUInt32LE(contentBuffer.length, 20);
+  centralHeader.writeUInt32LE(contentBuffer.length, 24);
+  centralHeader.writeUInt16LE(nameBuffer.length, 28);
+  const centralRecord = Buffer.concat([centralHeader, nameBuffer]);
+
+  const endRecord = Buffer.alloc(22);
+  endRecord.writeUInt32LE(0x06054b50, 0);
+  endRecord.writeUInt16LE(1, 8);
+  endRecord.writeUInt16LE(1, 10);
+  endRecord.writeUInt32LE(centralRecord.length, 12);
+  endRecord.writeUInt32LE(localRecord.length, 16);
+  return Buffer.concat([localRecord, centralRecord, endRecord]);
+}
+
 describe('Gemini material processing provider', () => {
   it('keeps the material pending when no API key is configured', async () => {
     const provider = createGeminiAiProcessingProvider({ ...baseOptions, apiKey: undefined });
@@ -66,7 +95,38 @@ describe('Gemini material processing provider', () => {
     expect(requestBody.generationConfig.responseSchema.type).toBe('OBJECT');
     expect(requestBody.generationConfig.responseSchema.properties.segments.type).toBe('ARRAY');
     expect(requestBody.generationConfig.responseSchema.properties.segments.items.properties.position_index.type).toBe('INTEGER');
+    expect(JSON.stringify(requestBody.generationConfig.responseSchema)).not.toContain('additionalProperties');
     expect(fetchMock.mock.calls[0][0]).toContain('/models/gemini-test:generateContent?key=test-key');
+  });
+
+  it('extracts DOCX text locally instead of sending an unsupported Office MIME type', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(response({
+      segments: [{
+        position_type: 'PARAGRAPH',
+        position_index: 1,
+        position_label: 'Đoạn 1',
+        ordinal: 1,
+        content: 'Bài học EduCraft',
+      }],
+    }));
+    const provider = createGeminiAiProcessingProvider({ ...baseOptions, fetchImpl: fetchMock });
+    const docx = storedZipEntry(
+      'word/document.xml',
+      '<w:document><w:body><w:p><w:r><w:t>Bài học EduCraft</w:t></w:r></w:p></w:body></w:document>'
+    );
+
+    await expect(provider.process({
+      ...input,
+      fileName: 'lesson.docx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      buffer: docx,
+    })).resolves.toEqual(expect.objectContaining({ status: 'PROCESSED' }));
+
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    expect(requestBody.contents[0].parts[1]).toEqual(expect.objectContaining({
+      text: expect.stringContaining('Bài học EduCraft'),
+    }));
+    expect(requestBody.contents[0].parts[1]).not.toHaveProperty('inline_data');
   });
 
   it('returns failed for malformed Gemini output', async () => {

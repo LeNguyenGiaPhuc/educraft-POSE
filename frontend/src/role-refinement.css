@@ -234,7 +234,8 @@
 .role-teacher .tl-title-button{padding:0;border:0;background:transparent;color:inherit;font:inherit;font-weight:700;text-align:left;cursor:pointer}
 .role-teacher .tl-card-head p,.role-teacher .tl-card>p,.role-teacher .tl-help{font-size:13px;line-height:1.65}
 .role-teacher .tl-tag{font-size:12px}
-.role-teacher .tl-card li,.role-teacher .tl-material-list li{padding:14px 0;font-size:13px}
+.role-teacher .tl-card li:not(.tl-material-list li){padding:14px 0;font-size:13px}
+.role-teacher .tl-material-list li{padding:18px 20px;font-size:13px}
 .role-teacher .tl-card li small,.role-teacher .tl-material-list small{font-size:12px}
 .role-teacher .tl-actions button{min-height:42px;font-size:13px}
 .role-teacher .ta-create-grid{gap:14px}
@@ -244,7 +245,7 @@
 .role-teacher .ta-existing{padding:24px}
 .role-teacher .ta-existing h2{font-size:20px}
 .role-teacher .ta-existing>p{font-size:13px}
-.role-teacher .ta-activity-row{padding:15px 0}
+.role-teacher .ta-activity-row{padding:16px 20px}
 .role-teacher .ta-activity-row strong{font-size:14px}
 .role-teacher .ta-activity-row small{font-size:12px;line-height:1.55}
 .role-teacher .ta-status{font-size:12px}

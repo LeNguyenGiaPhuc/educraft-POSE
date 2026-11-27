@@ -3,6 +3,7 @@ import { AccountsPage } from './accounts/AccountsPage'
 import { ClassroomsPage } from './classrooms/ClassroomsPage'
 import { ClassroomSubjectsPage } from './subjects/ClassroomSubjectsPage'
 import './admin.css'
+import './admin-studio.css'
 
 export const adminPages: Record<string, ComponentType> = {
   accounts: AccountsPage,
