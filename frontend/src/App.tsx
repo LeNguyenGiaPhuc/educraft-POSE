@@ -32,20 +32,13 @@ function App() {
     }
   }, [])
 
-  function signIn(nextUser: DemoUser) {
-    saveDemoSession(nextUser)
-    setUser(nextUser)
-  }
-
   async function signInWithApi(username: string, password: string) {
     const nextUser = await loginWithBackend(username, password)
     setUser(nextUser)
   }
 
   async function signOut() {
-    if (user?.role !== 'student') {
-      await authApi.logout().catch(() => undefined)
-    }
+    await authApi.logout().catch(() => undefined)
     saveDemoSession(null)
     setUser(null)
   }
@@ -57,7 +50,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={user ? <Navigate to={`/${user.role}`} replace /> : <LoginPage onSignIn={signIn} onApiSignIn={signInWithApi} />} />
+        <Route path="/login" element={user ? <Navigate to={`/${user.role}`} replace /> : <LoginPage onApiSignIn={signInWithApi} />} />
         {(['admin', 'teacher', 'student'] as Role[]).map((role) => (
           <Route
             key={role}

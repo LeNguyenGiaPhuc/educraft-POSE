@@ -1,0 +1,25 @@
+import { Router } from 'express';
+import multer from 'multer';
+import { authenticate } from '../../middleware/authenticate.js';
+import { requireRole } from '../../middleware/require-role.js';
+import { studentController } from './student.controller.js';
+
+export const studentRouter = Router();
+const uploadNotebookImages = multer({ storage: multer.memoryStorage(), limits: { files: 10, fileSize: 20 * 1024 * 1024 } }).array('images', 10);
+studentRouter.use(authenticate, requireRole('STUDENT'));
+studentRouter.get('/workspace', studentController.workspace);
+studentRouter.get('/lessons/:lessonId', studentController.lesson);
+studentRouter.get('/activities', studentController.activities);
+studentRouter.get('/results', studentController.results);
+studentRouter.get('/profile', studentController.profile);
+studentRouter.get('/calendar', studentController.calendar);
+studentRouter.get('/conversations', studentController.conversations);
+studentRouter.post('/conversations', studentController.createConversation);
+studentRouter.post('/conversations/:conversationId/turns', studentController.sendChatTurn);
+studentRouter.post('/practice-sessions', studentController.createPracticeSession);
+studentRouter.post('/practice-sessions/:sessionId/submissions', studentController.submitPracticeSession);
+studentRouter.post('/activities/:activityId/submissions', studentController.submitExercise);
+studentRouter.post('/activities/:activityId/notebook-submissions', uploadNotebookImages, studentController.saveNotebookImages);
+studentRouter.delete('/notebook-submissions/:submissionId', studentController.deleteNotebookSubmission);
+studentRouter.get('/notebook-submissions/:submissionId/files/:fileId', studentController.notebookFile);
+studentRouter.patch('/notifications/:notificationId/read', studentController.markNotification);

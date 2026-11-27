@@ -25,6 +25,10 @@ Yêu cầu: Node.js, npm, Docker Desktop với Docker engine đang chạy.
 
 Nếu dùng Supabase PostgreSQL, thay `DATABASE_URL` bằng chuỗi kết nối PostgreSQL của dự án Supabase rồi chạy `npm run db:deploy`. Giữ URL và mật khẩu trong `.env` riêng, không commit. Khi chạy migration trên Supabase, dùng kết nối có quyền tạo bảng, enum, function và trigger. Backend là nơi duy nhất truy cập database; không cấp cho trình duyệt quyền đọc trực tiếp các bảng chứa dữ liệu học sinh, chat, ảnh hay kết quả AI tạm.
 
+## Tài khoản Student mẫu
+
+Để đăng nhập Student qua API và xem dữ liệu lớp mẫu, chạy `npm run db:seed:demo:student` trong thư mục `backend`. Lệnh này chỉ tạo/cập nhật `student@demo.educraft` cùng lớp `11A2 Demo` và môn Lịch sử; mật khẩu mẫu là `demo123`. Đây là dữ liệu phát triển, không dùng làm tài khoản triển khai thật.
+
 ## Những quyết định đã đưa vào schema
 
 - `classroom_enrollments` giữ nhiều lớp cũ và chỉ tối đa một lớp hiện tại mỗi học sinh. Lớp lưu trữ và kết quả cũ không bị xóa.

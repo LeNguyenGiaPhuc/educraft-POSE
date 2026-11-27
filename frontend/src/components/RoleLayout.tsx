@@ -63,7 +63,7 @@ export function RoleLayout({ user, onSignOut }: Props) {
           </NavLink>
           <button className="icon-button mobile-close" aria-label="Đóng menu" onClick={() => setMenuOpen(false)}><X size={20} /></button>
         </div>
-        <div className="workspace-label"><span className="workspace-dot" /> {user.role === 'student' ? scenario === 'unassigned' ? 'Chưa được xếp lớp' : isViewingHistory ? 'Lớp 10A1 · chỉ đọc' : 'Lớp 11A2' : roleNames[user.role]} <span className="workspace-arrow">⌄</span></div>
+        <div className="workspace-label"><span className="workspace-dot" /> {user.role === 'student' ? 'Không gian học sinh' : roleNames[user.role]} <span className="workspace-arrow">⌄</span></div>
         <p className="nav-caption">KHÔNG GIAN LÀM VIỆC</p>
         <nav className="main-nav" aria-label={`Điều hướng ${roleNames[user.role]}`}>
           {items.map(({ path, label, icon: Icon }) => (
@@ -81,7 +81,6 @@ export function RoleLayout({ user, onSignOut }: Props) {
         </nav>
         <div className="sidebar-bottom">
           {isManagedWorkspace && <button type="button" className="account-password-link" onClick={() => setIsPasswordDialogOpen(true)}><KeyRound size={16} /> Đổi mật khẩu</button>}
-          {user.role === 'student' && <div className="preview-note"><span className="preview-spark">✳</span><div><strong>Bản mô phỏng Student</strong><p>Các thao tác dùng dữ liệu mẫu và được lưu trong phiên này.</p></div></div>}
           <div className="sidebar-user"><span className="avatar">{user.initials}</span><span className="user-copy"><strong>{user.name}</strong><small>{user.context}</small></span><button className="icon-button logout" onClick={onSignOut} title="Đăng xuất" aria-label="Đăng xuất"><LogOut size={18} /></button></div>
         </div>
       </aside>
@@ -89,7 +88,7 @@ export function RoleLayout({ user, onSignOut }: Props) {
         <header className="topbar">
           <button className="icon-button mobile-menu" aria-label="Mở menu" onClick={() => setMenuOpen(true)}><Menu size={22} /></button>
           <div className="breadcrumb"><span>Không gian học tập</span><span className="slash">/</span><strong>{current.label}{visibleTeacherContext && ` / ${visibleTeacherContext.classroomName} · ${visibleTeacherContext.subjectName}`}</strong></div>
-          <span className="topbar-right">{!isManagedWorkspace && <><span className="live-dot" /> Giao diện mẫu</>}<span className="topbar-avatar">{user.initials}</span></span>
+          <span className="topbar-right">{!isManagedWorkspace && user.role !== 'student' && <><span className="live-dot" /> Giao diện mẫu</>}<span className="topbar-avatar">{user.initials}</span></span>
         </header>
         <main className="content"><Outlet /></main>
       </div>

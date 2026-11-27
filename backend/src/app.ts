@@ -36,6 +36,7 @@ import {
 import { createGeminiAiProcessingProvider } from './modules/teacher/materials/gemini-ai-processing.provider.js';
 import { DefaultActivityAiDraftProvider, setAiDraftProvider } from './modules/teacher/activities/activity-ai-draft.provider.js';
 import { createGeminiActivityAiProvider } from './modules/teacher/activities/gemini-activity-ai.provider.js';
+import { studentRouter } from './modules/student/student.routes.js';
 
 function configureNotebookAiProvider(): void {
   if (env.AI_PROVIDER !== 'gemini') {
@@ -157,6 +158,7 @@ export function createApp(): Express {
   app.use('/api/v1/teacher', teacherActivityRouter);
   app.use('/api/v1/teacher', teacherNotebookCheckRouter);
   app.use('/api/v1/teacher', teacherResultsRouter);
+  app.use('/api/v1/student', studentRouter);
 
   // 6. 404 & Centralized error handler
   app.use(notFoundHandler);

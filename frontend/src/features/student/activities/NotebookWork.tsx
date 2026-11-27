@@ -1,59 +1,80 @@
 import { useState, type ChangeEvent } from 'react'
-import { notebookActivity } from './activities.mock'
+import type { StudentActivity } from '../../../api/client'
+import { studentApi } from '../../../api/client'
 
-type Period = 'OPEN' | 'CLOSED' | 'REOPENED'
+type NotebookSubmission = NonNullable<NonNullable<StudentActivity['notebookCheck']>['periods'][number]['submissions'][number]>
 
-export function NotebookWork({ readOnly }: { readOnly: boolean }) {
-  const [period, setPeriod] = useState<Period>('OPEN')
-  const [images, setImages] = useState<string[]>(notebookActivity.existingImages)
-  const [hasSubmission, setHasSubmission] = useState(true)
+export function NotebookWork({ readOnly, activity }: { readOnly: boolean; activity: StudentActivity }) {
+  const notebook = activity.notebookCheck
+  const period = notebook?.periods[0]
+  const [submission, setSubmission] = useState<NotebookSubmission | null>(period?.submissions[0] ?? null)
+  const [files, setFiles] = useState<File[]>([])
+  const [mode, setMode] = useState<'append' | 'replace'>('append')
   const [message, setMessage] = useState('')
-  const [qualityExample, setQualityExample] = useState(false)
-  const editable = !readOnly && period !== 'CLOSED'
-  const currentImages = images
+  const [loading, setLoading] = useState(false)
+  const [now] = useState(() => Date.now())
+  const periodOpen = Boolean(period && !period.closed_at && Date.parse(period.due_at) > now && activity.status === 'PUBLISHED')
+  const editable = !readOnly && periodOpen && (!submission || submission.status === 'CURRENT')
+  const criteria = notebook?.criteria ?? []
 
-  function changePeriod(next: Period) {
-    setPeriod(next)
-    setImages(next === 'REOPENED' ? [] : notebookActivity.existingImages)
-    setHasSubmission(next !== 'REOPENED')
-    setMessage('')
-    setQualityExample(false)
-  }
-
-  function selectImages(event: ChangeEvent<HTMLInputElement>, replace: boolean) {
-    const files = Array.from(event.target.files ?? [])
+  function selectFiles(event: ChangeEvent<HTMLInputElement>) {
+    const selected = Array.from(event.target.files ?? [])
     event.currentTarget.value = ''
-    if (!files.length) return
-    if (files.some((file) => !['image/jpeg', 'image/png'].includes(file.type) || !/\.(jpe?g|png)$/i.test(file.name))) {
-      setMessage('Chỉ chọn ảnh JPEG hoặc PNG rõ nội dung. Hãy chọn lại tệp.')
+    if (selected.some((file) => !['image/jpeg', 'image/png'].includes(file.type))) {
+      setMessage('Chỉ chọn ảnh JPEG hoặc PNG.')
       return
     }
-    const names = files.map((file) => file.name)
-    setImages((current) => replace ? names : [...current, ...names])
-    setHasSubmission(true)
-    setMessage(`${replace ? 'Đã thay ảnh' : 'Đã thêm ảnh'} trong bản xem trước trên máy. Chưa tải ảnh hoặc sửa bài nộp thật.`)
+    setFiles(selected)
+    setMessage('')
   }
 
-  function deleteCurrentSubmission() {
-    setImages([])
-    setHasSubmission(false)
-    setMessage('Bài nộp hiện tại đã được xóa khỏi bản xem trước. Khi kết nối API, thao tác này sẽ xóa bản ghi đang mở.')
+  async function saveImages() {
+    if (!files.length) {
+      setMessage('Chọn ảnh trước khi lưu bài nộp.')
+      return
+    }
+    setLoading(true)
+    setMessage('')
+    try {
+      const saved = await studentApi.saveNotebookImages(activity.id, files, submission && mode === 'append' ? 'append' : 'replace')
+      const refreshed = await studentApi.activities()
+      const updatedActivity = refreshed.find((item) => item.id === activity.id)
+      const updatedSubmission = updatedActivity?.notebookCheck?.periods[0]?.submissions[0]
+      setSubmission(updatedSubmission ?? null)
+      setFiles([])
+      setMessage(`Ảnh đã được lưu vào bài nộp (${saved.files.length} ảnh).`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Không thể lưu ảnh. Hãy thử lại.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  function previewSubmission() {
-    setMessage(currentImages.length ? 'Đã đủ ảnh để xem trước. Chưa nộp bài; cần kết nối API để lưu và kiểm tra chất lượng ảnh.' : 'Cần ít nhất một ảnh trước khi nộp bài kiểm tra vở.')
+  async function deleteSubmission() {
+    if (!submission) return
+    setLoading(true)
+    setMessage('')
+    try {
+      await studentApi.deleteNotebookSubmission(submission.id)
+      setSubmission(null)
+      setFiles([])
+      setMessage('Bài nộp hiện tại đã được xóa khỏi hệ thống.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Không thể xóa bài nộp.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  return <section className="panel sa-work"><h2>{notebookActivity.title}</h2>
-    <p>Giáo viên sẽ đối chiếu ảnh vở với từng tiêu chí nội dung. Kết quả chỉ xuất hiện sau khi giáo viên chốt.</p>
-    <div className="student-toolbar"><label>Tình huống mẫu<select value={period} onChange={(event) => changePeriod(event.target.value as Period)}><option value="OPEN">Đang mở · sửa bài hiện tại</option><option value="CLOSED">Đã đóng · khóa bài</option><option value="REOPENED">Mở lại · nộp bài mới</option></select></label></div>
-    <div className="student-notice"><strong>Thời gian nộp:</strong> {notebookActivity.submissionPeriod}<br /><strong>Tiêu chí giáo viên đã chốt:</strong><ul>{notebookActivity.criteria.map((criterion) => <li key={criterion}>{criterion}</li>)}</ul></div>
-    {readOnly && <p className="student-notice">Lớp đã học chỉ được xem lại. Bạn không thể nộp hoặc sửa bài.</p>}
-    {period === 'CLOSED' && <p className="student-notice">Bài gần nhất đã khóa để AI phân tích và giáo viên xem lại. Không thể thay hoặc xóa ảnh lúc này.</p>}
-    {period === 'REOPENED' && <p className="student-notice">Giáo viên đã mở lại thời gian nộp. Đây là bài hiện tại mới; kết quả đã chốt trước đó vẫn được giữ.</p>}
-    <div className="sa-image-list"><h3>{hasSubmission ? 'Ảnh của bài nộp hiện tại' : 'Bài nộp hiện tại'}</h3>{currentImages.length ? <ul>{currentImages.map((name, index) => <li key={`${name}-${index}`}>{index + 1}. {name}</li>)}</ul> : <p>{hasSubmission ? 'Chưa chọn ảnh nào.' : 'Chưa có bài nộp hiện tại.'}</p>}</div>
-    {editable && <div className="student-stack"><label className="student-field">Thêm ảnh vào bài hiện tại<input type="file" accept="image/jpeg,image/png" multiple onChange={(event) => selectImages(event, false)} /></label><label className="student-field">Thay toàn bộ ảnh bài hiện tại<input type="file" accept="image/jpeg,image/png" multiple onChange={(event) => selectImages(event, true)} /></label><div className="student-toolbar"><button type="button" className="student-action secondary" onClick={deleteCurrentSubmission} disabled={!hasSubmission && !currentImages.length}>{hasSubmission ? 'Xóa bài nộp hiện tại' : 'Xóa ảnh đã chọn'}</button><button type="button" className="student-action secondary" onClick={() => setQualityExample((value) => !value)}>Xem ví dụ ảnh chưa đạt</button></div>{qualityExample && <p className="student-notice">Ví dụ cảnh báo: ảnh bị mờ, thiếu sáng, nghiêng nhiều hoặc bị cắt mất mép trang. Bạn nên chụp lại trước khi nộp. Chưa có phân tích ảnh thật.</p>}<div className="student-toolbar"><button type="button" className="student-action" onClick={previewSubmission}>Kiểm tra trước khi nộp</button><button type="button" disabled title="Cần kết nối API để lưu ảnh">Nộp ảnh · chưa kết nối</button></div></div>}
+  return <section className="panel sa-work">
+    <h2>{activity.title}</h2>
+    <p>Giáo viên chỉ hiển thị kết quả theo từng tiêu chí sau khi chốt; kiểm tra vở không có điểm tổng.</p>
+    <div className="student-notice"><strong>Thời hạn:</strong> {period ? new Date(period.due_at).toLocaleString('vi-VN') : 'Chưa mở kỳ nộp'}<br /><strong>Tiêu chí đã chốt:</strong>{criteria.length ? <ul>{criteria.map((criterion) => <li key={criterion.id}>{criterion.content}</li>)}</ul> : ' Chưa có tiêu chí.'}</div>
+    {readOnly && <p className="student-notice">Lớp đã học chỉ được xem lại. Không thể nộp hoặc sửa ảnh.</p>}
+    {!periodOpen && <p className="student-notice">Kỳ nộp đã đóng hoặc hết hạn. Bài nộp hiện tại chỉ xem được.</p>}
+    {submission && <><div className="sa-image-list"><h3>{submission.status === 'CURRENT' ? 'Bài nộp hiện tại' : 'Bài nộp đã khóa'}</h3><p>Đã nộp {new Date(submission.submitted_at).toLocaleString('vi-VN')} · {submission.status}</p><ul>{submission.files.map((file) => <li key={file.id}><a href={`/api/v1/student/notebook-submissions/${submission.id}/files/${file.id}`} target="_blank" rel="noreferrer">Ảnh {file.sort_order + 1} · {file.mime_type}</a></li>)}</ul></div>{submission.assessment && <section className="student-notice"><strong>Giáo viên đã chốt kết quả</strong><ul>{submission.assessment.results.map((result) => <li key={result.criterion.content}>{result.criterion.content}: {result.status}{result.note ? ` · ${result.note}` : ''}</li>)}</ul></section>}</>}
+    {!submission && <p className="student-notice">Chưa có bài nộp trong kỳ này.</p>}
+    {editable && <div className="student-stack"><label className="student-field">{submission ? 'Chọn ảnh để thêm hoặc thay ảnh hiện tại' : 'Chọn ảnh vở'}<input type="file" accept="image/jpeg,image/png" multiple onChange={selectFiles} /></label>{submission && <label className="student-field">Thao tác<select value={mode} onChange={(event) => setMode(event.target.value as 'append' | 'replace')}><option value="append">Thêm ảnh vào bài hiện tại</option><option value="replace">Thay toàn bộ ảnh hiện tại</option></select></label>}{files.length > 0 && <p>{files.length} ảnh sẽ được {submission && mode === 'append' ? 'thêm vào' : 'dùng để thay thế'} trong hệ thống.</p>}<div className="student-toolbar"><button type="button" className="student-action" onClick={saveImages} disabled={loading || !files.length}>{loading ? 'Đang lưu…' : 'Lưu bài nộp'}</button>{submission && <button type="button" className="student-action secondary" onClick={deleteSubmission} disabled={loading}>Xóa bài nộp hiện tại</button>}</div><p className="student-muted">Ảnh được tải lên kho lưu trữ riêng tư của hệ thống.</p></div>}
     {message && <p className="student-notice" role="status">{message}</p>}
-    <div className="sa-history"><h3>Lịch sử đã chốt</h3><p>{notebookActivity.previousFinalized.date} · {notebookActivity.previousFinalized.teacher}</p><p>{notebookActivity.previousFinalized.summary}. Xem từng tiêu chí trong mục Kết quả.</p></div>
   </section>
 }

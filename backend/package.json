@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "node --env-file=.env --import tsx --watch src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "node --env-file=.env dist/server.js",
     "typecheck": "tsc --noEmit",
     "lint": "biome lint src ../tests/backend",
     "test": "vitest run",
@@ -15,6 +15,7 @@
     "db:validate": "prisma validate",
     "db:generate": "prisma generate",
     "db:seed:demo": "tsx scripts/seed-demo-users.ts",
+    "db:seed:demo:student": "node --env-file=.env --import tsx scripts/seed-demo-student.ts",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy"
   },

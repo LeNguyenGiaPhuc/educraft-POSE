@@ -1,14 +1,17 @@
-import type { StudentScenario } from './fixtures'
 import { useStudentScenario } from './useStudentScenario'
+import { useApiData } from '../../api/useApiData'
+import type { StudentWorkspace } from '../../api/client'
 import './scenario.css'
 
 export function StudentScenarioControl() {
   const { scenario, setScenario } = useStudentScenario()
-  return <label className="student-scenario">Tình huống xem trước
-    <select value={scenario} onChange={(event) => setScenario(event.target.value as StudentScenario)}>
-      <option value="current">Đang học lớp 11A2</option>
-      <option value="unassigned">Chưa được phân lớp</option>
-      <option value="history-only">Chỉ có lớp đã học</option>
+  const { data, loading } = useApiData<StudentWorkspace>('/student/workspace')
+  if (loading || !data) return null
+  return <label className="student-scenario">Phạm vi lớp
+    <select value={scenario === 'history-only' ? 'history' : data.current ? 'current' : 'unassigned'} onChange={(event) => setScenario(event.target.value === 'history' ? 'history-only' : 'current')}>
+      {data.current && <option value="current">Lớp hiện tại · {data.current.classroom.name}</option>}
+      {data.history.length > 0 && <option value="history">Lớp đã học · chỉ xem</option>}
+      {!data.current && !data.history.length && <option value="unassigned">Chưa được phân lớp</option>}
     </select>
   </label>
 }

@@ -1,62 +1,51 @@
-import { useState } from 'react'
 import { BookCheck, FileText } from 'lucide-react'
 import { Link } from 'react-router'
+import type { StudentResults, StudentWorkspace } from '../../../api/client'
+import { useApiData } from '../../../api/useApiData'
 import { StudentScenarioControl } from '../ScenarioControl'
 import { useStudentScenario } from '../useStudentScenario'
-import { studentSubjects } from '../fixtures'
-import { asGradePreview, exerciseResults, getResultGroup, getResultSource, notebookResults, type ExerciseResult, type GradeState, type NotebookResult } from './results.mock'
 import '../student.css'
 import './results.css'
 
-const findingLabels = { RECORDED: 'Đã ghi nhận', NEEDS_SUPPLEMENTATION: 'Cần bổ sung', UNDETERMINED: 'Chưa xác định' }
-const date = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString('vi-VN')
-
-function ExerciseFeedback({ result }: { result: ExerciseResult }) {
-  const subject = studentSubjects.find((item) => item.id === result.classroomSubjectId)
-  const total = result.status === 'GRADED' ? result.answers.reduce((sum, answer) => ({ earned: sum.earned + answer.earned, maximum: sum.maximum + answer.maximum }), { earned: 0, maximum: 0 }) : null
-  return <article className="panel result-card">
-    <div className="student-panel-heading"><div><span className="student-badge muted">{result.kind === 'QUIZ' ? 'Trắc nghiệm' : 'Tự luận ngắn'}</span><h3>{result.title}</h3><p>{subject?.name} · {subject?.classroomName} · Nộp {date(result.submittedAt)}</p></div>{total ? <div className="result-score"><strong>{total.earned}/{total.maximum}</strong><span>Điểm luyện tập</span></div> : <span className="student-badge warning">{result.status === 'PENDING' ? 'Đang chờ chấm' : 'Chấm bài gặp lỗi'}</span>}</div>
-    {result.status !== 'GRADED' && <p className="student-notice">Câu trả lời đã được giữ lại. {result.status === 'FAILED' ? 'Cần xử lý lại việc chấm bài khi kết nối API; bạn không cần nộp lại.' : 'Điểm và giải thích chỉ xuất hiện khi chấm thành công.'}</p>}
-    <ol className="result-answers">{result.answers.map((answer, index) => {
-      const graded = result.status === 'GRADED' ? result.answers[index] : null
-      const source = graded ? getResultSource(graded, result.classroomSubjectId) : null
-      const sourceId = `source-${result.id}-${index}`
-      return <li key={answer.question}><h4>{answer.question}</h4><p><strong>Câu trả lời của bạn:</strong> {answer.answer}</p>{graded && <><p className="result-answer-mark">{graded.earned === graded.maximum ? 'Đúng' : graded.earned === 0 ? 'Chưa đúng' : 'Đạt một phần'} · {graded.earned}/{graded.maximum} điểm</p><p>{graded.explanation}</p>{source ? <><span className="student-badge muted">{source.lesson.title}</span><p><Link className="student-source" to={`/student/lessons/${graded.lessonId}${subject?.historic ? `?scenario=history-only&source=${graded.materialId}` : `?source=${graded.materialId}`}`}>{source.material.name} · {graded.position}</Link></p><aside tabIndex={-1} id={sourceId} className="result-source"><FileText size={16} aria-hidden="true" /><div><strong>Thông tin nguồn đối chiếu</strong><p>{source.lesson.title} · {source.material.name} · Phiên bản {source.material.version}</p><p>{graded.position} · Học liệu đã công bố, đã xử lý.</p><p className="student-muted">Mở bài học để xem học liệu và vị trí nguồn trong bản xem trước.</p></div></aside></> : <p className="student-notice">Chưa đủ nguồn hợp lệ để đối chiếu phản hồi này.</p>}</>}</li>
-    })}</ol>
-  </article>
-}
-
-function NotebookFeedback({ result, previous }: { result: NotebookResult; previous: boolean }) {
-  return <article className="panel result-card"><div className="student-panel-heading"><div><span className="student-badge">Giáo viên đã chốt</span><h3>{previous ? 'Lần chốt trước' : 'Kiểm tra vở · Kết quả mới nhất'}</h3><p>Lịch sử · 11A2 · {date(result.finalizedAt)}</p></div><BookCheck size={24} aria-hidden="true" /></div><dl className="result-criteria">{result.criteria.map((criterion) => <div key={criterion.title}><dt>{criterion.title}</dt><dd><span className={`student-badge ${criterion.status === 'RECORDED' ? '' : 'warning'}`}>{findingLabels[criterion.status]}</span><p>{criterion.note}</p></dd></div>)}</dl><div className="result-teacher"><strong>Giáo viên đánh giá: {result.evaluator}</strong><p>{result.comment}</p></div></article>
-}
-
-export function ActivityResultDetail({ activityId, gradeState = 'GRADED' }: { activityId: string; gradeState?: GradeState }) {
-  const exercise = exerciseResults.find((result) => result.activityId === activityId)
-  const shownExercise = exercise?.classroomSubjectId === 'history-11a2' ? asGradePreview(exercise, gradeState) : exercise
-  const notebooks = notebookResults.filter((result) => result.activityId === activityId)
-  if (shownExercise) return <ExerciseFeedback result={shownExercise} />
-  if (notebooks.length) return <div className="student-stack"><NotebookFeedback result={notebooks[0]} previous={false} />{notebooks.length > 1 && <details className="result-history"><summary>Xem {notebooks.length - 1} lần chốt trước</summary><div className="student-stack">{notebooks.slice(1).map((result) => <NotebookFeedback key={result.id} result={result} previous />)}</div></details>}</div>
-  return <section className="panel student-empty"><BookCheck size={26} aria-hidden="true" /><h2>Chưa có kết quả</h2><p>Bài này chưa được chấm hoặc chưa có phản hồi đã chốt.</p></section>
-}
+const statusLabel: Record<string, string> = { RECORDED: 'Đã ghi nhận', NEEDS_SUPPLEMENTATION: 'Cần bổ sung', UNDETERMINED: 'Chưa xác định' }
+const date = (value: string) => new Date(value).toLocaleString('vi-VN')
 
 export function ResultsPage() {
   const { scenario } = useStudentScenario()
-  const [gradeState, setGradeState] = useState<GradeState>('GRADED')
-  const isUnassigned = scenario === 'unassigned'
+  const { data: workspace, loading: workspaceLoading, error: workspaceError } = useApiData<StudentWorkspace>('/student/workspace')
+  const { data, loading, error } = useApiData<StudentResults>('/student/results')
+  if (workspaceLoading || loading) return <div className="page-content student-page"><p role="status">Đang tải kết quả…</p></div>
+  if (workspaceError || error) return <div className="page-content student-page"><section className="panel student-empty" role="alert"><h2>Không tải được kết quả</h2><p>{workspaceError || error}</p></section></div>
+  if (!workspace || !data) return null
+
+  const currentClassIds = new Set(workspace.current ? [workspace.current.classroom.id] : [])
+  const historyClassIds = new Set(workspace.history.map((item) => item.classroom.id))
+  const isVisible = (classroomId: string) => scenario === 'history-only' ? historyClassIds.has(classroomId) : currentClassIds.has(classroomId) || historyClassIds.has(classroomId)
+  const exercises = data.exercises.filter((item) => isVisible(item.activity.activity.classroomSubject.classroom.id))
+  const notebooks = data.notebooks.filter((item) => isVisible(item.period.activity.activity.classroomSubject.classroom.id) && item.assessment)
+  const hasResults = exercises.length + notebooks.length > 0
 
   return <div className="page-content student-page result-page">
-    <header className="page-heading"><span className="eyebrow"><span className="eyebrow-line" />PHẢN HỒI HỌC TẬP</span><h1>Kết quả của tôi</h1><p>Xem lại bài làm, hiểu phần cần bổ sung và đối chiếu học liệu.</p></header>
+    <header className="page-heading"><span className="eyebrow"><span className="eyebrow-line" />PHẢN HỒI HỌC TẬP</span><h1>Kết quả của tôi</h1><p>Xem lại bài làm đã lưu, kết quả đã chấm và nội dung cần bổ sung.</p></header>
     <StudentScenarioControl />
-    {isUnassigned ? <section className="panel student-empty"><BookCheck size={28} aria-hidden="true" /><div><span className="eyebrow">CHƯA CÓ DỮ LIỆU</span><h2>Chưa có kết quả để xem</h2><p>Em sẽ thấy kết quả sau khi được xếp vào một lớp và hoàn thành hoạt động học tập.</p></div></section> : <>
-      <p className="student-notice">Dữ liệu minh họa của riêng học sinh. Điểm bài tập hỗ trợ học tập, không thay thế điểm đánh giá chính thức. Kiểm tra vở chỉ hiển thị nhận xét đã được giáo viên chốt.</p>
-      <div className="student-toolbar"><label>Trạng thái chấm minh họa · bài lớp 11A2<select value={gradeState} onChange={(event) => setGradeState(event.target.value as GradeState)}><option value="GRADED">Đã chấm</option><option value="PENDING">Đang chờ chấm</option><option value="FAILED">Chấm gặp lỗi</option></select></label><p className="student-muted">Các trạng thái là những ví dụ thay thế của cùng một lần nộp.</p></div>
-      {scenario === 'history-only' && <p className="student-notice">Đây là kết quả của lớp đã học. Màn hình chỉ cho phép xem lại, không có hoạt động mới.</p>}
-      {(['current', 'historic'] as const).map((group) => {
-        const exercises = exerciseResults.filter((result) => getResultGroup(result, scenario) === group)
-        const notebooks = notebookResults.filter((result) => getResultGroup(result, scenario) === group)
-        if (!exercises.length && !notebooks.length) return null
-        return <section key={group} className="result-group"><h2 className="student-section-title">{group === 'current' ? 'Lớp hiện tại' : 'Lịch sử các lớp · chỉ xem lại'}</h2><div className="student-stack">{exercises.map((result) => <ExerciseFeedback key={result.id} result={result.classroomSubjectId === 'history-11a2' ? asGradePreview(result, gradeState) : result} />)}{notebooks.length > 0 && <><h3 className="result-notebook-heading">Nhận xét kiểm tra vở</h3><NotebookFeedback result={notebooks[0]} previous={false} />{notebooks.length > 1 && <details className="result-history"><summary>Xem {notebooks.length - 1} lần chốt trước</summary><div className="student-stack">{notebooks.slice(1).map((result) => <NotebookFeedback key={result.id} result={result} previous />)}</div></details>}</>}</div></section>
-      })}
+    {scenario === 'history-only' && <p className="student-notice">Đây là kết quả của lớp đã học. Màn hình chỉ cho phép xem lại.</p>}
+    {!hasResults ? <section className="panel student-empty"><BookCheck size={28} aria-hidden="true" /><h2>Chưa có kết quả để xem</h2><p>Kết quả sẽ xuất hiện sau khi có bài nộp hoặc giáo viên chốt kiểm tra vở.</p></section> : <>
+      {exercises.length > 0 && <section className="result-group"><h2 className="student-section-title">Bài tập được giao</h2><div className="student-stack">{exercises.map((result) => {
+        const activity = result.activity.activity
+        const subject = activity.classroomSubject.subject
+        const classroom = activity.classroomSubject.classroom
+        const graded = result.grading_status === 'GRADED'
+        const total = graded ? result.answers.reduce((sum, answer) => ({ earned: sum.earned + Number(answer.earned_points ?? 0), maximum: sum.maximum + Number(answer.question.max_points) }), { earned: 0, maximum: 0 }) : null
+        return <article className="panel result-card" key={result.id}><div className="student-panel-heading"><div><span className={`student-badge ${graded ? 'muted' : 'warning'}`}>{graded ? 'Đã chấm' : result.grading_status === 'FAILED' ? 'Chấm lỗi' : 'Đang chờ chấm'}</span><h3>{activity.title}</h3><p>{subject.name} · {classroom.name} · Nộp {date(result.submitted_at)}</p></div>{total && <div className="result-score"><strong>{total.earned}/{total.maximum}</strong><span>Điểm bài tập</span></div>}</div>
+          {!graded && <p className="student-notice">Câu trả lời đã được lưu. Điểm và phản hồi chỉ xuất hiện sau khi chấm thành công.</p>}
+          <ol className="result-answers">{result.answers.map((answer, index) => <li key={answer.question_id}><h4>Câu {index + 1}. {answer.question.prompt}</h4><p><strong>Câu trả lời của bạn:</strong> {answer.answer}</p>{graded && <><p className="result-answer-mark">{Number(answer.earned_points)}/{Number(answer.question.max_points)} điểm</p>{answer.explanation && <p>{answer.explanation}</p>}{answer.question.citations.map((citation) => <aside key={citation.segment.id} className="result-source"><FileText size={16} aria-hidden="true" /><div><strong>Nguồn đối chiếu · {answer.question.lesson.title}</strong><p>{citation.segment.materialVersion.material.file_name} · phiên bản {citation.segment.materialVersion.version_no} · {citation.segment.position_label}</p><Link className="student-source" to={`/student/lessons/${answer.question.lesson.id}`}>Mở bài học</Link></div></aside>)}</>}</li>)}</ol>
+        </article>
+      })}</div></section>}
+      {notebooks.length > 0 && <section className="result-group"><h2 className="student-section-title">Kiểm tra vở · kết quả giáo viên đã chốt</h2><div className="student-stack">{notebooks.map((submission) => {
+        const activity = submission.period.activity.activity
+        const assessment = submission.assessment!
+        return <article className="panel result-card" key={submission.id}><div className="student-panel-heading"><div><span className="student-badge">Giáo viên đã chốt</span><h3>{activity.title}</h3><p>{activity.classroomSubject.subject.name} · {activity.classroomSubject.classroom.name} · Chốt {date(assessment.reviewed_at)}</p></div><BookCheck size={24} aria-hidden="true" /></div><dl className="result-criteria">{assessment.results.map((item) => <div key={item.criterion.id}><dt>{item.criterion.content}</dt><dd><span className={`student-badge ${item.status === 'RECORDED' ? '' : 'warning'}`}>{statusLabel[item.status] ?? item.status}</span>{item.note && <p>{item.note}</p>}</dd></div>)}</dl><div className="result-teacher"><strong>Giáo viên đánh giá: {assessment.evaluator.full_name}</strong>{assessment.teacher_comment && <p>{assessment.teacher_comment}</p>}</div></article>
+      })}</div></section>}
     </>}
   </div>
 }

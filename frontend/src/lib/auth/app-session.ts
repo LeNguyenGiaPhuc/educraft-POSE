@@ -1,5 +1,5 @@
 import { authApi, type ApiUser } from '../api/auth'
-import { readDemoSession, saveDemoSession, type DemoUser, type Role } from '../../data/demo'
+import { saveDemoSession, type DemoUser, type Role } from '../../data/demo'
 
 function toDemoUser(apiUser: ApiUser): DemoUser {
   const initials = apiUser.fullName
@@ -24,7 +24,8 @@ export async function resolveInitialSession(): Promise<DemoUser | null> {
     const apiUser = await authApi.me()
     return toDemoUser(apiUser)
   } catch {
-    return readDemoSession()
+    saveDemoSession(null)
+    return null
   }
 }
 

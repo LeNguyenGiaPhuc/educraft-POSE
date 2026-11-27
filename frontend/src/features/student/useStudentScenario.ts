@@ -1,17 +1,20 @@
 import { useSearchParams } from 'react-router'
 import type { StudentScenario } from './fixtures'
-
-const scenarios: StudentScenario[] = ['current', 'unassigned', 'history-only']
+import { useApiData } from '../../api/useApiData'
+import type { StudentWorkspace } from '../../api/client'
 
 export function useStudentScenario() {
   const [params, setParams] = useSearchParams()
-  const requested = params.get('scenario')
-  const scenario: StudentScenario = scenarios.find((item) => item === requested) ?? 'current'
+  const { data } = useApiData<StudentWorkspace>('/student/workspace')
+  const hasHistory = Boolean(data?.history.length)
+  const requested = params.get('class') === 'history' || params.get('scenario') === 'history-only' ? 'history-only' : 'current'
+  const scenario: StudentScenario = data?.current ? requested : hasHistory && requested === 'history-only' ? 'history-only' : 'unassigned'
 
   function setScenario(next: StudentScenario) {
     const updated = new URLSearchParams(params)
-    if (next === 'current') updated.delete('scenario')
-    else updated.set('scenario', next)
+    updated.delete('scenario')
+    if (next === 'history-only') updated.set('class', 'history')
+    else updated.delete('class')
     setParams(updated)
   }
 
