@@ -33,6 +33,13 @@ const publishedLessonInclude = {
   include: { materials: publishedMaterialsInclude },
 };
 
+async function deleteStorageFilesBestEffort(keys: string[]) {
+  if (!keys.length) return;
+  const outcomes = await Promise.allSettled(keys.map((key) => defaultStorageProvider.delete(key)));
+  const failedCount = outcomes.filter((outcome) => outcome.status === 'rejected').length;
+  if (failedCount) console.error('Student notebook storage cleanup failed', { failedCount });
+}
+
 function requiredAnswer(answers: Map<string, string>, questionId: string) {
   const answer = answers.get(questionId);
   if (answer === undefined) throw new BadRequestError('Cần trả lời tất cả câu hỏi');
@@ -254,7 +261,9 @@ export const studentService = {
   },
 
   async submitPracticeSession(studentId: string, sessionId: string, input: { answers: Array<{ questionId: string; answer: string }> }) {
-    return prisma.$transaction(async (tx) => {
+    try {
+      return await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM self_practice_sessions WHERE id = ${sessionId}::uuid FOR UPDATE`;
       const session = await tx.selfPracticeSession.findFirst({
         where: { id: sessionId, student_id: studentId },
         include: { questions: { orderBy: { sort_order: 'asc' }, include: { citations: true } }, classroomSubject: { include: { classroom: true } } },
@@ -330,7 +339,13 @@ export const studentService = {
         }
       }
       return { id: updated.id, status: updated.status, totalScore: updated.total_score, answers: records.length };
-    });
+      });
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+        throw new ConflictError('Phiên tự ôn này đã được nộp; vui lòng tải lại kết quả');
+      }
+      throw error;
+    }
   },
 
   async listActivities(studentId: string) {
@@ -520,6 +535,7 @@ export const studentService = {
 
   async saveNotebookImages(studentId: string, activityId: string, files: Array<{ originalname: string; mimetype: string; size: number; buffer: Buffer }>, mode: 'append' | 'replace') {
     if (!files.length) throw new BadRequestError('Chọn ít nhất một ảnh JPEG hoặc PNG');
+    if (files.length > 10) throw new BadRequestError('Mỗi bài nộp tối đa 10 ảnh');
     for (const file of files) {
       const validation = validateMaterialFile(file);
       if (!validation.isValid || !['image/jpeg', 'image/png'].includes(file.mimetype)) {
@@ -527,13 +543,35 @@ export const studentService = {
       }
     }
 
+    // Reject invalid uploads before writing their bytes to external storage. The same checks
+    // are repeated under the activity row lock below to protect against changes mid-upload.
+    const preflightActivity = await prisma.activity.findFirst({
+      where: { id: activityId, kind: 'NOTEBOOK_CHECK', status: 'PUBLISHED' },
+      include: { classroomSubject: { include: { classroom: true } }, notebookCheck: { include: { periods: { orderBy: { period_no: 'desc' }, take: 1 } } } },
+    });
+    if (!preflightActivity?.notebookCheck) throw new NotFoundError('Không tìm thấy kiểm tra vở đã công bố');
+    const preflightEnrollment = await prisma.classroomEnrollment.findFirst({
+      where: { student_id: studentId, classroom_id: preflightActivity.classroomSubject.classroom_id, left_at: null, classroom: { status: 'ACTIVE' } },
+      select: { id: true },
+    });
+    if (!preflightEnrollment) throw new ForbiddenError('Chỉ học sinh của lớp hiện tại mới được nộp ảnh');
+    const preflightPeriod = preflightActivity.notebookCheck.periods[0];
+    if (!preflightPeriod || preflightPeriod.closed_at || preflightPeriod.due_at <= new Date()) throw new ConflictError('Thời gian nộp đã đóng');
+    const preflightSubmission = await prisma.notebookSubmission.findUnique({
+      where: { student_id_period_id: { student_id: studentId, period_id: preflightPeriod.id } },
+      select: { status: true, files: { select: { id: true } } },
+    });
+    if (preflightSubmission && preflightSubmission.status !== 'CURRENT') throw new ConflictError('Bài nộp đã khóa và không thể sửa');
+    if (mode === 'append' && !preflightSubmission) throw new BadRequestError('Chưa có bài nộp hiện tại; hãy thay ảnh để tạo bài nộp mới');
+    if (mode === 'append' && (preflightSubmission?.files.length ?? 0) + files.length > 10) throw new BadRequestError('Mỗi bài nộp tối đa 10 ảnh');
+
     const keys = files.map((file) => generateStorageKey(file.originalname));
     try {
       for (let index = 0; index < files.length; index += 1) {
         await defaultStorageProvider.put(keys[index], files[index].buffer, files[index].mimetype);
       }
     } catch (error) {
-      await Promise.all(keys.map((key) => defaultStorageProvider.delete(key).catch(() => undefined)));
+      await deleteStorageFilesBestEffort(keys);
       throw error;
     }
 
@@ -591,10 +629,10 @@ export const studentService = {
         return { id: submission.id, status: submission.status, submittedAt: submission.submitted_at, updatedAt: submission.updated_at, files: submission.files.map((file) => ({ id: file.id, mimeType: file.mime_type, order: file.sort_order })) };
       });
     } catch (error) {
-      await Promise.all(keys.map((key) => defaultStorageProvider.delete(key).catch(() => undefined)));
+      await deleteStorageFilesBestEffort(keys);
       throw error;
     }
-    await Promise.all(oldKeys.map((key) => defaultStorageProvider.delete(key).catch(() => undefined)));
+    await deleteStorageFilesBestEffort(oldKeys);
     return result;
   },
 
@@ -613,7 +651,7 @@ export const studentService = {
       await tx.notebookSubmissionFile.deleteMany({ where: { submission_id: submissionId } });
       await tx.notebookSubmission.delete({ where: { id: submissionId } });
     });
-    await Promise.all(submission.files.map((file) => defaultStorageProvider.delete(file.storage_key)));
+    await deleteStorageFilesBestEffort(submission.files.map((file) => file.storage_key));
     return { success: true };
   },
 

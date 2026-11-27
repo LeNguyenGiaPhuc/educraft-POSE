@@ -11,7 +11,7 @@ export function ProfilePage() {
   const { scenario } = useStudentScenario()
   const { data: workspace, loading: workspaceLoading, error: workspaceError } = useApiData<StudentWorkspace>('/student/workspace')
   const { data, loading, error } = useApiData<StudentProfile>('/student/profile')
-  const memberships = scenario === 'history-only' ? workspace?.history ?? [] : [...(workspace?.current ? [workspace.current] : []), ...(workspace?.history ?? [])]
+  const memberships = scenario === 'history-only' ? workspace?.history ?? [] : workspace?.current ? [workspace.current] : []
   const allowedSubjectIds = new Set(memberships.flatMap((membership) => membership.subjects.map((subject) => subject.id)))
   const points = (data?.points ?? []).filter((point) => allowedSubjectIds.has(point.classroom_subject_id))
 

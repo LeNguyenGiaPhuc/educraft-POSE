@@ -6,6 +6,7 @@ import type { AssignedExercise } from './activities.mock'
 export function ExerciseWork({ activity, readOnly }: { activity: AssignedExercise; readOnly: boolean }) {
   const { search } = useLocation()
   const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [submittedAnswers, setSubmittedAnswers] = useState<Record<string, string>>(activity.submittedAnswers ?? {})
   const [message, setMessage] = useState('')
   const [submitted, setSubmitted] = useState(activity.submitted)
   const [gradingStatus, setGradingStatus] = useState(activity.grading)
@@ -34,6 +35,7 @@ export function ExerciseWork({ activity, readOnly }: { activity: AssignedExercis
         answer: answers[question.id].trim(),
       })))
       setSubmitted(true)
+      setSubmittedAnswers(Object.fromEntries(activity.questions.map((question) => [question.id, answers[question.id].trim()])))
       setGradingStatus(result.gradingStatus as AssignedExercise['grading'])
       setMessage(result.message)
     } catch (error) {
@@ -46,7 +48,7 @@ export function ExerciseWork({ activity, readOnly }: { activity: AssignedExercis
   if (submitted) return <section className="panel sa-work">
     <h2>{activity.title}</h2>
     <p className="student-notice">Bài đã nộp một lần. Câu trả lời mẫu bên dưới được giữ nguyên; hệ thống không tạo lượt nộp thứ hai.</p>
-    {activity.questions.map((question) => <div className="sa-answer" key={question.id}><strong>{question.prompt}</strong><p>{activity.submittedAnswers?.[question.id]}</p></div>)}
+    {activity.questions.map((question) => <div className="sa-answer" key={question.id}><strong>{question.prompt}</strong><p>{submittedAnswers[question.id] ?? 'Chưa có câu trả lời được lưu.'}</p></div>)}
     <p className="student-notice">{gradingStatus === 'GRADED' ? 'Đã chấm thành công. Xem điểm và giải thích trong mục Kết quả.' : gradingStatus === 'FAILED' ? 'Chấm bài gặp lỗi. Bài làm được giữ lại để xử lý tiếp; chưa có điểm.' : 'Đang chấm bài. Bài làm đã được giữ lại; chưa có điểm.'}</p>
     {message && <p className="student-notice" role="status">{message}</p>}
     <Link className="student-action" to={`/student/results${search}`}>Xem kết quả</Link>

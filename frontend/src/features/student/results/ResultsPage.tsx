@@ -20,7 +20,7 @@ export function ResultsPage() {
 
   const currentClassIds = new Set(workspace.current ? [workspace.current.classroom.id] : [])
   const historyClassIds = new Set(workspace.history.map((item) => item.classroom.id))
-  const isVisible = (classroomId: string) => scenario === 'history-only' ? historyClassIds.has(classroomId) : currentClassIds.has(classroomId) || historyClassIds.has(classroomId)
+  const isVisible = (classroomId: string) => scenario === 'history-only' ? historyClassIds.has(classroomId) : currentClassIds.has(classroomId)
   const exercises = data.exercises.filter((item) => isVisible(item.activity.activity.classroomSubject.classroom.id))
   const notebooks = data.notebooks.filter((item) => isVisible(item.period.activity.activity.classroomSubject.classroom.id) && item.assessment)
   const hasResults = exercises.length + notebooks.length > 0
